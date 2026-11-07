@@ -1,4 +1,4 @@
-O teste que não previu a queda do ano passado usava 200 usuários virtuais, cada um em um laço "requisição, espera a resposta, dorme um segundo". Ele reportou p95 = 180 ms. No dia real, o p99 passou de 10 segundos. Os dois números foram *medidos*; só um descrevia a realidade. A diferença não estava na ferramenta — estava em como o teste gerava carga, no que media e no que perguntava. Esta página trata de projetar testes de carga que digam a verdade: os seis tipos clássicos de teste, o modelo de carga por trás de cada um, thresholds que codificam SLOs e os erros de medição que fazem testes mentirem.
+O teste que não previu a queda do ano passado usava 200 usuários virtuais, cada um em um laço "requisição, espera a resposta, dorme um segundo". Ele reportou p95 = 180 ms. No dia real, o p99 passou de 10 segundos. Os dois números foram *medidos*; só um descrevia a realidade. A diferença não estava na ferramenta — estava em como o teste gerava carga, no que media e no que perguntava. Esta página trata de projetar testes de carga que digam a verdade: os seis tipos clássicos de teste, o modelo de carga por trás de cada um, thresholds que codificam objetivos de nível de serviço (SLOs, *service level objectives*) e os erros de medição que fazem testes mentirem.
 
 Todos os exemplos usam o **k6** (Grafana Labs), a ferramenta de testes de carga dos labs do curso: os testes são JavaScript, o motor é Go e ele suporta os dois modelos de carga por meio de seus *executors*[^1]. Trechos equivalentes para Gatling, Locust, JMeter, wrk2 e vegeta estão no final.
 
@@ -6,7 +6,7 @@ Todos os exemplos usam o **k6** (Grafana Labs), a ferramenta de testes de carga 
 
 ## Anatomia de um teste k6 { #anatomy-of-a-k6-test }
 
-Um script k6 tem uma parte de **init** (imports, dados, `options`), um `setup()` opcional que roda uma vez, o **código do VU** (a função default ou uma função nomeada por cenário) que roda muitas vezes e um `teardown()` opcional. Os testes do BoxOffice compartilham um módulo com os fluxos de usuário, então cada tipo de teste abaixo é só uma *forma de carga* diferente sobre o mesmo comportamento:
+Um script k6 tem uma parte de **init** (imports, dados, `options`), um `setup()` opcional que roda uma vez, o **código do usuário virtual (VU)** (a função default ou uma função nomeada por cenário) que roda muitas vezes e um `teardown()` opcional. Os testes do BoxOffice compartilham um módulo com os fluxos de usuário, então cada tipo de teste abaixo é só uma *forma de carga* diferente sobre o mesmo comportamento:
 
 ```javascript title="k6/lib/boxoffice.js"
 import http from 'k6/http';
@@ -97,8 +97,8 @@ A consequência é dramática justamente quando importa. Considere 200 usuários
 | Tempo de resposta do sistema R | Modelo fechado: vazão $N/(R+Z)$ | Modelo aberto a 182 req/s |
 |---|---|---|
 | 0,1 s (saudável) | 200 / 1,1 = **182 req/s** | 182 req/s |
-| 0,5 s (degradando) | 200 / 1,5 = 133 req/s | 182 req/s — a fila começa a crescer |
-| 2,0 s (em dificuldade) | 200 / 3,0 = **67 req/s** | 182 req/s — a fila cresce sem limite |
+| 0,5 s (degradando) | 200 / 1,5 = 133 req/s | 182 req/s — ⚠️ a fila começa a crescer |
+| 2,0 s (em dificuldade) | 200 / 3,0 = **67 req/s** | 182 req/s — 🔴 a fila cresce sem limite |
 
 O teste fechado **reduziu a carga em 63 % no momento em que o sistema sofria** — um gerador de carga que recua é um presente que nenhuma venda real dá. Use o modelo que corresponde à população real:
 
@@ -418,7 +418,7 @@ Nunca rode um teste breakpoint contra a produção e sempre observe o **gerador 
 
 A omissão coordenada (*coordinated omission*) é o erro de medição que fez o teste do ano passado mentir[^3]. Ela acontece sempre que o gerador de carga **espera uma resposta antes de enviar a próxima requisição** e mede a latência **a partir do momento em que de fato enviou a requisição**. Quando o servidor trava, o testador para de enviar — então ele *omite* exatamente as requisições que teriam sofrido o travamento, em *coordenação* com o mau comportamento do servidor. As poucas amostras que ele registra durante o travamento se afogam entre milhares de rápidas.
 
-A simulação abaixo reproduz isso. Um servidor responde em 1 ms, mas congela por 1,5 s quatro vezes durante um teste de 60 s — uma pausa stop-the-world do GC ou um lock de tabela. O testador pretende enviar 100 requisições por segundo. O laço fechado espera cada resposta; o modelo aberto envia no horário e mede a partir do horário *pretendido* de envio:
+A simulação abaixo reproduz isso. Um servidor responde em 1 ms, mas congela por 1,5 s quatro vezes durante um teste de 60 s — uma pausa stop-the-world da coleta de lixo (GC, *garbage collection*) ou um lock de tabela. O testador pretende enviar 100 requisições por segundo. O laço fechado espera cada resposta; o modelo aberto envia no horário e mede a partir do horário *pretendido* de envio:
 
 ```python exec="1" html="1"
 # Coordinated omission, simulated. A server answers in 1 ms, but freezes for
@@ -491,6 +491,15 @@ plt.close()
 
 O servidor e seus quatro congelamentos são idênticos; só a medição difere. O laço fechado registrou ~600 amostras a menos (as que ele nunca enviou durante os congelamentos) e reporta um p99 perfeito de 1 ms. Na realidade, cerca de uma requisição em dez naquele minuto teria esperado entre alguns milissegundos e 1,5 s — o p90 corrigido é ~150 ms e o p99 passa de um segundo. **Um SLO verificado com a primeira linha passa; verificado com a segunda, falha. Os usuários experimentam a segunda.**
 
+Experimente você mesmo: o simulador abaixo roda o mesmo minuto, um segundo por vez, e deixa você mudar os congelamentos.
+
+<div class="csim" data-sim="coordinated-omission" data-stalls="4" data-stall="1.5"></div>
+
+!!! tip "Experimente"
+    1. Aperte play com os quatro congelamentos de 1,5 s da página. O laço fechado termina com 5.405 amostras e um p99 de 1,0 ms — 595 a menos que as 6.000 que o modelo aberto envia — e o seu threshold `p99 < 100 ms` passa. O modelo aberto reporta p90 152 ms e p99 1,37 s: o mesmo threshold falha.
+    2. Escolha um congelamento de 0,5 s (0,8% do teste): agora até o modelo aberto mostra p99 1,0 ms, porque menos de 1% das requisições foram lentas — o p99 não as vê, o seu p99.9 447 ms vê. Um p99 só enxerga uma cauda maior que 1% das requisições.
+    3. Escolha 8 congelamentos: o laço fechado enfim mostra um p99.9 1,5 s, mas o seu p99 1,0 ms ainda passa. Por mais que o servidor congele, o laço fechado continua omitindo as requisições que teriam esperado.
+
 Como evitar:
 
 - **Use geradores de modelo aberto** para tráfego de mundo aberto: `constant-arrival-rate`/`ramping-arrival-rate` do k6, `injectOpen` do Gatling, wrk2, vegeta. Eles iniciam as requisições no horário, independentemente das respostas anteriores (desde que tenham VUs/conexões livres — observe `dropped_iterations`).
@@ -525,7 +534,7 @@ k6 run --out experimental-prometheus-rw --tag testid=onsale-2027-03-14-run2 \
 K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run k6/load.js
 ```
 
-Com o k6 e as métricas OpenTelemetry dos serviços no mesmo Grafana (a stack `grafana/otel-lgtm` do [Hands-on 8](../../../hands-on/8/index.md)), um único dashboard mostra a taxa de chegada e o p99 do k6 ao lado das métricas RED de cada serviço e das métricas USE de cada recurso. Requisições lentas são encontradas por **exemplars de trace** e seus spans mostram para onde foi o tempo. Para testes além de uma máquina, o **k6-operator** executa um teste como vários pods paralelos em um cluster Kubernetes.
+Com o k6 e as métricas OpenTelemetry dos serviços no mesmo Grafana (a stack `grafana/otel-lgtm` do [Hands-on 8](../../../hands-on/8/index.md)), um único dashboard mostra a taxa de chegada e o p99 do k6 ao lado das métricas RED (taxa, erros, duração) de cada serviço e das métricas USE (utilização, saturação, erros) de cada recurso. Requisições lentas são encontradas por **exemplars de trace** e seus spans mostram para onde foi o tempo. Para testes além de uma máquina, o **k6-operator** executa um teste como vários pods paralelos em um cluster Kubernetes.
 
 ---
 
@@ -600,7 +609,7 @@ Os perfis de carga do playground são os mesmos seis tipos de teste (mais o caos
 | `breakpoint` | Uma taxa sempre crescente até o SLO quebrar | `ramping-arrival-rate` + `abortOnFail` | `rampUsersPerSec` + `assertions` | `LoadTestShape` + condição de parada |
 | `chaos` | Carga mais falhas injetadas (latência, erros, perda de instâncias) no nível de caos escolhido | script de carga + xk6-disruptor / Toxiproxy | carga + Toxiproxy | carga + Toxiproxy |
 
-O que o playground **simplifica**: ele modela capacidade, tempos de serviço, filas, timeouts, retries e falhas, mas não o aquecimento do JIT, a coleta de lixo, a contenção de locks dentro de um banco, a variância da rede nem o custo do seu código real. Um design que falha no playground vai falhar na realidade; um design que passa no playground ainda precisa ser medido.
+O que o playground **simplifica**: ele modela capacidade, tempos de serviço, filas, timeouts, retries e falhas, mas não o aquecimento do compilador just-in-time (JIT), a coleta de lixo, a contenção de locks dentro de um banco, a variância da rede nem o custo do seu código real. Um design que falha no playground vai falhar na realidade; um design que passa no playground ainda precisa ser medido.
 
 ---
 
@@ -610,7 +619,7 @@ Todas as ferramentas abaixo conseguem expressar os seis tipos de teste; elas dif
 
 === "Gatling"
 
-    DSL em Java/Kotlin/Scala, perfis de injeção abertos e fechados, relatórios HTML detalhados. Forte para times de JVM.
+    Linguagem específica de domínio (DSL, *domain-specific language*) em Java/Kotlin/Scala, perfis de injeção abertos e fechados, relatórios HTML detalhados. Forte para times de JVM.
 
     ```java
     public class HoldSimulation extends Simulation {
@@ -655,7 +664,7 @@ Todas as ferramentas abaixo conseguem expressar os seis tipos de teste; elas dif
 
 === "JMeter"
 
-    O veterano: GUI para montar planos, CLI para executá-los, muitos protocolos. Thread groups são de modelo fechado; use o *Constant Throughput Timer* ou o plugin *Arrivals Thread Group* para taxas de chegada.
+    O veterano: interface gráfica (GUI, *graphical user interface*) para montar planos, interface de linha de comando (CLI, *command-line interface*) para executá-los, muitos protocolos. Thread groups são de modelo fechado; use o *Constant Throughput Timer* ou o plugin *Arrivals Thread Group* para taxas de chegada.
 
     ```bash
     jmeter -n -t onsale.jmx -l results.jtl -e -o report/    # headless run + HTML report

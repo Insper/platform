@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">Arquitetura de Sistemas · Insper</div>
 
 # Engenharia de desempenho e testes de carga
@@ -38,7 +42,7 @@ omissão coordenada, caos sob carga; (4) gargalos: profiling e o banco de dados;
 </div>
 
 * O staging tinha **um décimo dos dados** — toda consulta acertava um cache quente.
-* Os VUs **esperavam cada resposta**: quando o sistema ficou lento, o teste ficou lento junto.
+* Os usuários virtuais (VUs, *virtual users*) **esperavam cada resposta**: quando o sistema ficou lento, o teste ficou lento junto.
 * Dez minutos nunca chegaram ao ponto em que o **pool de conexões** se esgotava.
 * Ninguém tinha escrito o que significava **"bom o suficiente"**.
 * O relatório mostrava **médias**.
@@ -71,13 +75,15 @@ modelo aberto vs fechado, tipos de teste, thresholds como SLOs, percentis.
 - **Região plana**: latência ≈ tempo de serviço.
 - **Joelho** (~70–80 % ocupado): filas se formam, **o p99 se curva primeiro**.
 - **Saturação**: a vazão para de crescer; timeouts viram erros.
-- **Retrógrado** (USL): depois do pico, *mais* concorrência → *menos* vazão (locks, retries).
+- **Retrógrado** (Lei Universal de Escalabilidade, USL, *Universal Scalability Law*): depois do pico, *mais* concorrência → *menos* vazão.
 
 <div class="ok">
 
-Planeje com o **joelho** — a maior taxa que ainda cumpre o SLO —, não com o máximo.
+Planeje com o **joelho** — a maior taxa que ainda cumpre o objetivo de nível de serviço (SLO, *service level objective*) —, não com o máximo.
 
 </div>
+
+<p class="small">Lab 2, <code>catalog</code> com 1 CPU e pool de 10: p99 de 38,6 ms a 300 req/s, 223,7 ms a 400, 2.056 ms a 500 — o joelho está entre 300 e 400 e quem saturou foi o pool, não a CPU.</p>
 
 <!--
 Mostre os dois gráficos da página de visão geral (latência M/M/8 vs carga, vazão USL vs N).
@@ -88,12 +94,16 @@ Depois rode o cenário monolith com o perfil breakpoint no playground.
 
 ## O ciclo de engenharia de desempenho
 
-1. **Objetivos**: SLOs por endpoint no pico esperado.
-2. **Modelo de carga**: mix, padrão de chegada, dados, assimetria.
-3. **Teste** em um ambiente parecido com a produção.
-4. **Análise**: curva, RED por serviço, USE por recurso, perfis.
-5. **Mude uma coisa**, teste de novo.
-6. **Publique** com um orçamento na CI; monitore em produção.
+<div class="flow">
+<div class="box accent">1 · objetivos<small>SLOs por endpoint no pico</small></div><div class="arrow">→</div>
+<div class="box">2 · modelo de carga<small>mix, chegadas, dados, assimetria</small></div><div class="arrow">→</div>
+<div class="box">3 · teste<small>ambiente parecido com a produção</small></div><div class="arrow">→</div>
+<div class="box orange">4 · análise<small>curva, RED, USE, perfis</small></div><div class="arrow">→</div>
+<div class="box green">5 · mude UMA coisa<small>e teste de novo</small></div>
+</div>
+
+- **6 · Publique** com um orçamento na integração contínua (CI, *continuous integration*); as métricas de produção alimentam o próximo modelo de carga.
+- Mude uma coisa por vez — senão você não consegue atribuir a melhora.
 
 <div class="warn">
 
@@ -134,18 +144,26 @@ Depois rode o cenário monolith com o perfil breakpoint no playground.
 
 ---
 
-## USE: utilização, saturação, erros — por recurso
+## USE: siga a espera, recurso por recurso
 
-- **Hardware**: CPU (fila de execução, **throttling**), memória (GC, OOM), rede, disco.
-- **Software** — satura com mais frequência: pool de threads, **pool de conexões** (pendentes), **locks**, filas (lag de consumidores).
+<div class="flow">
+<div class="box green">CPU<small>45 %, sem throttling</small></div><div class="arrow">→</div>
+<div class="box green">memória<small>coleta de lixo &lt; 2 %</small></div><div class="arrow">→</div>
+<div class="box orange">threads do Tomcat<small>200/200 — esperando o quê?</small></div><div class="arrow">→</div>
+<div class="box orange">pool Hikari<small>10/10, 180 pendentes</small></div><div class="arrow">→</div>
+<div class="box red">PostgreSQL<small>CPU 35 % · Lock: tuple</small></div>
+</div>
+
+- **U**tilização, **S**aturação, **E**rros de cada recurso — hardware *e* software (pools, locks, filas).
+- Gargalo: **contenção de locks de linha**, piorada por transações longas.
 
 <div class="q">
 
-`inventory` com CPU a 45 %, threads 200/200, pool 10/10 com 180 pendentes, PostgreSQL com CPU a 35 % e sessões em `Lock: tuple`. Gargalo?
+De "ponha um cache, um banco maior, mais pods, reescreva em Go", qual ajuda?
 
 </div>
 
-* **Contenção de locks de linha**, piorada por transações longas. Mais pods = mais gente esperando; um banco maior já tem CPU ociosa.
+* Nenhuma: cache não ajuda escritas, a CPU do banco está ociosa, mais pods somam gente esperando, Go espera os mesmos locks.
 
 ---
 
@@ -176,10 +194,10 @@ Depois rode o cenário monolith com o perfil breakpoint no playground.
 
 ## Faça o ambiente de teste dizer a verdade
 
-- **Paridade**: mesmos tipos de instância, limites, pools, flags da JVM, TLS, gateway — do mesmo IaC.
+- **Paridade**: mesmos tipos de instância, limites, pools, flags da máquina virtual Java (JVM, *Java virtual machine*), Transport Layer Security (TLS, *segurança da camada de transporte*), gateway — da mesma infraestrutura como código.
 - **Dados**: do tamanho da produção, **assimétricos**, sintéticos (sem dados pessoais); restaure um snapshot antes de cada execução.
 - **Dependências**: mocks com **latência realista** (pagamento ≈ 300 ms), não 1 ms.
-- **Aquecimento**: JIT, pools, caches — cenário separado, fora dos thresholds; teste **partidas a frio** de propósito.
+- **Aquecimento**: o compilador just-in-time, pools, caches — cenário separado, fora dos thresholds; teste **partidas a frio** de propósito.
 - **Ruído**: ≥ 3 execuções; verifique o **gerador de carga** (CPU, `dropped_iterations`).
 
 ---
@@ -210,8 +228,8 @@ Mesmos fluxos de usuário (`lib/boxoffice.js`), **formas de carga** diferentes.
 | Tempo de resposta R | Fechado: 200 VUs, Z = 1 s → `N/(R+Z)` | Aberto: 182 req/s |
 |---|---|---|
 | 0,1 s | 182 req/s | 182 req/s |
-| 0,5 s | 133 req/s | 182 — a fila cresce |
-| 2,0 s | **67 req/s** | 182 — a fila explode |
+| 0,5 s | 133 req/s | 182 — ⚠️ a fila cresce |
+| 2,0 s | **67 req/s** | 182 — 🔴 a fila explode |
 
 - **Fechado** (`constant-vus`, `ramping-vus`): populações fixas que esperam respostas.
 - **Aberto** (`constant-arrival-rate`, `ramping-arrival-rate`): usuários de internet, que não esperam.
@@ -248,22 +266,45 @@ Dê nome às URLs (`tags: { name }`), declare **409 = esperado**, conte os **ass
 
 ## Omissão coordenada
 
-<div class="q">
-
-O servidor congela 1,5 s quatro vezes por minuto. Um testador de laço fechado reporta **p99 = 1 ms**. Verdade?
-
+<div class="flow">
+<div class="box">laço fechado<small>envia, espera a resposta</small></div><div class="arrow">servidor congelado 1,5 s →</div>
+<div class="box red">1 amostra lenta<small>as outras ~150 nunca enviadas</small></div><div class="arrow">→</div>
+<div class="box green">p99 = 1 ms ✓</div>
+</div>
+<div class="flow">
+<div class="box">modelo aberto<small>envia a cada 10 ms, aconteça o que acontecer</small></div><div class="arrow">servidor congelado 1,5 s →</div>
+<div class="box red">~150 amostras lentas<small>medidas do envio pretendido</small></div><div class="arrow">→</div>
+<div class="box red">p99 = 1,37 s ✗</div>
 </div>
 
-* Ele **parou de enviar** durante cada congelamento: uma amostra lenta em vez de ~150.
-* Medido a partir do horário **pretendido** de envio: p90 ≈ 150 ms, **p99 ≈ 1,4 s**.
-* Correção: geradores de modelo aberto (taxa de chegada do k6, wrk2, vegeta, `injectOpen` do Gatling), timeouts contados com duração total, comparar percentis do cliente e do servidor.
+- O mesmo servidor, quatro congelamentos por minuto: o laço fechado grava **595 amostras a menos** — justamente as lentas.
+- Correção: geradores de modelo aberto (taxa de chegada do k6, wrk2, vegeta, `injectOpen` do Gatling), timeouts contados com duração total, percentis do cliente vs do servidor.
+
+---
+
+## Simulador: dois relatórios do mesmo minuto
+
+<div class="flow">
+<div class="box">4 congelamentos de 1,5 s<small>p99 fechado 1,0 ms ✓ · p99 aberto 1,37 s ✗</small></div><div class="arrow">→</div>
+<div class="box orange">1 congelamento de 0,5 s<small>0,8 % do teste: até o p99 aberto é 1,0 ms</small></div><div class="arrow">→</div>
+<div class="box">8 congelamentos<small>p99.9 fechado = 1,5 s, p99 ainda 1,0 ms</small></div>
+</div>
+
+- O simulador **coordinated-omission** da página de testes de carga: mude os congelamentos, toque o minuto, compare amostras e veredictos.
+- Um p99 só enxerga uma cauda maior que 1 % das requisições: paradas curtas pedem **p99.9 e max**.
+
+<div class="warn">
+
+Por mais que o servidor congele, o laço fechado continua omitindo as requisições que teriam esperado.
+
+</div>
 
 ---
 
 ## Spike, soak, breakpoint — o que ler
 
 - **Spike**: erros durante o salto, minutos para voltar ao SLO; compare **com e sem pré-escala**.
-- **Soak**: tendências, não totais — heap depois do GC, conexões, p99 na hora 8 vs hora 1.
+- **Soak**: tendências, não totais — heap depois da coleta de lixo, conexões, p99 na hora 8 vs hora 1.
 - **Breakpoint**: thresholds com `abortOnFail` o interrompem; resultado = **joelho + primeiro recurso saturado**. Nunca em produção.
 - **Stress**: elegante = 429/503 rápidos + recuperação; catastrófico = timeouts → retries → continua fora.
 
@@ -279,7 +320,7 @@ O servidor congela 1,5 s quatro vezes por minuto. Um testador de laço fechado r
 
 <div class="ok">
 
-Padrões de resiliência só são provados **no pico**. Playground: `cascading-failure` com o perfil `chaos`.
+Padrões de resiliência só são provados **no pico**. Lab 9: p50 do `browse` de 9,04 s sem proteção e 6,5 ms com os padrões.
 
 </div>
 
@@ -331,6 +372,25 @@ CREATE INDEX CONCURRENTLY seats_available_idx
 
 ---
 
+## Uma mudança por vez: o gargalo se move
+
+<div class="flow">
+<div class="box red">400/s<small>Seq Scan do mapa de assentos</small></div><div class="arrow">índice →</div>
+<div class="box red">700/s<small>pool 10/10, 150 pendentes</small></div><div class="arrow">preços fora →</div>
+<div class="box red">1 100/s<small>locks de linha</small></div><div class="arrow">SKIP LOCKED →</div>
+<div class="box red">1 800/s<small>CPU do inventory a 85 %</small></div>
+</div>
+<div class="flow">
+<div class="arrow">10 pods + PgBouncer →</div>
+<div class="box red">3 400/s<small>CPU do primário a 80 %</small></div><div class="arrow">sala de espera →</div>
+<div class="box green">3 000 admitidas<small>p99 140 ms · o limite é escolhido</small></div>
+</div>
+
+- Mantenha um diário: mudança, novo joelho, o que saturou em seguida — a evidência por trás de cada número de capacidade.
+- Somar capacidade onde o gargalo **não** está não compra nada (playground `monolith`: 12 réplicas = 6 réplicas, a um custo maior).
+
+---
+
 ## Planejamento de capacidade
 
 > réplicas = ⌈ pico / (joelho × (1 − folga)) ⌉, depois sobreviver à perda de uma zona
@@ -338,21 +398,39 @@ CREATE INDEX CONCURRENTLY seats_available_idx
 - Reservas: ⌈4 500 / (275 × 0,75)⌉ = **22** pods → ⌈22 × 3/2⌉ = **33** em 3 zonas.
 - Sala de espera a 3 000 reservas/s → **24** pods, carga limitada no banco.
 - Folga para erro de previsão, rajadas de segundos, falhas, deploys, **atraso do autoscaling**.
+- Conexões: 4 500 × 6 ms ≈ 27 ativas — PgBouncer na frente do primário.
 
-<div class="warn">
+---
 
-O autoscaling leva **1–4 min**. Demanda de 4 500/s vs capacidade de 1 100/s por 120 s = backlog de **408 000** requisições → **pré-escale** às 09:45.
+## O autoscaling chega atrasado
 
+<div class="flow">
+<div class="box red">10:00:00<small>500 → 4 500 reservas/s</small></div><div class="arrow">→</div>
+<div class="box">métricas<small>15–60 s</small></div><div class="arrow">→</div>
+<div class="box">Horizontal Pod Autoscaler (HPA)<small>≤ 15 s</small></div><div class="arrow">→</div>
+<div class="box">agendar / nó novo<small>s – 3 min</small></div><div class="arrow">→</div>
+<div class="box">JVM pronta<small>20–60 s</small></div>
 </div>
+
+- **1–4 minutos**: demanda de 4 500/s vs capacidade de 1 100/s por 120 s = backlog de **408 000** requisições.
+- Picos conhecidos: **pré-escale** às 09:45, controle de admissão, aqueça os pods novos.
+
+<p class="small">Playground: <code>boxoffice-hpa</code> (lab 10) — aumente o mínimo do HPA para 4 pods e os descartes somem.</p>
 
 ---
 
 ## Orçamentos de desempenho na CI
 
-- Teste k6 curto, de **modelo aberto**, por PR, sobre uma stack Compose parecida com a produção; aquecimento antes.
-- Gate **absoluto**: thresholds derivados dos SLOs, com margem (`p(95)<150` para reservas).
-- Gate **relativo**: mais de 15 % mais lento que a linha de base da `main` reprova.
-- Orçamentos **determinísticos**: statements SQL por requisição (pega N+1), tamanho de payload, tamanho da imagem, tempo de início.
+<div class="flow">
+<div class="box">pull request</div><div class="arrow">→</div>
+<div class="box">compose up<small>+ aquecimento</small></div><div class="arrow">→</div>
+<div class="box accent">gate absoluto<small>thresholds com margem</small></div><div class="arrow">→</div>
+<div class="box accent">gate relativo<small>> 15 % mais lento que a main?</small></div><div class="arrow">→</div>
+<div class="box green">merge</div>
+</div>
+
+- Orçamentos **determinísticos** nunca falham por acaso: statements SQL por requisição (pega N+1), tamanho de payload, tamanho da imagem, tempo de início.
+- Lab 11: p95 < 300 ms contra ~7 ms medidos; o job da imagem `needs` dele — um orçamento quebrado nunca vira imagem.
 - Campanha completa (load, spike, breakpoint, soak) toda noite ou antes de eventos.
 
 ---
@@ -379,8 +457,8 @@ O autoscaling leva **1–4 min**. Demanda de 4 500/s vs capacidade de 1 100/s po
 
 1. Tempo de resposta = serviço + **espera**; `N = X × R`; planeje com o **joelho**.
 2. Método antes de ferramenta: **modelo de carga**, depois **RED** por serviço e **USE** por recurso.
-3. Teste um sistema **parecido com a produção**, com dados realistas e assimétricos — aquecido, e frio de propósito.
+3. Teste um sistema **parecido com a produção**, com dados realistas e assimétricos — aquecido e frio de propósito.
 4. **Modelo aberto** para tráfego de internet; **thresholds = SLOs** por endpoint; `dropped_iterations = 0`.
-5. Cuidado com a **omissão coordenada**; confie em percentis de histogramas.
+5. Cuidado com a **omissão coordenada**; confie em percentis de histogramas — e olhe além do p99 para paradas curtas.
 6. Perfis **wall-clock** e `EXPLAIN ANALYZE` encontram o gargalo real; mude **uma** coisa por vez.
 7. Capacidade = demanda / (joelho × folga) + perda de zona; **pré-escale** picos conhecidos; **orçamentos na CI**.

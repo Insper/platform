@@ -7,7 +7,7 @@ The business asks a simple question: "Can we put the stadium show on sale on Mar
 Capacity planning is arithmetic on three inputs you now know how to obtain:
 
 1. **Demand** — the peak arrival rate per endpoint, from the [workload model](../methodology/index.md#workload-model) (forecast × safety factor).
-2. **Capacity per unit** — the **knee** of one pod (or one database) from a [breakpoint test](../load-testing/index.md): the highest rate at which it still meets the SLO.
+2. **Capacity per unit** — the **knee** of one pod (or one database) from a [breakpoint test](../load-testing/index.md): the highest rate at which it still meets the service level objective (SLO).
 3. **Headroom** — how far below the knee you want to run, and which failures you must survive.
 
 $$
@@ -17,7 +17,7 @@ $$
 
 ### Little's Law sizes everything that holds a request
 
-Replicas are not the only resource. Every component that *holds* a request while it is in progress — threads, connections, sockets, VUs, queue slots — must be sized for the concurrency, and Little's Law gives it directly: **concurrency = arrival rate × time held**[^1].
+Replicas are not the only resource. Every component that *holds* a request while it is in progress — threads, connections, sockets, virtual users (VUs), queue slots — must be sized for the concurrency, and Little's Law gives it directly: **concurrency = arrival rate × time held**[^1].
 
 | Resource | Rate | Time held | Concurrency needed |
 |---|---|---|---|
@@ -91,7 +91,7 @@ What the model says:
 | **Failures** | A zone, a node or a pod is lost; the survivors absorb its load |
 | **Deployments** | Rolling updates and canaries temporarily remove or divert capacity |
 | **Autoscaling lag** | New capacity arrives minutes after the demand |
-| **Noisy neighbours, GC, compaction** | Capacity per pod varies run to run |
+| **Noisy neighbours, garbage collection (GC), compaction** | Capacity per pod varies run to run |
 
 Typical targets run services at 50–75 % of their knee at the expected peak; the right number depends on how fast you can add capacity and how expensive a breach is. For BoxOffice's on-sale — minutes long, highly visible, impossible to repeat — generous headroom is cheap insurance.
 
@@ -104,17 +104,37 @@ Autoscaling reacts to demand; it does not anticipate it. A rough timeline for a 
 | Step | Typical duration |
 |---|---|
 | Metrics pipeline notices the change (scrape + aggregation) | 15–60 s |
-| HPA evaluation and decision | up to 15 s |
+| Horizontal Pod Autoscaler (HPA) evaluation and decision | up to 15 s |
 | Pod scheduled — **if** a node has room; otherwise node provisioning | seconds / 1–3 min |
 | Image pull on a new node | seconds to a minute |
-| JVM start, Spring context, readiness, JIT warm-up | 20–60 s |
+| JVM start, Spring context, readiness, just-in-time (JIT) compiler warm-up | 20–60 s |
 | **Total** | **≈ 1–4 minutes** |
+
+``` diagram-sim
+sequenceDiagram
+    participant F as fans
+    participant M as metrics pipeline
+    participant H as HPA
+    participant K as scheduler and nodes
+    participant P as new pod
+    F->>M: 10:00:00, holds jump from 500 to 4 500 per second
+    M->>H: CPU above the target (15 to 60 s later)
+    H->>K: more replicas (up to 15 s)
+    K->>P: schedule it, or first provision a node (seconds to 3 min)
+    P->>P: pull the image, start the JVM, pass readiness (20 to 60 s)
+    P-->>F: new capacity, 1 to 4 minutes after the spike
+    Note over F,P: all that time the backlog grows by 4 500 − 1 100 = 3 400 requests per second
+```
 
 During that window the backlog grows at the difference between demand and capacity. If holds jump from 500/s to 4 500/s while the deployment can serve 1 100/s for two minutes, the backlog is $(4\,500 - 1\,100) \times 120 \approx 408\,000$ requests — far beyond any timeout. They become errors, retries make it worse, and the fans who arrived first get the worst experience. Hence the rules for **known** peaks:
 
-- **Pre-scale** before the event (a scheduled scale-up at 09:45; KEDA's cron scaler; raised `minReplicas`), and keep spare node capacity.
+- **Pre-scale** before the event (a scheduled scale-up at 09:45; the cron scaler of KEDA (Kubernetes Event-driven Autoscaling); raised `minReplicas`), and keep spare node capacity.
 - **Admission control** (waiting room, rate limiting) so that excess demand waits *outside* the system, in order, instead of timing out inside it[^3].
 - **Warm up** the new capacity: caches pre-loaded with the event, connection pools filled (`minimum-idle = maximum-pool-size`), a warm-up request to each new pod before it becomes ready.
+
+The `boxoffice-hpa` preset is the same race in [Hands-on 10](../../../hands-on/10/index.md): `catalog` on kind with 2 pods and an HPA — min 2, max 8, target 60% CPU —, each pod doing about 500 req/s and needing about 40 s to become ready. At t = 60 s the load goes from 300 to 1 000 req/s. Run it: the HPA decides within 15 s, the new pods are ready 40 s later, and meanwhile 2 pods at 100% drop requests. Then pre-scale — raise the HPA minimum to 4 pods, the scheduled scale-up at 09:45: 1 000 ÷ (4 × 500) = 50%, below the 60% target — and run again.
+
+<div class="sdp" data-scenario="boxoffice-hpa" data-mode="compact" data-height="460"></div>
 
 Serverless platforms shorten the lag but do not remove it: new function instances have **cold starts**, and providers limit how fast concurrency may grow and how much concurrency an account may use (check the current quotas of your provider).
 
@@ -141,12 +161,12 @@ A performance regression that reaches production is found by fans. A **performan
 
 | Budget | Example for BoxOffice | Noise | How to enforce |
 |---|---|---|---|
-| **Latency** at a fixed moderate rate | `POST /holds` p95 < 150 ms at 20 holds/s | Medium–high on shared CI runners | k6 thresholds with margin + comparison with `main`'s baseline |
-| **Error rate** | < 0.1 % | Low | k6 threshold |
-| **Queries per request** | `GET /orders/{id}`: ≤ 3 SQL statements | None (deterministic) | Integration test counting statements (catches N+1 reliably) |
-| **Payload size** | Seat-map JSON ≤ 60 KB | None | Contract test |
-| **Allocations / CPU per request** | ≤ baseline + 10 % | Low (with JMH or a profiler) | Micro-benchmark job |
-| **Image size and startup time** | Image ≤ 250 MB; ready in ≤ 30 s | Low | Pipeline step on the built image |
+| **Latency** at a fixed moderate rate | `POST /holds` p95 < 150 ms at 20 holds/s | 🟠 Medium–high on shared CI runners | k6 thresholds with margin + comparison with `main`'s baseline |
+| **Error rate** | < 0.1 % | 🟢 Low | k6 threshold |
+| **Queries per request** | `GET /orders/{id}`: ≤ 3 SQL statements | 🟢 None (deterministic) | Integration test counting statements (catches N+1 reliably) |
+| **Payload size** | Seat-map JSON ≤ 60 KB | 🟢 None | Contract test |
+| **Allocations / CPU per request** | ≤ baseline + 10 % | 🟢 Low (with the Java Microbenchmark Harness, JMH, or a profiler) | Micro-benchmark job |
+| **Image size and startup time** | Image ≤ 250 MB; ready in ≤ 30 s | 🟢 Low | Pipeline step on the built image |
 
 The k6 budget is a short, open-model test against a production-like stack started inside the job. It is not a capacity test — CI runners are small and noisy — but it reliably catches the big regressions: a missing index, an N+1, a synchronous call added to the hot path.
 
@@ -244,6 +264,17 @@ for name, value in sorted(current.items()):
     failed |= regression
     print(f"{name}: {ref:.1f} -> {value:.1f} ms ({change:+.0%}){'  REGRESSION' if regression else ''}")
 sys.exit(1 if failed else 0)
+```
+
+``` diagram-sim
+flowchart LR
+    pr(["pull request"]) --> up["compose up --wait<br/>seed a 60 000-seat event"]
+    up --> warm["warm-up 30 s<br/>not measured"]
+    warm --> abs{"k6 budget.js<br/>thresholds pass?"}
+    abs -->|"no"| red["check fails<br/>endpoint and regression named"]:::problem
+    abs -->|"yes"| rel{"over 15% slower<br/>than main's baseline?"}
+    rel -->|"yes"| red
+    rel -->|"no"| green(["check passes,<br/>summary uploaded"]):::comp
 ```
 
 Two gates protect the budget: the **absolute** thresholds in `budget.js` (derived from the SLOs, with margin for the small runner) and the **relative** comparison with `main` (a 15 % slowdown fails even if the absolute threshold still passes). To keep the gate trusted rather than ignored:

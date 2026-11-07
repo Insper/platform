@@ -35,10 +35,10 @@ sequenceDiagram
 
 Como escolher o valor:
 
-- **A partir da distribuição de latência da dependência.** Coloque um pouco acima do p99,9 da operação normal: qualquer coisa mais lenta já é anormal. Para o provedor, com p99,9 ≈ 1,2 s, um timeout de 2 s.
+- **A partir da distribuição de latência da dependência.** Coloque um pouco acima do p99,9 da operação normal: qualquer coisa mais lenta já é anormal. Para o `payment`, que normalmente responde em cerca de 200 ms com um p99,9 bem abaixo de um segundo, o lab 9 lê com timeout de 1 s.
 - **Dois timeouts por chamada HTTP**: o **timeout de conexão** (abrir a conexão TCP/TLS — curto, algumas centenas de milissegundos) e o **timeout de leitura** (esperar a resposta).
 - **Por dependência.** Uma consulta ao cache, uma query no banco e uma API de terceiros têm latências que diferem em ordens de grandeza. Um timeout global está sempre errado para a maioria delas.
-- **Dentro do orçamento de quem chama.** Se a requisição do fã tem 6 s no gateway, tudo abaixo precisa caber nisso, inclusive os retries.
+- **Dentro do orçamento de quem chama.** Se a requisição do fã tem 5 s no gateway, tudo abaixo precisa caber nisso, inclusive os retries.
 
 ### Propagação de prazo { #deadline-propagation }
 
@@ -46,10 +46,30 @@ Os timeouts precisam encolher à medida que a requisição desce. Um prazo defin
 
 | Camada | Orçamento | Gasto em |
 |---|---|---|
-| Gateway | 6 s | tudo abaixo + o próprio trabalho |
-| `order` (handler de compra) | 5 s | verificação da reserva (≤ 300 ms) + pagamento (≤ 4,5 s) |
-| `order` → `payment` | 2 s por tentativa × 2 tentativas + backoff ≈ 4,3 s | a chamada ao provedor |
-| `payment` → provedor | 1,8 s | deixa margem para o trabalho do próprio adaptador |
+| Borda (Nginx) | 10 s | tudo abaixo |
+| Gateway | 5 s | tudo abaixo + o próprio trabalho |
+| `order` → `payment` | 1 s por tentativa × 3 tentativas + backoff (200 ms, 400 ms ± 50%) ≈ 3,6 s | a cobrança |
+| `payment` → provedor | 2 s (`PSP_READ_TIMEOUT`) | a chamada ao provedor |
+
+``` diagram-sim
+sequenceDiagram
+    participant G as gateway (5 s)
+    participant O as order
+    participant P as adaptador payment
+    participant X as provedor
+    G->>O: POST /orders/{id}/pay, restam 5 s
+    O->>P: cobrança, tentativa 1 (timeout de leitura 1 s)
+    P->>X: cobrar o cartão (timeout de leitura 2 s)
+    Note over O,P: 1 s sem resposta: o order desiste
+    O->>O: backoff de cerca de 200 ms
+    O->>P: cobrança, tentativa 2 (mesma Idempotency-Key)
+    P->>X: cobrar o cartão
+    X-->>P: aprovado depois de 400 ms
+    P-->>O: AUTHORIZED
+    O-->>G: CONFIRMED depois de cerca de 1,7 s, dentro de 5 s
+```
+
+Cada camada gasta parte do orçamento e passa o resto para baixo: até três tentativas (cerca de 3,6 s) cabem nos 5 s do gateway e uma quarta (cerca de 5,4 s) não caberia. Um valor do lab quebra a regra: o `payment` espera até 2 s pelo provedor, mais que a tentativa de 1 s do `order`, então, quando o provedor está lento, o `payment` continua trabalhando numa cobrança que o `order` já abandonou — inofensivo só por causa da chave de idempotência. Em produção, dê ao adaptador menos tempo que ao seu chamador.
 
 !!! warning "Timeouts são só o primeiro passo"
     Um timeout transforma uma espera infinita em um erro rápido. Você ainda precisa decidir o que fazer com o erro: repetir (se for transitório e seguro), parar de chamar por um tempo (circuit breaker) ou responder outra coisa (fallback). E um timeout numa chamada *não idempotente* deixa um resultado desconhecido — a cobrança pode ter sido feita — e é por isso que as chamadas ao `payment` levam uma chave de idempotência (veja [Integrações](../../compute/integrations/index.md)).
@@ -72,11 +92,11 @@ Um **retry** repete uma chamada que falhou, apostando que a falha foi **transit�
 
 | Falha | Repetir? | Por quê |
 |---|---|---|
-| Conexão recusada / resetada, timeout de conexão | Sim | Falha transitória típica; a requisição provavelmente nem rodou |
-| Timeout de leitura | Só se a operação for idempotente (ou tiver chave de idempotência) | A requisição pode ter rodado |
-| `503 Service Unavailable`, `429 Too Many Requests` | Sim, com backoff; respeite o `Retry-After` | O servidor está pedindo para você voltar depois |
-| `500 Internal Server Error` | No máximo uma vez | Muitas vezes é um bug que falha de novo |
-| `400`, `401`, `403`, `404`, `409`, `422`; "cartão recusado" | **Nunca** | A requisição em si está errada ou a resposta é definitiva |
+| Conexão recusada / resetada, timeout de conexão | ✅ Sim | Falha transitória típica; a requisição provavelmente nem rodou |
+| Timeout de leitura | ⚠️ Só se a operação for idempotente (ou tiver chave de idempotência) | A requisição pode ter rodado |
+| `503 Service Unavailable`, `429 Too Many Requests` | ✅ Sim, com backoff; respeite o `Retry-After` | O servidor está pedindo para você voltar depois |
+| `500 Internal Server Error` | ⚠️ No máximo uma vez | Muitas vezes é um bug que falha de novo |
+| `400`, `401`, `403`, `404`, `409`, `422`; "cartão recusado" | ❌ **Nunca** | A requisição em si está errada ou a resposta é definitiva |
 
 ### Backoff exponencial e jitter { #exponential-backoff-and-jitter }
 
@@ -214,7 +234,7 @@ stateDiagram-v2
     state "Meio-aberto" as HalfOpen
     [*] --> Closed
     Closed --> Open : taxa de falhas ou de chamadas lentas ≥ 50% (últimas 20)
-    Open --> HalfOpen : depois de 30 s
+    Open --> HalfOpen : depois de 10 s
     HalfOpen --> Closed : 3 chamadas de teste com sucesso
     HalfOpen --> Open : uma chamada de teste falha
 ```
@@ -228,16 +248,18 @@ stateDiagram-v2
 **Meio-aberto** (testando)
 : Depois do tempo de espera, algumas chamadas são permitidas. Se derem certo, o breaker fecha; se não, abre de novo.
 
-| Parâmetro | Valor no BoxOffice para o `payment` | Efeito |
+| Parâmetro | Valor do lab 9 para o `payment` | Efeito |
 |---|---|---|
 | Janela deslizante | últimas 20 chamadas (por contagem) | Quanto histórico decide |
 | Mínimo de chamadas | 10 | Evita abrir com 1 falha em 2 |
 | Limite de taxa de falhas | 50% | Sensibilidade |
-| Limite de chamada lenta | 1,5 s, taxa de chamadas lentas de 50% | Um provedor *lento* também abre o breaker — essencial contra gray failures |
-| Espera no estado aberto | 30 s | Tempo que a dependência ganha para se recuperar |
+| Limite de chamada lenta | 800 ms, taxa de chamadas lentas de 50% | Um provedor *lento* também abre o breaker — essencial contra gray failures |
+| Espera no estado aberto | 10 s | Tempo que a dependência ganha para se recuperar — e quanto tempo os fãs veem a falha rápida |
 | Chamadas no meio-aberto | 3 | Com quanto cuidado a recuperação é testada |
 
-Importa quais erros contam: um **cartão recusado** é uma resposta correta de um provedor saudável, não uma falha. Configure-o como ignorado, ou uma onda de cartões recusados num ataque com cartões roubados abriria o breaker para todos os fãs honestos.
+Importa quais erros contam: um **cartão recusado** é uma resposta correta de um provedor saudável, não uma falha. Configure-o como ignorado, ou uma onda de cartões recusados num ataque com cartões roubados abriria o breaker para todos os fãs honestos. O lab 9 não tem cartões recusados; o seu retry ignora todo 4xx (`HttpClientErrorException`), porque a mesma requisição falharia de novo, e o seu breaker ignora a `BulkheadFullException`, uma recusa nossa que não diz nada sobre o `payment`.
+
+A espera é um compromisso que dá para calcular. Com 10 s, um provedor que se recupera um segundo depois de o breaker abrir ainda custa aos fãs cerca de 9 s de "pagamento temporariamente indisponível", até as sondas do meio-aberto o verem saudável; um provedor que continua fora mantém o breaker aberto em degraus de 10 s, cada um custando só 3 chamadas de sonda. Uma espera maior protege melhor um provedor em dificuldade e faz mais fãs falharem depois que ele se recupera.
 
 ---
 
@@ -264,15 +286,14 @@ Um **bulkhead** — nome dos compartimentos estanques do casco de um navio — d
 
 ``` diagram-sim
 flowchart LR
-    req["order: 200 threads de requisição"] --> bp["bulkhead do payment<br/>máx. 50 concorrentes"]
-    req --> bi["bulkhead do inventory<br/>máx. 40 concorrentes"]
-    req --> bc["bulkhead do catalog<br/>máx. 20 concorrentes"]
-    bp --> pay["payment<br/>(lento: 4 s)"]
-    bi --> inv["inventory<br/>(saudável)"]
-    bc --> cat["catalog<br/>(saudável)"]
+    req["order: 50 threads do Tomcat"] --> bp["bulkhead do payment<br/>máx. 10 concorrentes, sem fila"]
+    req --> rest["as outras 40 threads<br/>POST /orders, GET /orders/{id}"]
+    bp --> pay["payment<br/>(lento: 3 s)"]
+    bp -.->|"11ª chamada concorrente: 503 na hora"| fb["fallback"]
+    rest --> db[("banco de pedidos<br/>(saudável)")]
 ```
 
-O dimensionamento vem de novo da Lei de Little. A 100 compras/s e 200 ms por cobrança, cerca de 20 chamadas estão em voo. Um bulkhead de **50** deixa espaço para a latência crescer 2,5× antes de as chamadas serem rejeitadas; quando o provedor vai para 4 s, no máximo 50 threads esperam por ele (em vez de 400) e as outras 150 continuam atendendo reservas, páginas de pedido e todo o resto. Chamadas rejeitadas falham em microssegundos e vão para o fallback.
+O dimensionamento vem de novo da Lei de Little. Com os 20 pagamentos/s do lab 9 e 200 ms por cobrança, cerca de 4 chamadas estão em voo. Um bulkhead de **10** deixa espaço para a latência crescer 2,5× (até 0,5 s) antes de as chamadas serem rejeitadas; quando o provedor vai para 3 s, no máximo 10 threads esperam por ele (em vez de 60, mais que o pool) e as outras 40 continuam criando e lendo pedidos. Com `max-wait-duration: 0` a 11ª chamada concorrente não entra em fila: ela falha em microssegundos e vai para o fallback.
 
 O Resilience4j oferece um **bulkhead de semáforo** (limita chamadas concorrentes nas threads de quem chama; barato, o padrão) e um **bulkhead de pool de threads** (executa as chamadas num pool dedicado). A ideia é geral: pools de conexão separados por carga de trabalho num banco, consumer groups separados no Kafka, deployments separados para tráfego crítico e não crítico, filas separadas para confirmações e e-mails de marketing.
 
@@ -284,7 +305,7 @@ Quando a demanda passa da capacidade, *algumas* requisições vão falhar. O **l
 
 - **Descarte na porta.** Rejeite com `503` + `Retry-After` antes de fazer qualquer trabalho: uma rejeição custa microssegundos, uma requisição que dá timeout custa o processamento inteiro.
 - **Descarte por prioridade.** Durante a abertura do estádio, o BoxOffice classifica o tráfego: compras e reservas são críticas; navegação no catálogo é importante; recomendações, autocomplete e "eventos relacionados" são descartáveis. Sob sobrecarga, os descartáveis saem primeiro.
-- **Descarte trabalho velho.** Uma requisição que já esperou mais que o prazo de quem chamou é inútil; tire-a da fila em vez de processá-la (filas limitadas com prazos, LIFO sob sobrecarga).
+- **Descarte trabalho velho.** Uma requisição que já esperou mais que o prazo de quem chamou é inútil; tire-a da fila em vez de processá-la (filas limitadas com prazos, último a chegar, primeiro a sair (LIFO, *last in, first out*) sob sobrecarga).
 - **Adapte o limite.** Em vez de um limite fixo de concorrência, limitadores adaptativos (inspirados no controle de congestionamento do TCP, por exemplo a biblioteca concurrency-limits da Netflix) reduzem o número de requisições concorrentes quando a latência sobe e o aumentam quando a latência está saudável.
 
 !!! example "BoxOffice: a sala de espera é load shedding"
@@ -314,6 +335,19 @@ Health checks permitem que orquestradores e load balancers parem de enviar tráf
 **Startup**
 : *A aplicação terminou de iniciar?* Liveness e readiness só são verificados depois que ele passa, então uma JVM que demora para subir não é morta durante o boot.
 
+``` diagram-sim
+stateDiagram-v2
+    [*] --> Iniciando
+    Iniciando --> Pronto : startup passa, depois readiness passa
+    Iniciando --> Reiniciado : startup falha 30 vezes (150 s)
+    Pronto --> NaoPronto : readiness falha duas vezes
+    NaoPronto --> Pronto : readiness volta a passar
+    Pronto --> Reiniciado : liveness falha 3 vezes
+    NaoPronto --> Reiniciado : liveness falha 3 vezes
+    Reiniciado --> Iniciando
+    note right of NaoPronto : fora do load balancer, sem reiniciar
+```
+
 ```yaml
 # order Deployment, container spec (Spring Boot Actuator endpoints)
 startupProbe:
@@ -337,93 +371,21 @@ readinessProbe:
 
 ## Juntando tudo { #putting-it-together }
 
-Os padrões trabalham em camadas. Para a chamada `order` → `payment`, o BoxOffice usa todos eles, configurados com Resilience4j[^5]. Os valores abaixo são o projeto para a venda do estádio (100 compras/s, 200 threads no `order`); o lab 9 roda a mesma pilha com números menores, para que um laptop mostre cada efeito (quadro abaixo).
-
-=== "application.yaml"
-
-    ```yaml
-    resilience4j:
-      bulkhead:
-        instances:
-          payment:
-            max-concurrent-calls: 50          # Little's Law: 20 in flight normally
-            max-wait-duration: 10ms           # do not queue: reject and fall back
-      circuitbreaker:
-        instances:
-          payment:
-            sliding-window-type: COUNT_BASED
-            sliding-window-size: 20
-            minimum-number-of-calls: 10
-            failure-rate-threshold: 50
-            slow-call-duration-threshold: 1500ms
-            slow-call-rate-threshold: 50      # a slow provider also opens the breaker
-            wait-duration-in-open-state: 30s
-            permitted-number-of-calls-in-half-open-state: 3
-            ignore-exceptions:
-              - boxoffice.payment.CardDeclinedException   # a correct answer, not a failure
-      retry:
-        instances:
-          payment:
-            max-attempts: 2                   # 1 call + 1 retry, at this layer only
-            wait-duration: 200ms
-            enable-exponential-backoff: true
-            exponential-backoff-multiplier: 2
-            enable-randomized-wait: true      # jitter
-            randomized-wait-factor: 0.5
-            retry-exceptions:
-              - org.springframework.web.client.ResourceAccessException   # I/O errors, timeouts
-              - org.springframework.web.client.HttpServerErrorException$ServiceUnavailable
-            ignore-exceptions:
-              - boxoffice.payment.CardDeclinedException
-    ```
-
-=== "PaymentClient.java"
-
-    ```java
-    @Service
-    @RequiredArgsConstructor
-    public class PaymentClient {
-
-        private final RestClient payment;
-
-        @Bulkhead(name = "payment")
-        @CircuitBreaker(name = "payment")
-        @Retry(name = "payment", fallbackMethod = "unavailable")   // fallback on the outermost layer
-        public PaymentResult charge(ChargeRequest req) {
-            return payment.post().uri("/charges")
-                .header("Idempotency-Key", req.orderId())   // a retry never charges twice
-                .body(req)
-                .retrieve()
-                .body(PaymentResult.class);
-        }
-
-        // Called after the last retry fails, or when the breaker is open or the bulkhead is full.
-        private PaymentResult unavailable(ChargeRequest req, Throwable t) {
-            return PaymentResult.temporarilyUnavailable(req.orderId());  // seats stay held
-        }
-    }
-    ```
-
-=== "Timeouts (RestClient)"
-
-    ```java
-    @Bean
-    RestClient paymentRestClient(RestClient.Builder builder) {
-        HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofMillis(300))          // connect timeout
-            .build();
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
-        factory.setReadTimeout(Duration.ofSeconds(2));       // read timeout per attempt
-        return builder.baseUrl("http://payment:8080").requestFactory(factory).build();
-    }
-    ```
+Os padrões trabalham em camadas. Para a chamada `order` → `payment`, o BoxOffice usa todos eles, configurados com Resilience4j[^5] no lab 9. Os números são do tamanho de um laptop — 20 pagamentos/s contra 50 threads do Tomcat — e cada parâmetro lê uma variável de ambiente, então cada experimento desliga um padrão sem rebuild.
 
 !!! example "No código do BoxOffice: a pilha de proteção no `order` (lab 9)"
 
-    O [Hands-on 9 — Padrões de resiliência](../../../hands-on/9/patterns/index.md) configura a pilha com números de laptop: 50 threads do Tomcat em vez de 200, timeout de leitura de 1 s, 3 tentativas com 200 ms de backoff ± 50% de jitter, um breaker que também abre quando metade das últimas 20 chamadas levou mais de 800 ms e fica aberto 10 s, e um bulkhead de **10** chamadas simultâneas que nunca enfileira (`max-wait-duration: 0`). Cada parâmetro lê uma variável de ambiente, então cada experimento desliga um padrão sem rebuild. O `PaymentGateway` empilha as anotações na ordem padrão do Resilience4j — Retry ( CircuitBreaker ( Bulkhead ( call ) ) ) — com o fallback na camada externa e o retry ignora `CallNotPermittedException` e `BulkheadFullException`: um breaker aberto ou um bulkhead cheio falha rápido em vez de ser repetido. O fallback responde `503` e o pedido fica `PENDING_PAYMENT`, o "tente de novo" honesto do [Fallback](#fallback-and-graceful-degradation). Com o provedor 3 s lento, o lab mediu o `GET /orders/{id}` — que nunca chama o `payment` — com mediana de **9,04 s** sem proteção e **6,5 ms** com os padrões.
+    O [Hands-on 9 — Padrões de resiliência](../../../hands-on/9/patterns/index.md) configura cada camada e cada valor tem um motivo:
 
-    ``` { .yaml title="services/order/src/main/resources/application.yaml (resilience4j)" }
-    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/resources/application.yaml:47:84"
+    - **Timeouts**: 500 ms para conectar e 1 s para ler (`PAYMENT_READ_TIMEOUT`; `0` espera para sempre, o experimento "antes") — cerca de cinco vezes os 200 ms normais do provedor.
+    - **Retry**: 3 tentativas (1 chamada + 2 retries), 200 ms e depois 400 ms de backoff, cada um ± 50% (jitter), só em erros de E/S, 5xx e conexões resetadas; um 4xx é definitivo e um breaker aberto (`CallNotPermittedException`) ou um bulkhead cheio (`BulkheadFullException`) falha rápido em vez de ser repetido.
+    - **Circuit breaker**: por contagem sobre as últimas 20 chamadas (no mínimo 10), abre quando 50% falharam *ou* levaram mais de 800 ms — um provedor lento também o dispara —, fica aberto 10 s e depois deixa 3 sondas decidirem; ele ignora a `BulkheadFullException`.
+    - **Bulkhead**: 10 chamadas concorrentes das 50 threads, `max-wait-duration: 0` — cheio significa 503 na hora.
+
+    O `PaymentGateway` empilha as anotações na ordem padrão do Resilience4j — Retry ( CircuitBreaker ( Bulkhead ( call ) ) ) — com o fallback na camada externa. O fallback responde `503` e o pedido fica `PENDING_PAYMENT`, o "tente de novo" honesto do [Fallback](#fallback-and-graceful-degradation). Com o provedor 3 s lento, o lab mediu o `GET /orders/{id}` — que nunca chama o `payment` — com mediana de **9,04 s** sem proteção e **6,5 ms** com os padrões.
+
+    ``` { .yaml title="services/order/src/main/resources/application.yaml (timeouts and resilience4j)" }
+    --8<-- "docs/2027.1/hands-on/9/code/services/order/src/main/resources/application.yaml:41:84"
     ```
 
     ``` { .java title="services/order/src/main/java/boxoffice/order/payment/PaymentGateway.java (the stack)" }
@@ -433,18 +395,33 @@ Os padrões trabalham em camadas. Para a chamada `order` → `payment`, o BoxOff
 <div class="csim" data-sim="resilience" data-latency="4000" data-errors="0" data-timeout="off" data-retries="off" data-breaker="off"></div>
 
 !!! tip "Experimente"
-    São 10:02 e o provedor responde em 4 s em vez de 200 ms. As chaves usam os valores do lab 9 (timeout de leitura de 1 s; 3 tentativas com backoff de 200 ms × 2 ± 50%; um breaker sobre as últimas 20 chamadas que abre com 50% de falhas ou acima de 800 ms e espera 10 s), não o projeto do estádio acima. Ligue uma de cada vez, recomeçando a cada rodada:
+    São 10:02 e o provedor responde em 4 s em vez de 200 ms. As chaves usam os valores do quadro acima (timeout de leitura de 1 s; 3 tentativas com backoff de 200 ms × 2 ± 50%; um breaker sobre as últimas 20 chamadas que abre com 50% de falhas ou acima de 800 ms e espera 10 s). Ligue uma de cada vez, recomeçando a cada rodada:
 
     1. **Nada ligado**: 20 pagamentos/s × 4 s pedem 80 threads; as **50** ficam ocupadas em segundos e, em 30 s, cerca de 220 pagamentos não encontram thread nenhuma — nem o `GET /orders` encontraria.
     2. **Timeout**: só cerca de 20 threads ficam ocupadas, mas **0%** dos pagamentos dão certo. O timeout protege o `order`, não o pagamento.
     3. **+ retentativas**: o provedor passa a receber cerca de **2×** os pagamentos (44 chamadas/s) justamente quando está com dificuldade e as 50 threads lotam de novo — 3 tentativas de 1 s mais o backoff prendem cada thread por cerca de 3,6 s.
     4. **+ circuit breaker**: ele abre 1,6 s depois do início; os pagamentos falham rápido, as threads caem para cerca de 1 e o provedor não recebe chamadas. Arraste a latência de volta para 200 ms: 10 s depois de abrir, o breaker fica semiaberto, 3 sondas dão certo e ele fecha. Pontos vermelhos na janela dele são falhas, laranja são chamadas lentas.
 
+As anotações decidem o caminho de cada chamada. Leia da esquerda: o retry envolve o breaker, que envolve o bulkhead, que envolve a chamada HTTP — e toda recusa termina no mesmo fallback.
+
+``` diagram-sim
+flowchart LR
+    call(["charge"]) --> R["Retry<br/>3 tentativas, 200 ms × 2 ± 50%"]
+    R --> CB{"circuit breaker<br/>deixa passar?"}
+    CB -->|"aberto: CallNotPermitted"| FB["fallback<br/>pagamento indisponível, assentos reservados"]:::problem
+    CB -->|"fechado ou uma sonda meio-aberta"| BH{"bulkhead<br/>permissão livre?"}
+    BH -->|"cheio: BulkheadFull"| FB
+    BH -->|"sim"| HTTP["chamada HTTP<br/>conexão 500 ms, leitura 1 s"]
+    HTTP -->|"timeout, 5xx ou reset: contado pelo breaker"| R
+    HTTP -->|"2xx"| OK(["cobrado"]):::comp
+    R -->|"tentativas esgotadas"| FB
+```
+
 Como as camadas interagem — verifique antes de lançar:
 
 - **Ordem dos decoradores.** O padrão do Resilience4j no Spring Boot é `Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( call ) ) ) ) )`: o retry é o mais externo, então toda tentativa é contada pelo breaker e um breaker aberto faz o retry falhar na hora. Garanta que os retries nunca contornem o breaker. Ponha o **fallback na camada mais externa** (o retry): um fallback no breaker transforma toda falha numa resposta normal, então o retry nunca vê um erro e nunca repete.
-- **Orçamento de tempo.** 2 tentativas × 2 s + um backoff de ~200–300 ms ≈ 4,3 s, dentro dos 5 s do `order` e dos 6 s do gateway.
-- **Métricas.** O Resilience4j exporta pelo Micrometer o estado do breaker, a saturação do bulkhead e a contagem de retries; coloque-os em gráficos ao lado do dashboard de SLO ([Hands-on 8](../../../hands-on/8/index.md)), porque um breaker que abre é um incidente em andamento.
+- **Orçamento de tempo.** 3 tentativas × 1 s + backoffs de cerca de 200 ms e 400 ms ≈ 3,6 s, dentro dos 5 s do gateway.
+- **Métricas.** O Resilience4j exporta pelo Micrometer o estado do breaker, a saturação do bulkhead e a contagem de retries; coloque-os em gráficos ao lado do dashboard de objetivos de nível de serviço (SLO, *service level objective*) ([Hands-on 8](../../../hands-on/8/index.md)), porque um breaker que abre é um incidente em andamento.
 - **Prova.** Nada disso é confiável até você injetar a falha e ver funcionar — [engenharia do caos](../chaos/index.md) e [Hands-on 9](../../../hands-on/9/index.md).
 
 !!! info "Experimente no playground"
@@ -453,14 +430,20 @@ Como as camadas interagem — verifique antes de lançar:
 
 <div class="sdp" data-scenario="cascading-failure" data-mode="full" data-height="620"></div>
 
+!!! info "Experimente no playground: os números do lab 9"
+
+    O preset `boxoffice-payment` é o [Hands-on 9](../../../hands-on/9/index.md) no playground: o `pay-under-chaos.js` manda 20 pagamentos/s e 20 requisições de navegação/s ao `order`, que tem 50 threads do Tomcat, e em t = 60 s o Toxiproxy acrescenta 3 s a toda chamada ao `payment`. Rode como está: 20 pagamentos/s × 3 s = 60 chamadas em andamento > 50 threads e a navegação, que nunca toca o provedor, falha junto. Depois proteja a aresta `order → payment` como o lab faz — timeout de 1 000 ms, 3 tentativas com backoff com jitter, o circuit breaker e um bulkhead de 0,2 das threads (10 de 50) — e rode de novo: os pagamentos falham rápido durante o incidente e a navegação mantém as suas threads.
+
+<div class="sdp" data-scenario="boxoffice-payment" data-mode="compact" data-height="460"></div>
+
 | Camada | Trata | Configuração no BoxOffice |
 |---|---|---|
 | Rate limiting (gateway) | Clientes abusivos, bots | token bucket por conta |
 | Load shedding (gateway) | Sobrecarga | descartar recomendações/autocomplete primeiro |
-| Bulkhead | Uma dependência lenta comendo todas as threads | 50 chamadas concorrentes ao pagamento |
-| Circuit breaker | Uma dependência sabidamente falhando ou lenta | 50% de falhas ou chamadas lentas em 20 chamadas, aberto por 30 s |
-| Timeout | Espera sem limite | 300 ms de conexão, 2 s de leitura |
-| Retry + backoff + jitter | Erros transitórios | 1 retry, 200 ms ± 50%, chave de idempotência |
+| Bulkhead | Uma dependência lenta comendo todas as threads | 10 chamadas concorrentes ao pagamento das 50 threads, sem fila |
+| Circuit breaker | Uma dependência sabidamente falhando ou lenta | 50% de falhas ou de chamadas acima de 800 ms nas últimas 20, aberto por 10 s |
+| Timeout | Espera sem limite | 500 ms de conexão, 1 s de leitura |
+| Retry + backoff + jitter | Erros transitórios | 3 tentativas, 200 ms × 2 ± 50%, chave de idempotência |
 | Fallback | O que o fã vê | "pagamento temporariamente indisponível, lugares reservados" |
 
 !!! tip "Na entrevista"
@@ -468,8 +451,8 @@ Como as camadas interagem — verifique antes de lançar:
 
 !!! success "Boas práticas"
 
-    - **Derive cada timeout do p99,9 medido da dependência e mantenha-o abaixo do orçamento que resta ao chamador** — o orçamento encolhe a cada salto (gateway 6 s > `order` 5 s > uma tentativa 2 s). No BoxOffice: timeout de leitura de 1 s no `payment` ([quadro acima](#timeout)).
-    - **Dimensione cada bulkhead com a Lei de Little e recalcule quando a latência ou o tráfego mudarem** — 100 compras/s × 0,2 s = 20 chamadas em voo, então um bulkhead de 50. No BoxOffice: 10 das 50 threads do `order` ([Hands-on 9](../../../hands-on/9/patterns/index.md)).
+    - **Derive cada timeout do p99,9 medido da dependência e mantenha-o abaixo do orçamento que resta ao chamador** — o orçamento encolhe a cada salto (borda 10 s > gateway 5 s > uma tentativa 1 s). No BoxOffice: timeout de leitura de 1 s no `payment` ([quadro acima](#timeout)).
+    - **Dimensione cada bulkhead com a Lei de Little e recalcule quando a latência ou o tráfego mudarem** — 20 pagamentos/s × 0,2 s = 4 chamadas em voo, então um bulkhead de 10 deixa espaço para 2,5× a latência. No BoxOffice: 10 das 50 threads do `order` ([Hands-on 9](../../../hands-on/9/patterns/index.md)).
     - **Faça de todo parâmetro de resiliência configuração, não código** — durante um incidente você aumenta um timeout ou encolhe um bulkhead mudando configuração, sem build. No BoxOffice: `PAYMENT_READ_TIMEOUT`, `PAYMENT_RETRY_ATTEMPTS`, `PAYMENT_BULKHEAD` no `application.yaml`.
     - **Limite os retries com um orçamento, não só com uma contagem** — retries que somam no máximo 10% ao tráfego normal deixaram o provedor se recuperar na simulação acima, onde 3 retries por chamada o mantinham caído.
     - **Publique o estado do breaker, as permissões do bulkhead e as contagens de retry como métricas e alerte quando o breaker abrir** — um breaker aberto é um incidente em andamento. No BoxOffice: `/actuator/circuitbreakers` e o breaker no `/actuator/health` (lab 9).

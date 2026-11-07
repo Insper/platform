@@ -21,7 +21,7 @@ A percepção central: **falha não é um caso especial a evitar; é o ambiente 
 Os [Principles of Chaos Engineering](https://principlesofchaos.org){target="_blank"}[^1] definem a disciplina com cinco ideias:
 
 **1. Construa uma hipótese sobre o comportamento em estado estável**
-: Descreva o "normal" com saídas mensuráveis que importam para os usuários — os SLIs ([SLOs](../../observability/slo/index.md)): taxa de sucesso das compras, p99 das reservas, atualidade dos e-mails. A hipótese: *"o estado estável continua mesmo quando X acontece."*
+: Descreva o "normal" com saídas mensuráveis que importam para os usuários — os indicadores de nível de serviço, SLIs ([objetivos de nível de serviço, SLOs](../../observability/slo/index.md)): taxa de sucesso das compras, p99 das reservas, atualidade dos e-mails. A hipótese: *"o estado estável continua mesmo quando X acontece."*
 
 **2. Varie eventos do mundo real**
 : Injete falhas que de fato acontecem: perda de instâncias e de zonas, latência, perda de pacotes, uma dependência devolvendo erros, disco cheio, relógio desajustado, um pico de tráfego, um certificado expirado.
@@ -57,9 +57,9 @@ Um experimento que **confirma** a hipótese é evidência de que uma defesa func
 
     | Passo | Conteúdo |
     |---|---|
-    | **Estado estável** | Sucesso das compras ≥ 99,9% e p99 das reservas < 500 ms; p99 do catálogo < 300 ms (o dashboard RED do [Hands-on 8](../../../hands-on/8/index.md)). |
-    | **Hipótese** | "Se o provedor de pagamento responder em 3 s em vez de 200 ms, o circuit breaker do `payment` abre em até 30 s, as compras falham rápido com 'pagamento temporariamente indisponível, lugares reservados', o bulkhead limita as chamadas ao pagamento a 50 e o catálogo e as reservas mantêm sua latência." |
-    | **Injeção** | Toxiproxy entre o `payment` e o stub do provedor: um toxic de `latency` de 3 s ± 0,5 s, sob uma carga k6 de 100 compras/s. |
+    | **Estado estável** | Sucesso das compras ≥ 99,9% e p99 das reservas < 500 ms; p99 do catálogo < 300 ms (o dashboard RED — *rate, errors, duration*: taxa, erros, duração — do [Hands-on 8](../../../hands-on/8/index.md)). |
+    | **Hipótese** | "Se o provedor de pagamento responder em 3 s em vez de 200 ms, o circuit breaker do `payment` abre em até 10 s, as compras falham rápido com 'pagamento temporariamente indisponível, lugares reservados', o bulkhead limita as chamadas ao pagamento a 10 das 50 threads do `order` e o catálogo e as reservas mantêm sua latência." |
+    | **Injeção** | Toxiproxy entre o `payment` e o stub do provedor: um toxic de `latency` de 3 s ± 0,5 s, sob a carga k6 do lab 9: 20 compras/s e 20 leituras de pedido/s. |
     | **Escopo e aborto** | Primeiro no ambiente Compose; depois em um pod canary. Abortar se o p99 do catálogo passar de 1 s ou se o error budget de compras queimar mais rápido que 10×. |
     | **Observação** | `resilience4j_circuitbreaker_state`, permissões livres do bulkhead, taxa de erros e p99 por rota, threads ocupadas do `order`, traces das compras lentas. |
     | **Descobertas possíveis** | O timeout de leitura nunca foi configurado, então chamadas lentas só contam depois de 60 s; o retry no gateway multiplica as chamadas; a mensagem do fallback é um 500 cru; o bulkhead é compartilhado com as chamadas ao `inventory`. |
@@ -78,12 +78,12 @@ Um experimento que **confirma** a hipótese é evidência de que uma defesa func
 
 | Categoria | Exemplos | Ferramentas |
 |---|---|---|
-| **Instância / processo** | Matar um pod, OOM-kill de um processo, encerrar uma VM | `kubectl delete pod`, `PodChaos` do Chaos Mesh, LitmusChaos, AWS FIS |
+| **Instância / processo** | Matar um pod, matar um processo por falta de memória (OOM, *out of memory*), encerrar uma máquina virtual | `kubectl delete pod`, `PodChaos` do Chaos Mesh, LitmusChaos, AWS Fault Injection Service (FIS) |
 | **Rede** | Latência, perda de pacotes, limite de banda, partição, falha de DNS | Toxiproxy, `NetworkChaos` do Chaos Mesh, `tc netem` |
 | **Dependência** | Erros ou respostas lentas de um serviço ou terceiro | Toxiproxy, WireMock, uma feature flag no cliente |
 | **Recurso** | Pressão de CPU ou memória, disco cheio, esgotamento de descritores de arquivo | `stress-ng`, `StressChaos` do Chaos Mesh |
 | **Estado e tempo** | Relógio desajustado, certificado expirado, entrada de cache corrompida, failover do banco | `TimeChaos` do Chaos Mesh, "reboot with failover" do banco gerenciado |
-| **Infraestrutura** | Perder uma zona de disponibilidade ou uma região | AWS FIS, Azure Chaos Studio, mudanças de roteamento, o exercício de DR |
+| **Infraestrutura** | Perder uma zona de disponibilidade ou uma região | AWS FIS, Azure Chaos Studio, mudanças de roteamento, o exercício de recuperação de desastres (DR, *disaster recovery*) |
 
 ### Toxiproxy: caos no seu notebook { #toxiproxy }
 
@@ -93,7 +93,7 @@ O [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} é um proxy
 # docker-compose.yaml (excerpt)
 services:
   toxiproxy:
-    image: ghcr.io/shopify/toxiproxy:2.9.0
+    image: ghcr.io/shopify/toxiproxy:2.13.0
     ports:
       - "8474:8474"           # Toxiproxy API
   payment:
@@ -118,7 +118,7 @@ toxiproxy-cli toxic remove -n timeout_downstream provider
 
 !!! example "No código do BoxOffice: o Toxiproxy e o script do mestre do jogo (lab 9)"
 
-    O [Hands-on 9 — Pagamento, provedor e Toxiproxy](../../../hands-on/9/payment/index.md) carrega os proxies de um arquivo na inicialização em vez de criá-los pela CLI: um na frente do `payment` (o `order` chama `toxiproxy:18085`) e um na frente do `psp`, o provedor falso (o `payment` chama `toxiproxy:18095`). Dois proxies dão dois lugares para quebrar, então o operador precisa descobrir *qual* salto está lento — nosso adaptador ou o provedor. Os toxics entram pela API HTTP na porta 8474; o [game day](../../../hands-on/9/game-day/index.md) embrulha seis deles num script para o mestre do jogo e o `reset` (remove todo toxic, reativa todo proxy) é o botão de abortar.
+    O [Hands-on 9 — Pagamento, provedor e Toxiproxy](../../../hands-on/9/payment/index.md) carrega os proxies de um arquivo na inicialização em vez de criá-los pela interface de linha de comando (CLI, *command-line interface*): um na frente do `payment` (o `order` chama `toxiproxy:18085`) e um na frente do `psp`, o provedor falso (o `payment` chama `toxiproxy:18095`). Dois proxies dão dois lugares para quebrar, então o operador precisa descobrir *qual* salto está lento — nosso adaptador ou o provedor. Os toxics entram pela API HTTP na porta 8474; o [game day](../../../hands-on/9/game-day/index.md) embrulha seis deles num script para o mestre do jogo e o `reset` (remove todo toxic, reativa todo proxy) é o botão de abortar.
 
     ``` { .json title="infra/toxiproxy/toxiproxy.json" }
     --8<-- "docs/2027.1/hands-on/9/code/infra/toxiproxy/toxiproxy.json"
@@ -184,7 +184,7 @@ Um **game day** é um exercício planejado, com o time todo, em que falhas são 
     | Horário | Injeção | Comportamento esperado | Medida |
     |---|---|---|---|
     | 10:00 | Começa o pico (sem falha) | A sala de espera admite na taxa configurada; SQL < 70% | SLIs de referência |
-    | 10:10 | Latência de 3 s no provedor de pagamento | O breaker abre em < 30 s; lugares reservados; catálogo não afetado | Tempo para detectar (alerta), taxa de erros das compras |
+    | 10:10 | Latência de 3 s no provedor de pagamento | O breaker abre em < 10 s; lugares reservados; catálogo não afetado | Tempo para detectar (alerta), taxa de erros das compras |
     | 10:25 | Um pod do `order` morto por minuto | O readiness o remove; a capacidade N+1 absorve | Erros durante os reinícios |
     | 10:40 | Um broker Kafka parado | Os produtores fazem retry; o backlog do outbox cresce e escoa; nenhum e-mail perdido | Idade do outbox, consumer lag, SLI de atualidade dos e-mails |
     | 10:55 | Failover do banco para o standby | ~30 s de erros nas escritas, depois recuperação | RTO real vs esperado |
@@ -229,7 +229,7 @@ Caos sem observabilidade é só quebrar coisas. Antes de injetar qualquer coisa,
 | Ferramenta | Mantida por | Pontos fortes |
 |---|---|---|
 | [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} | Shopify (open source) | Proxy TCP simples; ideal para testes locais e no CI |
-| [Chaos Mesh](https://chaos-mesh.org){target="_blank"} | CNCF | Nativo de Kubernetes; falhas de rede, pod, estresse, tempo, I/O; workflows |
+| [Chaos Mesh](https://chaos-mesh.org){target="_blank"} | Cloud Native Computing Foundation (CNCF) | Nativo de Kubernetes; falhas de rede, pod, estresse, tempo, I/O; workflows |
 | [LitmusChaos](https://litmuschaos.io){target="_blank"} | CNCF | Nativo de Kubernetes; hub de experimentos; amigável a GitOps |
 | [AWS Fault Injection Service](https://aws.amazon.com/fis/){target="_blank"} | Amazon | Gerenciado; falhas no nível da AWS (energia de AZ, erros de API); condições de parada |
 | [Azure Chaos Studio](https://azure.microsoft.com/products/chaos-studio){target="_blank"} | Microsoft | Caos gerenciado para recursos do Azure |
@@ -237,7 +237,7 @@ Caos sem observabilidade é só quebrar coisas. Antes de injetar qualquer coisa,
 | [Chaos Monkey](https://github.com/Netflix/chaosmonkey){target="_blank"} | Netflix | Encerramento aleatório de instâncias; o original |
 
 !!! tip "Na entrevista"
-    Depois de propor mecanismos de resiliência, diga como você os **verificaria**: "eu rodaria um experimento de caos com uma hipótese de estado estável sobre o SLO de compra — injetar 3 s de latência no provedor de pagamento em um pod canary, esperar que o breaker abra em até 30 s e que a latência do catálogo fique estável, com aborto automático se o burn rate passar de 10×". Isso mostra que você sabe que failover e fallbacks não testados são o motivo mais comum de projetos aparentemente resilientes falharem.
+    Depois de propor mecanismos de resiliência, diga como você os **verificaria**: "eu rodaria um experimento de caos com uma hipótese de estado estável sobre o SLO de compra — injetar 3 s de latência no provedor de pagamento em um pod canary, esperar que o breaker abra em até 10 s e que a latência do catálogo fique estável, com aborto automático se o burn rate passar de 10×". Isso mostra que você sabe que failover e fallbacks não testados são o motivo mais comum de projetos aparentemente resilientes falharem.
 
 !!! success "Boas práticas"
 

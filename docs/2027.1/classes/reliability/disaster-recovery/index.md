@@ -30,7 +30,7 @@ They are business decisions expressed in minutes, and they map to money: every m
     |---|---|---|---|
     | `order` + `payment` ledger | Money; fans were charged | ≈ 0 for confirmed payments (reconcile with the provider) | 15 min |
     | `inventory` (seats, holds) | No double booking after recovery | ≈ seconds; holds can be lost, sold seats cannot | 15 min |
-    | `catalog` (events, venues) | Changes are rare and can be redone | 1 h | 1 h (and served stale from the CDN meanwhile) |
+    | `catalog` (events, venues) | Changes are rare and can be redone | 1 h | 1 h (and served stale from the content delivery network, CDN, meanwhile) |
     | `search` index | Rebuilt from the catalog | n/a (derived data) | 4 h |
     | Analytics / warehouse | Not customer-facing | 24 h | 2 days |
 
@@ -62,6 +62,13 @@ pgbackrest --stanza=order --type=time "--target=2027-03-14 21:59:30-03" \
   --target-action=promote restore
 ```
 
+``` diagram-sim
+flowchart LR
+    base[("base backup<br/>last night, 02:00")] -->|"restore"| w["WAL archived since then<br/>replayed in order"]
+    w -->|"stop at the target"| tgt(["21:59:30<br/>promote here"]):::comp
+    tgt -.->|"never replayed"| del["22:00<br/>DELETE FROM orders"]:::problem
+```
+
 RPO is then the WAL archiving delay (seconds to a minute), and RTO is the **restore time**, which you must estimate — and measure:
 
 $$
@@ -76,7 +83,7 @@ $$
 
 - **3-2-1**: at least **3** copies of the data, on **2** different kinds of storage, **1** of them off-site (another region or account). Modern practice adds one **immutable** copy (object lock / WORM — write once, read many) that even an attacker with admin credentials cannot delete, against ransomware.
 - **Separate the blast radius.** Backups in the same account, with the same credentials, as production can be deleted by the same mistake or the same attacker.
-- **Encrypt** backups and manage the keys separately; a backup is a full copy of your customers' data (LGPD/GDPR apply).
+- **Encrypt** backups and manage the keys separately; a backup is a full copy of your customers' data (Brazil's LGPD and Europe's GDPR data protection laws apply).
 - **Test restores regularly.** A backup that has never been restored is a hope. Automate a periodic restore into a scratch environment and check the data (row counts, checksums, a smoke test of the application).
 - **Monitor** backup jobs and WAL archiving lag; alert when they fail or fall behind.
 
@@ -126,7 +133,7 @@ The AWS disaster-recovery whitepaper describes a spectrum of four strategies, fr
 
 === "Backup and restore"
 
-    ``` mermaid
+    ``` diagram
     flowchart LR
         subgraph A ["Region A (primary)"]
             appA["services"] --> dbA[("databases")]
@@ -142,7 +149,7 @@ The AWS disaster-recovery whitepaper describes a spectrum of four strategies, fr
 
 === "Pilot light"
 
-    ``` mermaid
+    ``` diagram
     flowchart LR
         subgraph A ["Region A (primary)"]
             appA["services"] --> dbA[("databases")]
@@ -158,7 +165,7 @@ The AWS disaster-recovery whitepaper describes a spectrum of four strategies, fr
 
 === "Warm standby"
 
-    ``` mermaid
+    ``` diagram
     flowchart LR
         subgraph A ["Region A (primary, 100%)"]
             appA["services × 12"] --> dbA[("databases")]
@@ -173,7 +180,7 @@ The AWS disaster-recovery whitepaper describes a spectrum of four strategies, fr
 
 === "Multi-site active-active"
 
-    ``` mermaid
+    ``` diagram
     flowchart LR
         dns["GeoDNS / global LB"] --> A
         dns --> B
@@ -194,7 +201,7 @@ Active-active is easy for **read-mostly** data: the catalog can be read in any r
 
 - **Home region per entity**: each event (show) is owned by one region; all holds and sales for it go there; the other region is its warm standby. Fans in other regions pay a little latency for that show. Ownership moves only during a failover.
 - **A globally consistent database** (Spanner, CockroachDB, YugabyteDB): consensus across regions on every write, at the cost of cross-region latency on the seat-hold path.
-- **Multi-leader with conflict resolution** (last-writer-wins, CRDTs): fine for a shopping cart or a "favorites" list, **unacceptable** for seats.
+- **Multi-leader with conflict resolution** (last-writer-wins, conflict-free replicated data types or CRDTs): fine for a shopping cart or a "favorites" list, **unacceptable** for seats.
 
 ---
 
@@ -229,7 +236,7 @@ Points that decide whether it works:
 - **Detection from outside.** Probes that run inside the failing region may fail with it. Use external synthetic checks of the purchase journey.
 - **Automatic or human decision?** Automatic failover is fast but risky: a network blip that triggers a regional failover (and then a failback) can cause more damage than it prevents ("flapping"). Many teams automate *within* a region and keep a human decision, with a rehearsed runbook, *across* regions.
 - **Fencing.** Before the standby accepts writes, make sure the old primary cannot (revoke its credentials, stop it, or use a lease). Two primaries accepting holds is **split brain**: double-sold seats.
-- **DNS TTL.** Clients and resolvers cache DNS answers for the TTL; a 1-hour TTL means a 1-hour tail of traffic going to the dead region. Health-checked DNS records (e.g. Amazon Route 53 failover records) with short TTLs on the entry point (see [DNS and CDN](../../edge/dns-cdn/index.md)).
+- **DNS TTL.** Clients and resolvers cache DNS answers for their time to live (TTL); a 1-hour TTL means a 1-hour tail of traffic going to the dead region. Health-checked DNS records (e.g. Amazon Route 53 failover records) with short TTLs on the entry point (see [DNS and CDN](../../edge/dns-cdn/index.md)).
 - **Static stability.** The recovery region must not depend on the failed one: container images, secrets, configuration and capacity quotas must already be in region B.
 - **Failback.** Coming back is another migration: resynchronize data from B to A, then switch at a quiet time. Plan and rehearse it too.
 

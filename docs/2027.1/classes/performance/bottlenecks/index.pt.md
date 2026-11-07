@@ -72,7 +72,7 @@ plt.close()
 
 Três regiões são visíveis e cada uma tem um nome que você deve usar nos relatórios:
 
-- **Até o joelho (≈ 1 100 req/s)**: alcançado = oferecido, p99 dentro do SLO. Esta é a **capacidade utilizável** deste deployment.
+- **Até o joelho (≈ 1 100 req/s)**: alcançado = oferecido, p99 dentro do objetivo de nível de serviço (SLO, *service level objective*). Esta é a **capacidade utilizável** deste deployment.
 - **Entre o joelho e o máximo**: alcançado ainda ≈ oferecido, mas o p99 quebra o SLO — o sistema está *funcionando*, só que *devagar demais*; filas estão se formando.
 - **Depois do máximo (≈ 1 250 req/s)**: a vazão alcançada *cai* enquanto a oferecida continua crescendo, requisições expiram, aparecem erros. O sistema está **saturado** e, aqui, retrógrado: a sobrecarga o torna menos eficiente (timeouts, retries, comboios de locks).
 
@@ -83,13 +83,13 @@ A capacidade que você reporta é o joelho: "um deployment de `inventory` com 4 
 | O que você vê | Causa provável | Confirme com |
 |---|---|---|
 | A latência sobe com a carga **e** a CPU está perto de 100 % | Caminho de código limitado por CPU | Flame graph de CPU |
-| A latência sobe com a carga, **a CPU fica baixa** | Espera: um pool, um lock, I/O ou uma dependência lenta | USE nos pools e locks; perfil wall-clock; traces |
+| A latência sobe com a carga, **a CPU fica baixa** | Espera: um pool, um lock, I/O ou uma dependência lenta | USE (utilização, saturação, erros) nos pools e locks; perfil wall-clock; traces |
 | A vazão estabiliza enquanto a carga oferecida cresce | Um recurso saturado (o gargalo) | USE: encontre o que está a 100 % ou com fila |
-| A vazão **diminui** a partir de um ponto | Contenção / thrashing / retries (retrógrado, USL) | Esperas por lock, tempo de GC, contadores de retry |
+| A vazão **diminui** a partir de um ponto | Contenção / thrashing / retries (retrógrado, Lei Universal de Escalabilidade) | Esperas por lock, tempo de coleta de lixo (GC, *garbage collection*), contadores de retry |
 | Histograma de latência **bimodal** (duas corcovas) | Dois caminhos de código: hit vs miss de cache, shard rápido vs lento, retries | Separe por tag (status do cache, shard) |
 | Picos periódicos em intervalos fixos | Ciclos de GC, jobs de cron, checkpoints do banco, rotação de logs, renovação de tokens | Correlacione os horários com logs de GC, agendas de cron, logs do banco |
 | A latência cresce devagar com carga **constante** | Vazamento ou crescimento sem limite (memória, conexões, inchaço de tabelas) | Tendências do teste soak; heap depois do GC |
-| Erros só nos primeiros minutos | Partida a frio: JIT, pools e caches vazios, atraso do autoscaling | Compare com uma execução aquecida |
+| Erros só nos primeiros minutos | Partida a frio: compilação just-in-time (JIT), pools e caches vazios, atraso do autoscaling | Compare com uma execução aquecida |
 | p99 do cliente ≫ p99 do lado do servidor | Fila *antes* do serviço (load balancer, fila de accept, throttling de CPU) — ou omissão coordenada nas métricas do servidor | Compare os histogramas do gateway e do serviço; contadores de throttling |
 
 ---
@@ -99,7 +99,7 @@ A capacidade que você reporta é o joelho: "um deployment de `inventory` com 4 
 | Gargalo | Sinal típico | Correção típica |
 |---|---|---|
 | **Índice ausente ou errado** | Uma consulta domina o `pg_stat_statements`; `Seq Scan` com muitas linhas removidas | Índice que corresponda ao filtro e à ordenação; índice parcial |
-| **Consultas N+1** | Um trace com um span pai e dezenas de spans de banco idênticos | Join ou busca em lote (`IN (...)`), entity graph, projeção em DTO |
+| **Consultas N+1** | Um trace com um span pai e dezenas de spans de banco idênticos | Join ou busca em lote (`IN (...)`), entity graph, projeção em objeto de transferência de dados (DTO, *data transfer object*) |
 | **Esgotamento do pool de conexões** | `pending` do Hikari > 0; latência ≈ espera no pool | Primeiro, transações mais curtas; depois, dimensionar o pool; PgBouncer |
 | **Contenção de locks / linhas quentes** | CPU do banco baixa, sessões esperando em `Lock: tuple` ou `transactionid` | Transações mais curtas, `SKIP LOCKED`, linhas de granularidade mais fina, enfileirar as escritas |
 | **Esgotamento do pool de threads** | Todas as threads de requisição ocupadas, CPU baixa | Descubra o que elas esperam (geralmente um dos itens acima ou uma dependência); timeouts; virtual threads para código limitado por I/O |
@@ -109,7 +109,7 @@ A capacidade que você reporta é o joelho: "um deployment de `inventory` com 4 
 | **Serialização** | Frames de `ObjectMapper`/JSON largos em perfis de CPU | Payloads menores, paginação, evitar serializar duas vezes |
 | **Logs síncronos** | Frames do logger no caminho quente; I/O de disco no nó | Appenders assíncronos, nível de log menor, amostragem |
 | **Problemas de cache** | Taxa de acerto baixa; estouro (*stampede*) após a expiração; uma chave quente | Veja [Cache — modos de falha](../../caching/failure-modes/index.md) |
-| **Limites de rede** | Resets de conexão, esgotamento de portas efêmeras ou do conntrack com RPS alto | Keep-alive e reuso de conexões, HTTP/2, ajustar limites |
+| **Limites de rede** | Resets de conexão, esgotamento de portas efêmeras ou do conntrack com muitas requisições por segundo | Keep-alive e reuso de conexões, HTTP/2, ajustar limites |
 
 ---
 
@@ -204,7 +204,7 @@ asprof -d 30 -e lock  -f /tmp/lock.html  1    # contended Java monitors and lock
 asprof -d 30 -e alloc -f /tmp/alloc.html 1    # allocation hot spots (GC pressure)
 ```
 
-Rode o profiler **enquanto o teste de carga está no platô** — o perfil de um serviço ocioso só mostra código ocioso. Se `perf_events` não for permitido no container, `-e itimer` (ou `ctimer`) é uma alternativa de amostragem de CPU. O **Java Flight Recorder**, embutido no JDK, é a alternativa sem ferramenta extra (`jcmd 1 JFR.start duration=60s filename=/tmp/inventory.jfr settings=profile`); abra a gravação no JDK Mission Control ou converta-a em flame graph com o conversor do async-profiler.
+Rode o profiler **enquanto o teste de carga está no platô** — o perfil de um serviço ocioso só mostra código ocioso. Se `perf_events` não for permitido no container, `-e itimer` (ou `ctimer`) é uma alternativa de amostragem de CPU. O **Java Flight Recorder**, embutido no Java Development Kit (JDK), é a alternativa sem ferramenta extra (`jcmd 1 JFR.start duration=60s filename=/tmp/inventory.jfr settings=profile`); abra a gravação no JDK Mission Control ou converta-a em flame graph com o conversor do async-profiler.
 
 ### py-spy para Python { #py-spy-for-python }
 
@@ -380,7 +380,7 @@ Mantenha um diário de cada execução: o que mudou, o novo joelho e o que satur
 | 2 | Índice parcial nos assentos disponíveis | 700 | Pool Hikari: 10/10 ativas, 150 pendentes |
 | 3 | Chamada de preços movida para fora da transação | 1 100 | Esperas por locks de linha em setores quentes |
 | 4 | `FOR UPDATE SKIP LOCKED` na seleção de assentos | 1 800 | CPU do `inventory` a 85 % (JSON, TLS) |
-| 5 | 4 → 10 pods (mínimo do HPA), PgBouncer | 3 400 | CPU do primário do PostgreSQL a 80 % |
+| 5 | 4 → 10 pods (mínimo do Horizontal Pod Autoscaler, HPA, *escalonador horizontal de pods*), PgBouncer | 3 400 | CPU do primário do PostgreSQL a 80 % |
 | 6 | Sala de espera admitindo 3 000 reservas/s | 3 000 admitidas, p99 140 ms | — por design: a admissão é o limite |
 
 Depois da execução 6, o gargalo é deliberado: a taxa de admissão da sala de espera, definida abaixo do joelho do banco. Escalar além disso exigiria particionar o inventário por evento ou local ([Bancos de dados — particionamento](../../databases/partitioning/index.md)) — uma mudança muito maior, agora justificada por números.
@@ -388,6 +388,12 @@ Depois da execução 6, o gargalo é deliberado: a taxa de admissão da sala de 
 Experimente: o cenário `monolith` (um servidor de aplicação e um PostgreSQL, perfil **breakpoint**) produz as duas primeiras linhas de um registro desses em poucos minutos. Rode como está e abra o Relatório: o gargalo é o `app`, já 86 % ocupado a cerca de 430 req/s e o sistema quebra a cerca de **590 req/s**. Mude uma coisa — selecione o `app` e suba as réplicas para 6 — e rode de novo: o ponto de ruptura salta para cerca de **2.520 req/s** e o gargalo passa para o `db`, 87 % ocupado a cerca de 2.180 req/s. Agora mude a coisa *errada*: 12 réplicas em vez de 6. O ponto de ruptura continua em cerca de 2.520 req/s enquanto o custo mensal vai de cerca de 1.170 para 1.890 USD — acrescentar capacidade a um componente que não é o gargalo não compra nada.
 
 <div class="sdp" data-scenario="monolith" data-mode="full" data-profile="breakpoint" data-height="620"></div>
+
+!!! info "Experimente no playground: o pool do lab 2"
+
+    O preset `boxoffice-pool` é o começo de um diário assim com os números do [Hands-on 2](../../../hands-on/2/index.md): um `catalog` (1 CPU) e o seu PostgreSQL com o pool padrão de 10 conexões, sob o perfil breakpoint. O p99 fica plano até cerca de 300 req/s e quebra até 500 enquanto a CPU está longe de cheia — Lei de Little: 10 conexões ÷ cerca de 20 ms por consulta ≈ 480 consultas/s. Abra o Relatório: o gargalo são as conexões do banco, não a CPU dele. Faça uma mudança — aumente as conexões do `catalog-db` para 30, como o lab faz com `DB_POOL_SIZE=30` — e rode de novo: o joelho vai para cerca de 1 400 consultas/s e a CPU do `catalog` vira o próximo limite.
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="460"></div>
 
 !!! tip "Na entrevista"
 

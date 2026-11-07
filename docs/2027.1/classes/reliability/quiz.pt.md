@@ -148,19 +148,17 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q11.** No pico, o `order` faz **100 chamadas de pagamento por segundo** com latência normal de **200 ms**. O time define um **bulkhead de 50** chamadas concorrentes para o pagamento. O que isso dá?
+**Q11.** No lab 9, o `order` faz **20 chamadas de pagamento por segundo** com latência normal de **200 ms** e o seu **bulkhead de pagamento permite 10** chamadas concorrentes (de 50 threads). O que isso dá?
 
-- A. As chamadas ao pagamento ficam limitadas a 50 por segundo
-- B. Normalmente cerca de 20 chamadas estão em voo; o bulkhead tolera a latência crescer cerca de 2,5× antes de rejeitar e quando o pagamento fica muito lento no máximo 50 threads esperam por ele, sobrando o resto para outras rotas
-- C. 50 threads ficam reservadas e sempre ocupadas
-- D. As chamadas ao pagamento serão repetidas 50 vezes
+- A. As chamadas ao pagamento ficam limitadas a 10 por segundo
+- B. Normalmente cerca de 4 chamadas estão em voo; o bulkhead tolera a latência crescer cerca de 2,5× antes de rejeitar e quando o pagamento fica muito lento no máximo 10 threads esperam por ele, sobrando as outras 40 para outras rotas
+- C. 10 threads ficam reservadas e sempre ocupadas
+- D. As chamadas ao pagamento serão repetidas 10 vezes
 
 ??? success "Resposta"
     **B — folga de cerca de 2,5× e um teto para o estrago.**
 
-    Lei de Little: $100 \times 0.2 = 20$ chamadas concorrentes normalmente. Com 50 permissões, a latência pode chegar a cerca de 500 ms antes de as chamadas serem rejeitadas. Se o pagamento vai para 4 s, no máximo 50 threads esperam (em vez de 400) e as chamadas além disso falham na hora para o fallback, enquanto reservas e catálogo continuam funcionando.
-
----
+    Lei de Little: $20 \times 0.2 = 4$ chamadas concorrentes normalmente. Com 10 permissões, a latência pode chegar a cerca de 500 ms antes de as chamadas serem rejeitadas. Se o pagamento vai para 3 s, no máximo 10 threads esperam (em vez de 60, mais que o pool de 50) e as chamadas além disso falham na hora para o fallback (`max-wait-duration: 0`), enquanto o `GET /orders/{id}` mantém as suas threads.
 
 **Q12.** Um time adiciona uma verificação do banco ao probe de **liveness** do `order`. O banco tem uma oscilação de 20 segundos. O que acontece?
 
@@ -209,7 +207,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q15.** O time quer verificar se o circuit breaker do `payment` realmente protege o catálogo. Qual plano é um **experimento de caos** adequado?
 
 - A. Matar pods aleatórios de produção durante a próxima abertura de vendas do estádio e ver o que acontece
-- B. Definir o estado estável (p99 do catálogo < 300 ms, sucesso das compras ≥ 99,9%) e a hipótese (com 3 s de latência no provedor o breaker abre em até 30 s e a latência do catálogo fica estável); injetar a latência com Toxiproxy sob carga k6, primeiro em homologação, com uma condição de aborto pelo burn rate
+- B. Definir o estado estável (p99 do catálogo < 300 ms, sucesso das compras ≥ 99,9%) e a hipótese (com 3 s de latência no provedor o breaker abre em até 10 s e a latência do catálogo fica estável); injetar a latência com Toxiproxy sob carga k6, primeiro em homologação, com uma condição de aborto pelo burn rate
 - C. Escrever um teste unitário que simula o breaker aberto com um mock
 - D. Esperar o próximo incidente real do provedor e ler o postmortem
 

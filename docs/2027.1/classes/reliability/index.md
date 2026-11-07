@@ -6,23 +6,23 @@ A reliable system is not one that never fails. It is one that **fails gracefully
 
 !!! quote "The story so far"
 
-    Chapter 10 of the [story of the course](../../index.md#story). BoxOffice spreads the 10:00 crowd over stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), sells each seat once ([class 6](../databases/index.md)), answers reads from a cache ([class 7](../caching/index.md)) and admits fans through a waiting room ([class 8](../messaging/index.md)); [class 9](../observability/index.md) made it visible, with an SLO per journey and one trace per checkout. Now the trace shows the problem: the payment provider answers in seconds instead of milliseconds, and nothing in BoxOffice is broken. **This class** answers: how do we keep one slow dependency from taking everything down, and how much redundancy does the SLO ask us to buy?
+    Chapter 10 of the [story of the course](../../index.md#story). BoxOffice spreads the 10:00 crowd over stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), sells each seat once ([class 6](../databases/index.md)), answers reads from a cache ([class 7](../caching/index.md)) and admits fans through a waiting room ([class 8](../messaging/index.md)); [class 9](../observability/index.md) made it visible, with a service level objective (SLO) per journey and one trace per checkout. Now the trace shows the problem: the payment provider answers in seconds instead of milliseconds, and nothing in BoxOffice is broken. **This class** answers: how do we keep one slow dependency from taking everything down, and how much redundancy does the SLO ask us to buy?
 
 !!! abstract "Learning objectives"
 
     By the end of this class you should be able to:
 
-    - **Calculate** availability from MTTF and MTTR, the downtime allowed by a number of "nines", and the end-to-end availability of components in series and in parallel.
+    - **Calculate** availability from the mean time to failure (MTTF) and the mean time to repair (MTTR), the downtime allowed by a number of "nines", and the end-to-end availability of components in series and in parallel.
     - **Explain** how a slow dependency causes a cascading failure, and **estimate** the resources it exhausts with Little's Law.
     - **Choose and configure** resilience patterns — timeouts, retries with backoff and jitter, circuit breakers, bulkheads, load shedding and rate limiting — for a call between two services, and **predict** what each one does under failure.
-    - **Design** a disaster-recovery strategy from RPO and RTO targets, choosing between backup and restore, pilot light, warm standby and active-active.
+    - **Design** a disaster-recovery strategy from recovery point and recovery time objectives (RPO and RTO), choosing between backup and restore, pilot light, warm standby and active-active.
     - **Plan** a chaos experiment and a game day with a steady-state hypothesis and a controlled blast radius.
 
 ## Roadmap
 
 1. **This overview** — availability, MTTF/MTTR, the "nines", composite availability, redundancy and failover, failure modes and cascading failures.
 2. [Resilience patterns](patterns/index.md) — timeout, retry with backoff and jitter, circuit breaker, bulkhead, load shedding, rate limiting, health checks, with Resilience4j.
-3. [Disaster recovery](disaster-recovery/index.md) — RPO and RTO, backups, multi-AZ and multi-region, and the four DR strategies.
+3. [Disaster recovery](disaster-recovery/index.md) — RPO and RTO, backups, multiple availability zones (multi-AZ) and multi-region, and the four disaster-recovery (DR) strategies.
 4. [Chaos engineering](chaos/index.md) — injecting failures on purpose to prove that the defences work; game days.
 5. [Quiz](quiz.md) — check your understanding.
 
@@ -63,6 +63,17 @@ $$
     Recovering faster was the bigger win — and much cheaper than never failing.
 
 Reliability work pulls one of two levers. **Raising MTTF** (fewer failures): testing, code review, redundancy, fault-tolerant design, careful deploys. **Lowering MTTR** (faster recovery): good alerts, dashboards and traces, runbooks, automatic restarts and failover, quick rollbacks. In modern systems MTTR is usually the cheaper lever, and MTTR is itself a sum — **time to detect + time to diagnose + time to fix** — each part attacked by a different practice (see [Observability](../observability/index.md)).
+
+``` diagram-sim
+stateDiagram-v2
+    [*] --> Serving
+    Serving --> Failed : a failure, on average after MTTF
+    Failed --> Detected : an alert fires (time to detect)
+    Detected --> Diagnosed : dashboards and traces (time to diagnose)
+    Diagnosed --> Serving : restart, rollback or failover (time to fix)
+```
+
+Everything from **Failed** back to **Serving** is the MTTR, and each arrow on that way is a separate number to cut.
 
 ### The "nines"
 
@@ -180,6 +191,16 @@ flowchart LR
     o -.->|"fallback"| p2["payment provider B<br/>99.9%"]
 ```
 
+Now change the design yourself: replicate the services, add the failover and the second provider, and see where the minutes go.
+
+<div class="csim" data-sim="availability-path" data-replicas="1" data-onezone="off"></div>
+
+!!! tip "Try it"
+    1. One instance of everything: 98.30%, 745 min a month without purchases, and the weakest link is one of the three services at 99.5%.
+    2. Give the three services 2 replicas: 99.78% (95 min). A third replica only takes it to 99.79%: the services are now almost perfect and the weakest link is SQL — no replica of a service fixes it.
+    3. Turn on the SQL failover: 99.84% (70 min), and the payment provider becomes the weakest link; add the second provider: 99.94%, 26 min.
+    4. Now put every replica in one zone (assume a zone at 99.9%): 99.84% and 70 min — the one zone undoes what the failover and the second provider bought. Redundancy counts only if its failures are independent.
+
 !!! tip "Redundancy has a price tag"
     Each step in the chart costs money (three times the instances, a standby database, a second provider contract) and complexity (failover logic, testing the fallback). Reliability is bought, not free: the [error budget](../observability/slo/index.md) is how you decide how much to buy.
 
@@ -213,7 +234,7 @@ Distributed systems fail in ways a single machine does not. **Partial failures**
 |---|---|---|
 | **Crash (fail-stop)** | The process dies and stays dead | Health checks, restart, failover to a replica |
 | **Transient** | Self-resolves within seconds (network blip, leader election) | Retry with backoff and jitter |
-| **Slow / gray failure** | Still answering, but slowly or with some errors; health checks may still pass | Timeouts, circuit breakers, outlier detection, latency SLIs |
+| **Slow / gray failure** | Still answering, but slowly or with some errors; health checks may still pass | Timeouts, circuit breakers, outlier detection, latency service level indicators (SLIs) |
 | **Intermittent** | Appears and disappears (GC pauses, a leaking resource) | Percentile latency, anomaly detection, profiling |
 | **Byzantine / incorrect** | Returns wrong data without crashing (bit flips, corrupted cache, bug) | Checksums, validation, reconciliation |
 | **Correlated** | Many components fail together (bad deploy, expired certificate, zone outage) | Gradual rollouts, diversity, multi-zone, chaos tests |
@@ -304,12 +325,12 @@ flowchart LR
 | [`apigw`](../../reference/components/edge/index.md#apigw) | Which work do we refuse under overload? | rate limiting per client, load shedding by priority, waiting room | [Resilience patterns](patterns/index.md#load-shedding) | `rate-limiter`, `flash-sale` |
 | [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | Should traffic reach this instance? | liveness, readiness, startup; no dependencies in liveness | [Resilience patterns](patterns/index.md#health-checks) | `scale-out` |
 | [`metrics`](../../reference/components/observability/index.md#metrics), [`alerting`](../../reference/components/observability/index.md#alerting) | Are we reliable *enough*? | SLI, SLO, error budget, burn rate, error budget policy — the target every defence here is judged by | [Observability — SLIs, SLOs and error budgets](../observability/slo/index.md) (class 9) | `observability-stack` |
-| [`sql`](../../reference/components/storage/index.md#sql), [`objstore`](../../reference/components/storage/index.md#objstore) | How much data and time can we lose? | RPO/RTO, PITR, 3-2-1 backups, delayed replica | [Disaster recovery](disaster-recovery/index.md#rpo-rto) | `db-failover`, `db-replicas` |
-| [`dns`](../../reference/components/edge/index.md#dns) | How do fans reach the surviving region? | multi-region, the four DR strategies, fencing, DNS TTL | [Disaster recovery](disaster-recovery/index.md#dr-strategies) | `multi-region` |
+| [`sql`](../../reference/components/storage/index.md#sql), [`objstore`](../../reference/components/storage/index.md#objstore) | How much data and time can we lose? | RPO/RTO, point-in-time recovery (PITR), 3-2-1 backups, delayed replica | [Disaster recovery](disaster-recovery/index.md#rpo-rto) | `db-failover`, `db-replicas` |
+| [`dns`](../../reference/components/edge/index.md#dns) | How do fans reach the surviving region? | multi-region, the four DR strategies, fencing, DNS time to live (TTL) | [Disaster recovery](disaster-recovery/index.md#dr-strategies) | `multi-region` |
 | *(all of them)* | Do the defences actually work? | steady-state hypothesis, fault injection, blast radius, game days | [Chaos engineering](chaos/index.md) | `flash-sale` (chaos) |
 
 !!! tip "In the interview"
-    When you finish a design, interviewers often ask "what happens if X fails?" or "what if X becomes slow?". Answer with a chain: *who calls X*, *what resource they hold while waiting*, *what the timeout is*, *what the fallback is*, and *what the user sees*. For BoxOffice: "payment is called by `order` with a 2 s timeout, a circuit breaker and its own bulkhead of 50 concurrent calls; when it opens, the fan sees 'payment temporarily unavailable, your seats stay held for 10 minutes' — and the catalog is unaffected." Also quote availability math: "two dependencies at three nines in series cap us at 99.8%".
+    When you finish a design, interviewers often ask "what happens if X fails?" or "what if X becomes slow?". Answer with a chain: *who calls X*, *what resource they hold while waiting*, *what the timeout is*, *what the fallback is*, and *what the user sees*. For BoxOffice: "payment is called by `order` with a 1 s read timeout, three attempts with jittered backoff, a circuit breaker that also counts calls slower than 800 ms and its own bulkhead of 10 concurrent calls; when it opens, the fan sees 'payment temporarily unavailable, your seats stay held for 10 minutes' — and the catalog is unaffected." Also quote availability math: "two dependencies at three nines in series cap us at 99.8%".
 
 !!! success "Best practices"
 
@@ -332,10 +353,20 @@ flowchart LR
 
 ## Related
 
-- **Hands-on** (the week after this class and class 9): [Hands-on 8 — Observability](../../hands-on/8/index.md) first — OpenTelemetry, a RED dashboard and SLO burn-rate alerts, so that the experiments have something to show; then [Hands-on 9 — Resilience & chaos](../../hands-on/9/index.md): Resilience4j between `order` and `payment`, Toxiproxy latency and faults, a game day. [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes and self-healing.
+- **Hands-on** (the week after this class and class 9): [Hands-on 8 — Observability](../../hands-on/8/index.md) first — OpenTelemetry, a RED (rate, errors, duration) dashboard and SLO burn-rate alerts, so that the experiments have something to show; then [Hands-on 9 — Resilience & chaos](../../hands-on/9/index.md): Resilience4j between `order` and `payment`, Toxiproxy latency and faults, a game day. [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes and self-healing.
 - **Project:** [Chaos game day](../../exercises/project/game-day/index.md).
 - **Case studies:** [Payment system](../case-studies/payment-system/index.md), [Ticketing (BoxOffice flash sale)](../case-studies/ticketing/index.md).
 - **Classes:** [Estimation — availability math](../estimation/availability-math/index.md), [Observability](../observability/index.md) (previous class, the same week: the SLOs, dashboards and alerts these defences are judged by), [Messaging](../messaging/index.md) (asynchrony removes dependencies from the critical path), [Cloud-Native](../cloud-native/index.md) (next class: probes, self-healing, autoscaling).
+
+## Key takeaways { #key-takeaways }
+
+!!! takeaways ""
+
+    - Availability = MTTF / (MTTF + MTTR); components in series **multiply**, replicas in parallel give $1 - (1 - a)^n$ — only if their failures are independent.
+    - Lowering the MTTR (detect, diagnose, fix) is usually cheaper than raising the MTTF: a 1-minute restart took `inventory` from 99.72% to 99.998%.
+    - A **slow** dependency is worse than a dead one: by Little's Law it fills the caller's threads, and the exhaustion climbs to features that never call it.
+    - Redundancy is bought, not free: the error budget of the SLO ([class 9](../observability/slo/index.md)) decides how many nines to pay for.
+    - Timeouts, retries with jitter, circuit breakers, bulkheads and honest fallbacks contain a slow dependency; disaster recovery starts from RPO and RTO; chaos experiments prove both.
 
 ## What breaks next { #what-breaks-next }
 

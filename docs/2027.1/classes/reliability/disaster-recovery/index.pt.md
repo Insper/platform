@@ -30,7 +30,7 @@ São decisões de negócio expressas em minutos e se traduzem em dinheiro: cada 
     |---|---|---|---|
     | `order` + livro-razão do `payment` | Dinheiro; os fãs foram cobrados | ≈ 0 para pagamentos confirmados (reconciliar com o provedor) | 15 min |
     | `inventory` (lugares, reservas) | Nada de venda duplicada depois da recuperação | ≈ segundos; reservas podem se perder, lugares vendidos não | 15 min |
-    | `catalog` (eventos, locais) | Mudanças são raras e podem ser refeitas | 1 h | 1 h (servido desatualizado pela CDN enquanto isso) |
+    | `catalog` (eventos, locais) | Mudanças são raras e podem ser refeitas | 1 h | 1 h (servido desatualizado pela rede de distribuição de conteúdo, a CDN, *content delivery network*, enquanto isso) |
     | Índice do `search` | Reconstruído a partir do catálogo | n/a (dado derivado) | 4 h |
     | Analytics / warehouse | Não é voltado ao cliente | 24 h | 2 dias |
 
@@ -62,6 +62,13 @@ pgbackrest --stanza=order --type=time "--target=2027-03-14 21:59:30-03" \
   --target-action=promote restore
 ```
 
+``` diagram-sim
+flowchart LR
+    base[("backup base<br/>ontem, 02:00")] -->|"restaurar"| w["WAL arquivado desde então<br/>reaplicado em ordem"]
+    w -->|"parar no alvo"| tgt(["21:59:30<br/>promover aqui"]):::comp
+    tgt -.->|"nunca reaplicado"| del["22:00<br/>DELETE FROM orders"]:::problem
+```
+
 O RPO passa a ser o atraso do arquivamento do WAL (segundos a um minuto) e o RTO é o **tempo de restauração**, que você precisa estimar — e medir:
 
 $$
@@ -76,7 +83,7 @@ $$
 
 - **3-2-1**: pelo menos **3** cópias dos dados, em **2** tipos diferentes de armazenamento, **1** delas fora do local (outra região ou conta). A prática moderna acrescenta uma cópia **imutável** (object lock / WORM — escreva uma vez, leia muitas) que nem um atacante com credenciais de administrador consegue apagar, contra ransomware.
 - **Separe o raio de impacto.** Backups na mesma conta, com as mesmas credenciais da produção, podem ser apagados pelo mesmo erro ou pelo mesmo atacante.
-- **Cifre** os backups e gerencie as chaves separadamente; um backup é uma cópia completa dos dados dos seus clientes (a LGPD/GDPR se aplica).
+- **Cifre** os backups e gerencie as chaves separadamente; um backup é uma cópia completa dos dados dos seus clientes (a LGPD no Brasil e a GDPR na Europa, leis de proteção de dados, se aplica).
 - **Teste restaurações regularmente.** Um backup que nunca foi restaurado é uma esperança. Automatize uma restauração periódica num ambiente descartável e verifique os dados (contagem de linhas, checksums, um smoke test da aplicação).
 - **Monitore** os jobs de backup e o atraso do arquivamento do WAL; alerte quando falharem ou atrasarem.
 
@@ -126,7 +133,7 @@ O whitepaper de recuperação de desastres da AWS descreve um espectro de quatro
 
 === "Backup e restore"
 
-    ``` mermaid
+    ``` diagram
     flowchart LR
         subgraph A ["Região A (primária)"]
             appA["serviços"] --> dbA[("bancos")]
@@ -142,7 +149,7 @@ O whitepaper de recuperação de desastres da AWS descreve um espectro de quatro
 
 === "Pilot light"
 
-    ``` mermaid
+    ``` diagram
     flowchart LR
         subgraph A ["Região A (primária)"]
             appA["serviços"] --> dbA[("bancos")]
@@ -158,7 +165,7 @@ O whitepaper de recuperação de desastres da AWS descreve um espectro de quatro
 
 === "Warm standby"
 
-    ``` mermaid
+    ``` diagram
     flowchart LR
         subgraph A ["Região A (primária, 100%)"]
             appA["serviços × 12"] --> dbA[("bancos")]
@@ -173,7 +180,7 @@ O whitepaper de recuperação de desastres da AWS descreve um espectro de quatro
 
 === "Multi-site ativo-ativo"
 
-    ``` mermaid
+    ``` diagram
     flowchart LR
         dns["GeoDNS / LB global"] --> A
         dns --> B
@@ -194,7 +201,7 @@ Ativo-ativo é fácil para dados **de leitura predominante**: o catálogo pode s
 
 - **Região de origem por entidade**: cada evento (show) pertence a uma região; todas as reservas e vendas dele vão para lá; a outra região é o warm standby dele. Fãs em outras regiões pagam um pouco de latência por aquele show. A posse só muda durante um failover.
 - **Um banco globalmente consistente** (Spanner, CockroachDB, YugabyteDB): consenso entre regiões em toda escrita, ao custo da latência entre regiões no caminho de reserva.
-- **Multi-líder com resolução de conflitos** (last-writer-wins, CRDTs): ótimo para um carrinho de compras ou uma lista de "favoritos", **inaceitável** para lugares.
+- **Multi-líder com resolução de conflitos** (last-writer-wins, tipos de dados replicados livres de conflito ou CRDTs, *conflict-free replicated data types*): ótimo para um carrinho de compras ou uma lista de "favoritos", **inaceitável** para lugares.
 
 ---
 
@@ -229,7 +236,7 @@ Pontos que decidem se funciona:
 - **Detecção de fora.** Probes que rodam dentro da região com falha podem falhar com ela. Use verificações sintéticas externas da jornada de compra.
 - **Decisão automática ou humana?** Failover automático é rápido mas arriscado: uma oscilação de rede que dispara um failover regional (e depois um failback) pode causar mais estrago do que evita (*flapping*). Muitos times automatizam *dentro* de uma região e mantêm uma decisão humana, com runbook ensaiado, *entre* regiões.
 - **Fencing.** Antes de o standby aceitar escritas, garanta que o primário antigo não consegue (revogue as credenciais, pare-o, ou use um lease). Dois primários aceitando reservas é **split brain**: lugares vendidos em dobro.
-- **TTL do DNS.** Clientes e resolvedores guardam as respostas de DNS pelo TTL; um TTL de 1 hora significa uma cauda de 1 hora de tráfego indo para a região morta. Use registros de DNS com health check (por exemplo, registros de failover do Amazon Route 53) e TTLs curtos no ponto de entrada (veja [DNS e CDN](../../edge/dns-cdn/index.md)).
+- **TTL do DNS.** Clientes e resolvedores guardam as respostas de DNS pelo seu tempo de vida (TTL, *time to live*); um TTL de 1 hora significa uma cauda de 1 hora de tráfego indo para a região morta. Use registros de DNS com health check (por exemplo, registros de failover do Amazon Route 53) e TTLs curtos no ponto de entrada (veja [DNS e CDN](../../edge/dns-cdn/index.md)).
 - **Estabilidade estática.** A região de recuperação não pode depender da que falhou: imagens de container, segredos, configuração e cotas de capacidade já precisam estar na região B.
 - **Failback.** Voltar é outra migração: ressincronize os dados de B para A e então troque num horário tranquilo. Planeje e ensaie isso também.
 

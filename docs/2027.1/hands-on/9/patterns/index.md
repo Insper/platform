@@ -205,6 +205,15 @@ closes again if they succeed. Re-enable the proxy in the middle of the run
 (`curl -s -X POST localhost:8474/proxies/payment -d '{"enabled": true}'`) and watch it close.
 `/actuator/circuitbreakerevents` lists every transition.
 
+``` diagram-sim
+stateDiagram-v2
+    [*] --> CLOSED
+    CLOSED --> OPEN : proxy disabled, 10 calls fail
+    OPEN --> HALF_OPEN : 10 s later, automatically
+    HALF_OPEN --> OPEN : the 3 probes fail, proxy still off
+    HALF_OPEN --> CLOSED : proxy re-enabled, 3 probes succeed
+```
+
 The breaker protects **both sides**: `order` stops wasting threads and time on calls that will fail,
 and `payment` gets breathing room to recover instead of a flood of retries.
 
@@ -225,6 +234,15 @@ k6 run -e PAY_RATE=70 load/pay-under-chaos.js
 curl -s -X POST localhost:8474/reset                # remove every toxic
 ```
 
+``` diagram
+flowchart LR
+    k6["k6: 70 payments/s<br/>+ 20 GET /orders/{id}/s"] --> tc["order<br/>50 Tomcat threads"]
+    tc --> bh{"bulkhead<br/>10 permits"}
+    bh -->|"a permit: wait about 700 ms"| pay["payment via Toxiproxy<br/>latency 700 ms"]
+    bh -->|"full: 503 at once"| fb["fallback"]:::problem
+    tc -->|"the other 40 threads"| get["GET /orders/{id}<br/>a few ms"]:::comp
+```
+
 Without a bulkhead, 70/s × 0.7 s ≈ 49 threads wait on `payment`: the pool of 50 is practically full
 and `GET /orders/{id}` queues behind the payments. With `max-concurrent-calls: 10`, at most 10 threads
 wait on `payment`; the extra concurrent payments are rejected at once (`503`), and the other 40
@@ -236,6 +254,24 @@ opened it for part of the run and about half of the payments failed fast; even s
 about 0.75 s. With the bulkhead, about 85% of the payments were rejected (10 calls / 0.7 s ≈ 14 of the
 70 per second fit) and `browse` p95 was about 25 ms. A bulkhead is a **budget of concurrency per
 dependency** — named after the watertight compartments of a ship.
+
+### The five runs, without the stack { #the-five-runs-without-the-stack }
+
+Before (or after) you run them, replay the experiments of this page in the simulator below. It models
+`order` with the lab's values — its Tomcat pool, the Resilience4j stack of `PaymentGateway`, the toxics —
+and runs `load/pay-under-chaos.js` against it, printing k6's summary. Pick a step and switch its pattern
+on and off; the numbers are the model's, so compare their **shape** with your own runs.
+
+<div class="csim" data-sim="pay-under-chaos" data-exp="timeout" data-after="off"></div>
+
+!!! tip "Try it"
+    The model uses lab 9's values: 50 Tomcat threads, load/pay-under-chaos.js for 120 s, the Resilience4j settings of `application.yaml` and each step's toxic. Run each step before and after its pattern:
+
+    1. **Timeout**, before (`PAYMENT_READ_TIMEOUT=0`): `GET /orders/{id}` waits a med 4.75 s and a p(95) 16.8 s although it never calls `payment`, and k6 drops 65 iterations for lack of virtual users (VUs). After (1 s): every pay takes 1.01 s and fails, and `browse` is back to a p(95) 8 ms.
+    2. **Retry**: with one attempt, 0.3% of the payments fail — not 30%, because the toxic only hits the first request of a new connection and the client reuses its connections; with 3 attempts, 0.0%.
+    3. **Circuit breaker**: it opens 0.3 s into the run and then lets 3 probes through every 10 s, which fail while the proxy is down; the proxy comes back at 60 s and the breaker closes at 61.1 s. The time to `CLOSED` depends on where the 10 s wait was: up to 10 s plus the probes.
+    4. **Bulkhead**, before (`PAYMENT_BULKHEAD=1000`): calls take 0.7–1 s, about a quarter of them above 800 ms, and every so often half of a 20-call window is slow: the slow-call rule opens the breaker 7 times; 58% of the payments fail fast and browse p95 is 759 ms. After (10): 81% of the payments are rejected at once, browse p95 8 ms.
+    5. **All patterns** (the table of [Measure it](../measure/index.md)): browse med 6.0 ms, pay_fast_fail 100%.
 
 | Pattern | Protects against | Cost |
 |---|---|---|

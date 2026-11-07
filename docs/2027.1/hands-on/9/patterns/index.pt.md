@@ -207,6 +207,15 @@ teste e fecha de novo se elas derem certo. Reative o proxy no meio da execução
 (`curl -s -X POST localhost:8474/proxies/payment -d '{"enabled": true}'`) e veja-o fechar. O
 `/actuator/circuitbreakerevents` lista cada transição.
 
+``` diagram-sim
+stateDiagram-v2
+    [*] --> CLOSED
+    CLOSED --> OPEN : proxy desativado, 10 chamadas falham
+    OPEN --> HALF_OPEN : 10 s depois, automaticamente
+    HALF_OPEN --> OPEN : as 3 sondas falham, proxy ainda desligado
+    HALF_OPEN --> CLOSED : proxy reativado, 3 sondas dão certo
+```
+
 O breaker protege **os dois lados**: o `order` para de gastar threads e tempo em chamadas que vão
 falhar e o `payment` ganha fôlego para se recuperar em vez de uma enxurrada de retries.
 
@@ -227,6 +236,15 @@ k6 run -e PAY_RATE=70 load/pay-under-chaos.js
 curl -s -X POST localhost:8474/reset                # remove every toxic
 ```
 
+``` diagram
+flowchart LR
+    k6["k6: 70 pagamentos/s<br/>+ 20 GET /orders/{id}/s"] --> tc["order<br/>50 threads do Tomcat"]
+    tc --> bh{"bulkhead<br/>10 permissões"}
+    bh -->|"com permissão: espera cerca de 700 ms"| pay["payment via Toxiproxy<br/>latência de 700 ms"]
+    bh -->|"cheio: 503 na hora"| fb["fallback"]:::problem
+    tc -->|"as outras 40 threads"| get["GET /orders/{id}<br/>alguns ms"]:::comp
+```
+
 Sem bulkhead, 70/s × 0,7 s ≈ 49 threads esperam o `payment`: o pool de 50 fica praticamente cheio e o
 `GET /orders/{id}` entra na fila atrás dos pagamentos. Com `max-concurrent-calls: 10`, no máximo 10
 threads esperam o `payment`; os pagamentos concorrentes excedentes são rejeitados na hora (`503`) e as
@@ -238,6 +256,24 @@ do breaker o abriu em parte da execução e cerca de metade dos pagamentos falho
 p95 do `browse` ficou em cerca de 0,75 s. Com o bulkhead, cerca de 85% dos pagamentos foram rejeitados
 (10 chamadas / 0,7 s ≈ 14 dos 70 por segundo cabem) e o p95 do `browse` ficou em cerca de 25 ms. Um
 bulkhead é um **orçamento de concorrência por dependência** — o nome vem dos compartimentos estanques de um navio.
+
+### As cinco execuções, sem a stack { #the-five-runs-without-the-stack }
+
+Antes (ou depois) de rodá-los, repita os experimentos desta página no simulador abaixo. Ele modela o
+`order` com os valores do lab — o pool do Tomcat, a pilha do Resilience4j do `PaymentGateway`, os toxics —
+e roda o `load/pay-under-chaos.js` contra ele, imprimindo o resumo do k6. Escolha um passo e ligue e
+desligue o seu padrão; os números são do modelo, então compare a **forma** deles com as suas execuções.
+
+<div class="csim" data-sim="pay-under-chaos" data-exp="timeout" data-after="off"></div>
+
+!!! tip "Experimente"
+    O modelo usa os valores do lab 9: 50 threads do Tomcat, load/pay-under-chaos.js por 120 s, as configurações do Resilience4j no `application.yaml` e o toxic de cada passo. Rode cada passo antes e depois do seu padrão:
+
+    1. **Timeout**, antes (`PAYMENT_READ_TIMEOUT=0`): o `GET /orders/{id}` espera uma med 4,75 s e um p(95) 16,8 s embora nunca chame o `payment` e o k6 descarta 65 iterações por falta de usuários virtuais (VUs). Depois (1 s): todo pay leva 1,01 s e falha e o `browse` volta a um p(95) 8 ms.
+    2. **Retry**: com uma tentativa, 0,3% dos pagamentos falham — não 30%, porque o toxic só atinge a primeira requisição de uma conexão nova e o cliente reutiliza as suas conexões; com 3 tentativas, 0,0%.
+    3. **Circuit breaker**: ele abre 0,3 s depois do início e então deixa passar 3 sondas a cada 10 s, que falham enquanto o proxy está desligado; o proxy volta em 60 s e o breaker fecha em 61,1 s. O tempo até `CLOSED` depende de onde estava a espera de 10 s: até 10 s mais as sondas.
+    4. **Bulkhead**, antes (`PAYMENT_BULKHEAD=1000`): as chamadas levam 0,7–1 s, cerca de um quarto delas acima de 800 ms, e de vez em quando metade de uma janela de 20 chamadas é lenta: a regra de chamada lenta abre o breaker 7 vezes; 58% dos pagamentos falham rápido e o p95 do browse é 759 ms. Depois (10): 81% dos pagamentos são rejeitados na hora, p95 do browse 8 ms.
+    5. **Todos os padrões** (a tabela do [Meça](../measure/index.md)): mediana do browse 6,0 ms, pay_fast_fail 100%.
 
 | Padrão | Protege contra | Custo |
 |---|---|---|

@@ -23,7 +23,7 @@ Um teste é tão bom quanto seu modelo da carga. A caracterização da carga res
 
 | Pergunta | Significado | Resposta do BoxOffice |
 |---|---|---|
-| **Quem** está causando a carga? | Clientes, bots, jobs internos, regiões | Fãs no celular (70 %) e na web, a API de revendedores parceiros, bots de cambistas (bloqueados no [WAF](../../../reference/components/edge/index.md#waf)) |
+| **Quem** está causando a carga? | Clientes, bots, jobs internos, regiões | Fãs no celular (70 %) e na web, a API de revendedores parceiros, bots de cambistas (bloqueados no firewall de aplicação web, [WAF](../../../reference/components/edge/index.md#waf)) |
 | **Por que** a carga acontece? | Fluxos de usuário e eventos de negócio | Navegação nos dias normais; uma venda às 10:00 cria uma corrida sincronizada |
 | **O que** é a carga? | Mix de endpoints, tamanhos de payload, razão leitura/escrita, dados acessados | 80 % leituras (página do evento, mapa de assentos, busca), 20 % escritas (reservas, pedidos) durante a venda |
 | **Como** ela muda no tempo? | Padrão de chegada, picos, sazonalidade | Onda diária suave; venda = rampa quase vertical às 10:00:00, pico nos primeiros 5 minutos, cauda longa |
@@ -48,9 +48,9 @@ ORDER BY requests DESC;
 
 O resultado vira o modelo de carga que todos os testes desta aula reutilizam (os números são premissas ilustrativas para uma venda de estádio):
 
-| Endpoint | Fatia das requisições | Pico req/s | SLO de latência (p99) | Observações |
+| Endpoint | Fatia das requisições | Pico req/s | Objetivo de nível de serviço (SLO, *service level objective*) de latência (p99) | Observações |
 |---|---|---|---|---|
-| `GET /events/{id}` (página do evento) | 35 % | 10 500 | 200 ms | Cacheável; CDN + Redis |
+| `GET /events/{id}` (página do evento) | 35 % | 10 500 | 200 ms | Cacheável; rede de distribuição de conteúdo (CDN, *content delivery network*) + Redis |
 | `GET /events/{id}/seats` (mapa de assentos) | 30 % | 9 000 | 300 ms | Muda a cada segundo durante a venda |
 | `GET /search` | 10 % | 3 000 | 400 ms | Serviço de busca |
 | `POST /holds` (reservar assentos) | 15 % | 4 500 | 300 ms | Fortemente consistente; locks de linha |
@@ -78,13 +78,13 @@ Recursos não são só hardware. Em um serviço Java, os **recursos de software*
 | Recurso | Utilização | Saturação | Erros | Onde ler |
 |---|---|---|---|---|
 | **CPU** | `%usr + %sys` por núcleo | Fila de execução (coluna `r` do `vmstat` > número de núcleos); **throttling** do container | — | `mpstat -P ALL 1`, `vmstat 1`, `cpu.stat` do cgroup (`nr_throttled`) |
-| **Memória** | Usada vs limite | Swap, varredura de páginas; GC rodando com mais frequência | `OOMKilled`, `OutOfMemoryError` | `free -m`, `vmstat` (`si/so`), logs de GC da JVM / JFR |
+| **Memória** | Usada vs limite | Swap, varredura de páginas; coleta de lixo (GC, *garbage collection*) rodando com mais frequência | `OOMKilled`, `OutOfMemoryError` | `free -m`, `vmstat` (`si/so`), logs de GC da JVM / Java Flight Recorder (JFR) |
 | **Rede** | Vazão vs capacidade do link | Backlog de sockets, retransmissões | Descartes, resets | `sar -n DEV,TCP,ETCP 1`, `ss -s`, `nstat` |
 | **Disco** | `%util` | Tamanho médio da fila (`aqu-sz`), await | Erros de I/O | `iostat -xz 1` |
 | **Pool de threads** (Tomcat) | Threads ocupadas / máximo | Fila de accept / requisições esperando | Requisições rejeitadas | `tomcat_threads_busy_threads`, `..._config_max_threads` (Micrometer) |
 | **Pool de conexões** (HikariCP) | Ativas / máximo | **Threads pendentes** esperando uma conexão | Timeouts de conexão | `hikaricp_connections_active`, `..._pending`, `..._timeout_total` |
 | **Banco de dados** | CPU, I/O do host do banco | Sessões esperando (`wait_event`), esperas por lock | Deadlocks, timeouts de statement | `pg_stat_activity`, `pg_locks`, `pg_stat_statements` |
-| **Partição Kafka / fila** | Tempo ocupado do consumidor | **Atraso do consumidor** (*lag*) | Mensagens na DLQ | Exporter de consumer lag, métricas do broker |
+| **Partição Kafka / fila** | Tempo ocupado do consumidor | **Atraso do consumidor** (*lag*) | Mensagens na fila de mensagens mortas (DLQ, *dead-letter queue*) | Exporter de consumer lag, métricas do broker |
 
 ### Um passo a passo: por que `POST /holds` está lento? { #a-walk-through-why-is-post-holds-slow }
 
@@ -193,7 +193,7 @@ export function pickUser() {
 
 ## Aquecimento: meça o regime permanente — e teste o frio { #warm-up }
 
-Logo depois de um deploy, um serviço JVM é mais lento do que será em cinco minutos: classes estão carregando, o compilador JIT ainda não compilou os métodos quentes, os pools de conexão estão enchendo, o Redis e o cache de buffers do PostgreSQL estão frios e o autoscaler está no mínimo. Medir esse período mistura duas perguntas diferentes.
+Logo depois de um deploy, um serviço JVM é mais lento do que será em cinco minutos: classes estão carregando, o compilador just-in-time (JIT) ainda não compilou os métodos quentes, os pools de conexão estão enchendo, o Redis e o cache de buffers do PostgreSQL estão frios e o autoscaler está no mínimo. Medir esse período mistura duas perguntas diferentes.
 
 - **Testes de regime permanente** (load, soak, breakpoint) devem **aquecer primeiro** e excluir o aquecimento dos thresholds.
 - **Testes de partida a frio** medem deliberadamente o sistema frio, porque a produção também tem momentos frios: um deploy durante o tráfego, um cache esvaziado, um failover para uma réplica fria, novos pods adicionados pelo autoscaler durante o pico.
@@ -226,7 +226,7 @@ export const options = {
 Ambientes de nuvem são ruidosos: vizinhos compartilham hosts, redes variam, autoscalers tomam caminhos diferentes. Uma execução é uma anedota.
 
 - **Repita** cada configuração pelo menos três vezes e reporte a mediana e a dispersão; uma diferença menor que a dispersão entre execuções não é um resultado.
-- **Verifique o gerador de carga**: CPU abaixo de ~70 %, rede não saturada, VUs suficientes alocados (o k6 avisa quando um cenário de taxa de chegada fica sem VUs: `dropped_iterations`). Para testes grandes, rode o k6 distribuído (k6-operator no Kubernetes ou um serviço na nuvem).
+- **Verifique o gerador de carga**: CPU abaixo de ~70 %, rede não saturada, usuários virtuais (VUs) suficientes alocados (o k6 avisa quando um cenário de taxa de chegada fica sem VUs: `dropped_iterations`). Para testes grandes, rode o k6 distribuído (k6-operator no Kubernetes ou um serviço na nuvem).
 - **Mesmas condições**: mesmo snapshot de dados, mesma janela de horário, mesmas versões; registre-as no relatório.
 - **Longo o suficiente**: um teste de 2 minutos não revela um vazamento de conexões, o crescimento de arquivos de log ou um vazamento de memória — esse é o trabalho do [teste soak](../load-testing/index.md#soak-test).
 

@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # Reliability and Resilience
@@ -22,8 +26,8 @@ theme: platform
 
 <!--
 Outline: (1) availability, nines, composite availability, redundancy; (2) failure modes and
-cascades; (3) SLIs, SLOs, error budgets; (4) resilience patterns; (5) disaster recovery;
-(6) chaos engineering and game days.
+cascades; (3) resilience patterns, with lab 9's values; (4) disaster recovery; (5) chaos
+engineering and game days. The SLOs that judge all of it come from class 9.
 -->
 
 ---
@@ -57,12 +61,19 @@ defences, recover from disasters, and prove the defences work.
 
 > Availability = MTTF / (MTTF + MTTR)
 
-- `inventory`: MTTF 720 h, MTTR 2 h → **99.72%**.
-- Halve failures → 99.86%. Auto-restart in 1 min → **99.998%**.
+<div class="flow">
+<div class="box green">serving<small>on average for MTTF</small></div><div class="arrow">failure →</div>
+<div class="box red">failed</div><div class="arrow">alert →</div>
+<div class="box orange">detected</div><div class="arrow">traces →</div>
+<div class="box orange">diagnosed</div><div class="arrow">restart →</div>
+<div class="box green">serving</div>
+</div>
+
+- `inventory`: MTTF 720 h, MTTR 2 h → **99.72%**. Halve failures → 99.86%. Auto-restart in 1 min → **99.998%**.
 
 <div class="ok">
 
-Recovering faster is usually the **cheaper** lever.
+Recovering faster is usually the **cheaper** lever — and each arrow of the MTTR is a separate number to cut.
 
 </div>
 
@@ -87,28 +98,39 @@ Each nine is **10× less downtime** — and always state the **window** (and tim
 
 ## Composite availability
 
-<div class="cols">
-<div>
-
-### In series
-
-`A = A₁ × A₂ × … × Aₙ`
-
-Three services at 99.9% → **99.7%**. Every synchronous dependency **lowers the ceiling**.
-
-</div>
-<div>
-
-### In parallel
-
-`A = 1 − (1 − a)ⁿ`
-
-Two replicas at 99% → **99.99%** — if failures are **independent**.
-
-</div>
+<div class="flow">
+<div class="box muted" style="flex: .5">fan</div><div class="arrow">→</div>
+<div class="box">load balancer<small>99.99%</small></div><div class="arrow">→</div>
+<div class="group"><div class="caption">in parallel: any one</div><div class="box green">gateway × 3<small>1 − 0.005³</small></div></div><div class="arrow">→</div>
+<div class="group"><div class="caption">in parallel</div><div class="box green">order × 3</div><div class="box green">inventory × 3</div></div><div class="arrow">→</div>
+<div class="box orange">SQL<small>99.9%: one copy</small></div><div class="arrow">→</div>
+<div class="box orange">provider<small>99.9%: one contract</small></div>
 </div>
 
-<p class="small">BoxOffice purchase path (illustrative): 1 instance each ≈ 98.3% (745 min/month) → 3 replicas ≈ 99.79% → + DB failover ≈ 99.84% → + second payment provider ≈ 99.94% (26 min/month). Each step exposes the next weakest link.</p>
+- **In series** every component is needed: `A = A₁ × A₂ × … × Aₙ` — every synchronous dependency **lowers the ceiling**.
+- **In parallel** any one is enough: `A = 1 − (1 − a)ⁿ` — two replicas at 99% → **99.99%**, *if failures are independent*.
+
+<p class="small">Purchase path (illustrative): 1 instance each ≈ 98.3% (745 min/month) → 3 replicas ≈ 99.79% → + database failover ≈ 99.84% → + second payment provider ≈ 99.94% (26 min/month). Each step exposes the next weakest link.</p>
+
+---
+
+## Simulator: where do the minutes go?
+
+<div class="flow">
+<div class="box">1 instance each<small>98.30% · 745 min/month</small></div><div class="arrow">2 replicas →</div>
+<div class="box">99.78%<small>95 min · weakest: SQL</small></div><div class="arrow">failover + 2nd provider →</div>
+<div class="box green">99.94%<small>26 min</small></div><div class="arrow">all in one zone →</div>
+<div class="box red">99.84%<small>70 min · weakest: the zone</small></div>
+</div>
+
+- The overview page's **availability-path** simulator: replicas per service, SQL failover, a second provider, one availability zone (AZ) for everything.
+- A third replica adds almost nothing (99.79%): replicate **the weakest link**, not the easiest one.
+
+<div class="warn">
+
+Redundancy counts only if its failures are **independent** — one zone (one config, one host) fails them all.
+
+</div>
 
 ---
 
@@ -124,7 +146,7 @@ Two replicas at 99% → **99.99%** — if failures are **independent**.
 
 - **N + 1**: after losing one replica (or one AZ of three), the rest carry the peak.
 - **Stateless** fails over trivially; **state** needs replication, fencing, no split brain.
-- AZs are ~1 ms apart (cheap protection); regions are tens of ms apart (DR).
+- AZs are ~1 ms apart (cheap protection); regions are tens of ms apart (disaster recovery).
 
 ---
 
@@ -134,7 +156,7 @@ Two replicas at 99% → **99.99%** — if failures are **independent**.
 |---|---|
 | Crash (fail-stop) | health checks, restart, failover |
 | Transient | retry with backoff and jitter |
-| **Slow / gray failure** | timeouts, breakers that count slow calls, latency SLIs |
+| **Slow / gray failure** | timeouts, breakers that count slow calls, latency service level indicators (SLIs) |
 | Byzantine / incorrect | checksums, validation, reconciliation |
 | Correlated | gradual rollouts, multi-zone, chaos tests |
 
@@ -148,6 +170,13 @@ The most dangerous component is not the dead one — it is the **slow** one. The
 
 ## Cascading failure, in numbers
 
+<div class="flow">
+<div class="box muted">fans<small>100 purchases/s</small></div><div class="arrow">→</div>
+<div class="box red">gateway<small>threads waiting on order</small></div><div class="arrow">→</div>
+<div class="box red">order<small>200 threads, 400 needed</small></div><div class="arrow">→</div>
+<div class="box orange">payment provider<small>4 s instead of 200 ms</small></div>
+</div>
+
 > calls in flight = arrival rate × time per call (Little's Law)
 
 | Payment latency | In flight at 100/s | `order` pool of 200 |
@@ -156,9 +185,7 @@ The most dangerous component is not the dead one — it is the **slow** one. The
 | 1 s | 100 | 50% busy |
 | 4 s | **400** | exhausted → every route waits |
 
-- **Timeout** caps the time per call · **circuit breaker** stops calling · **bulkhead** caps the threads.
-
-<p class="small">Playground: <code>cascading-failure</code> — add a timeout, then a breaker, and watch the healthy routes.</p>
+<p class="small">Timeout caps the time per call · circuit breaker stops calling · bulkhead caps the threads. Playground: <code>cascading-failure</code>.</p>
 
 ---
 
@@ -179,16 +206,18 @@ The way out is to **drop load**: load shedding, retry budgets, circuit breakers.
 
 ## Timeouts and deadline budgets
 
-| Layer | Budget |
-|---|---|
-| Gateway | 6 s |
-| `order` purchase handler | 5 s |
-| `order` → `payment` | 2 s × 2 attempts + backoff ≈ 4.3 s |
-| `payment` → provider | 1.8 s |
+<div class="flow">
+<div class="box">edge<small>10 s</small></div><div class="arrow">></div>
+<div class="box">gateway<small>5 s</small></div><div class="arrow">></div>
+<div class="box accent">order → payment<small>1 s × 3 attempts + backoff ≈ 3.6 s</small></div><div class="arrow">but</div>
+<div class="box red">payment → provider<small>2 s: longer than its caller</small></div>
+</div>
 
-- Set near the dependency's normal **p99.9**; **connect** (300 ms) and **read** (2 s) timeouts.
-- **Per dependency**, shrinking with depth; propagate the deadline (gRPC deadlines).
-- A timeout on a charge leaves an **unknown outcome** → idempotency key.
+- Near the dependency's normal **p99.9**: lab 9 uses **500 ms** to connect and **1 s** to read (`PAYMENT_READ_TIMEOUT`).
+- **Per dependency**, shrinking with depth; propagate the deadline (gRPC deadlines, a header over HTTP).
+- A timeout on a charge leaves an **unknown outcome** → idempotency key `order-<id>`.
+
+<p class="small">The lab's adapter waits 2 s for the provider: `order` gives up first and `payment` works for nobody. In production, give the adapter less than its caller.</p>
 
 ---
 
@@ -199,18 +228,22 @@ The way out is to **drop load**: load shedding, retry budgets, circuit breakers.
 - **Full jitter**: `wait = random(0, base · 2ⁿ)` — 1,000 clients failing together recover in ~1.5 s instead of waves for 15 s.
 - **Retry budget** (retries ≤ 10% of traffic): without it, retries can keep a system **metastably** down.
 
-<p class="small">Playground: <code>retry-storm</code> — switch to backoff + jitter and add a retry budget.</p>
+<p class="small">Lab 9: 3 attempts, 200 ms × 2 ± 50%, on I/O errors, 5xx and resets. Playground: <code>retry-storm</code>.</p>
 
 ---
 
 ## Circuit breaker and fallback
 
-**Closed** → (≥ 50% failures **or slow calls** over 20) → **Open** (30 s) → **Half-open** (3 probes) → Closed / Open
+<div class="flow">
+<div class="box green">closed<small>calls flow · last 20 counted (min 10)</small></div><div class="arrow">≥ 50% failed or > 800 ms →</div>
+<div class="box red">open<small>fail in µs for 10 s</small></div><div class="arrow">10 s →</div>
+<div class="box orange">half-open<small>3 probes decide</small></div>
+</div>
 
-- Open = fail in microseconds: threads free, dependency gets breathing room.
-- **Ignore business errors**: a declined card is a correct answer.
-- **Fallback** = graceful degradation: hide recommendations, stale search results…
-- For payment: **never fake success** — "payment temporarily unavailable, seats held for 10 min".
+- Open = threads free, dependency gets breathing room. **Count slow calls**, or a 4 s provider never trips it.
+- **Ignore business errors**: a declined card (lab 9: any 4xx) is a correct answer.
+- 10 s open = up to ~10 s of "payment temporarily unavailable" after the provider recovers.
+- **Fallback**: hide recommendations, stale search… for payment, **never fake success** — seats held for 10 min.
 
 ---
 
@@ -221,9 +254,13 @@ The way out is to **drop load**: load shedding, retry budgets, circuit breakers.
 
 ### Bulkhead
 
-- One pool **per dependency**.
-- 100 calls/s × 0.2 s = **20** in flight → bulkhead of **50**.
-- Payment at 4 s → at most 50 threads wait, not 400.
+<div class="flow">
+<div class="box">order<small>50 threads</small></div><div class="arrow">→</div>
+<div class="group"><div class="box orange">payment<small>10 permits, no queue</small></div><div class="box green">everything else<small>40 threads</small></div></div>
+</div>
+
+- 20 payments/s × 0.2 s = **4** in flight → 10 = 2.5× slack.
+- Provider at 3 s → **10** threads wait, not 60.
 
 </div>
 <div>
@@ -241,24 +278,53 @@ The way out is to **drop load**: load shedding, retry budgets, circuit breakers.
 
 ---
 
-## Resilience4j on order → payment
+<!-- _class: tight -->
+
+## The stack on order → payment (lab 9)
+
+<div class="flow">
+<div class="box">charge</div><div class="arrow">→</div>
+<div class="box accent">Retry<small>3 attempts</small></div><div class="arrow">→</div>
+<div class="box accent">CircuitBreaker<small>open? 503</small></div><div class="arrow">→</div>
+<div class="box accent">Bulkhead<small>full? 503</small></div><div class="arrow">→</div>
+<div class="box">HTTP<small>500 ms / 1 s</small></div>
+</div>
 
 ```yaml
 resilience4j:
-  bulkhead.instances.payment:
-    max-concurrent-calls: 50
-  circuitbreaker.instances.payment:
-    sliding-window-size: 20
-    failure-rate-threshold: 50
-    slow-call-duration-threshold: 1500ms
-    wait-duration-in-open-state: 30s
   retry.instances.payment:
-    max-attempts: 2
-    wait-duration: 200ms
-    enable-randomized-wait: true
+    max-attempts: ${PAYMENT_RETRY_ATTEMPTS:3}   # 200 ms, 400 ms, ± 50%
+  circuitbreaker.instances.payment:
+    sliding-window-size: 20                      # min 10 calls
+    failure-rate-threshold: 50
+    slow-call-duration-threshold: 800ms
+    wait-duration-in-open-state: 10s
+  bulkhead.instances.payment:
+    max-concurrent-calls: ${PAYMENT_BULKHEAD:10}
+    max-wait-duration: 0
 ```
 
-<p class="small">Default order: Retry(CircuitBreaker(RateLimiter(TimeLimiter(Bulkhead(call))))) — every attempt is counted by the breaker. Plus <code>Idempotency-Key</code> on every charge.</p>
+<p class="small">Fallback on the outer layer: <code>503</code>, order stays <code>PENDING_PAYMENT</code>. Measured: <code>GET /orders/{id}</code> median 9.04 s unprotected, 6.5 ms protected.</p>
+
+---
+
+## Simulator: what stops a slow provider?
+
+<div class="flow">
+<div class="box red">nothing<small>50 threads busy · ~220 payments with no thread</small></div><div class="arrow">→</div>
+<div class="box orange">timeout<small>~20 threads · 0% succeed</small></div><div class="arrow">→</div>
+<div class="box orange">+ retries<small>2× load · pool full again</small></div><div class="arrow">→</div>
+<div class="box green">+ breaker<small>opens at 1.6 s · ~1 thread</small></div>
+</div>
+
+- The patterns page's **resilience** simulator: provider at 4 s, lab 9's switches, one at a time.
+- Drag the latency back to 200 ms: 10 s after opening, half-open, 3 probes, closed.
+
+<div class="ok">
+
+A timeout protects `order`, not the payment; retries without a breaker make the provider's bad day worse.
+
+</div>
 
 ---
 
@@ -272,21 +338,21 @@ resilience4j:
 
 <div class="warn">
 
-Never put dependencies in **liveness**: a 20-second database blip restarts **every replica at once**.
+Never put dependencies in **liveness**: if `order`'s liveness checks the payment provider, one provider blip restarts **every `order` replica at once**.
 
 </div>
 
 ---
 
-## Disaster recovery: RPO and RTO
+## Disaster recovery (DR): how much data, how much time?
 
-- **RPO**: how much **data** (in time) you accept to lose.
-- **RTO**: how long until the service is **back**.
+- **Recovery point objective (RPO)**: how much **data** (in time) you accept to lose.
+- **Recovery time objective (RTO)**: how long until the service is **back**.
 - Set **per data class**: payments ≈ 0 / 15 min · catalog 1 h / 1 h · analytics 24 h / 2 days.
 
 <div class="warn">
 
-**Replication is not backup**: the standby replicates `DELETE FROM orders` in milliseconds. Logical failures need **backups with point-in-time recovery** — and a **measured** restore time (2 TB at 200 MB/s ≈ 2.8 h).
+**Replication is not backup**: the standby replicates `DELETE FROM orders` in milliseconds. Logical failures need **backups with point-in-time recovery (PITR)** — and a **measured** restore time (2 TB at 200 MB/s ≈ 2.8 h).
 
 </div>
 
@@ -294,27 +360,30 @@ Never put dependencies in **liveness**: a 20-second database blip restarts **eve
 
 ---
 
-## The four DR strategies
+## The four disaster-recovery strategies
 
-| Strategy | In the recovery region before the disaster | RPO | RTO | Cost |
-|---|---|---|---|---|
-| Backup and restore | backups + infrastructure as code | hours | hours–day | $ |
-| Pilot light | data replicated; services off | minutes | tens of min–hours | $$ |
-| Warm standby | full copy, scaled down, running | seconds–min | minutes | $$$ |
-| Active-active | full copies, all serving | ≈ 0 | ≈ 0 | $$$$ |
+<div class="flow">
+<div class="box">backup and restore<small>backups + infrastructure as code<br>RPO hours · RTO hours–day · $</small></div><div class="arrow">→</div>
+<div class="box accent">pilot light<small>data replicated, services off<br>RPO minutes · RTO tens of min · $$</small></div><div class="arrow">→</div>
+<div class="box orange">warm standby<small>full copy, scaled down, running<br>RPO s–min · RTO minutes · $$$</small></div><div class="arrow">→</div>
+<div class="box green">active-active<small>full copies, all serving<br>RPO ≈ 0 · RTO ≈ 0 · $$$$</small></div>
+</div>
 
-<p class="small">Cross-region replication is usually asynchronous: RPO = replication lag. Data residency (LGPD/GDPR) constrains regions.</p>
+- Cross-region replication is usually asynchronous: **RPO = replication lag**.
+- BoxOffice tier 0 (`order`, `payment`, `inventory`): **warm standby** — restore is too slow, active-active double-sells seats.
+
+<p class="small">Data residency (Brazil's LGPD, Europe's GDPR) constrains which regions can hold the copy.</p>
 
 ---
 
 ## Regional failover
 
-> RTO ≈ detect (2 min) + decide (5) + promote DB (1) + scale up (5) + DNS TTL (1) ≈ 14 min
+> RTO ≈ detect (2 min) + decide (5) + promote the database (1) + scale up (5) + Domain Name System (DNS) time to live (TTL) (1) ≈ 14 min
 
 - Detect **from outside** the region; decide with a rehearsed runbook.
 - **Fence** the old primary — two primaries = double-sold seats.
 - **Static stability**: images, secrets, quotas already in region B.
-- Seats cannot be multi-leader: **home region per event** + warm standby, or a globally consistent DB.
+- Seats cannot be multi-leader: **home region per event** + warm standby, or a globally consistent database.
 
 <p class="small">Playground: <code>multi-region</code> — fail the primary region, then change the DNS TTL.</p>
 
@@ -322,13 +391,18 @@ Never put dependencies in **liveness**: a 20-second database blip restarts **eve
 
 ## Chaos engineering
 
-Experiments that build confidence the system **withstands turbulent conditions in production**.
+<div class="flow">
+<div class="box">steady state<small>SLIs</small></div><div class="arrow">→</div>
+<div class="box">hypothesis</div><div class="arrow">→</div>
+<div class="box orange">inject<small>one real fault</small></div><div class="arrow">→</div>
+<div class="box">observe</div><div class="arrow">→</div>
+<div class="box">analyse</div><div class="arrow">→</div>
+<div class="box green">improve<small>then widen</small></div>
+</div>
 
-1. **Steady state** as SLIs → 2. **hypothesis** → 3. **inject** one real fault → 4. **observe** → 5. **analyse** → 6. **improve**.
-
-- BoxOffice: Toxiproxy adds **3 s** to the provider under k6 load → expect breaker open < 30 s, catalog flat.
+- BoxOffice: Toxiproxy adds **3 s** to the provider under lab 9's k6 load → expect the breaker open < 10 s, `browse` flat.
 - Small blast radius: Compose → staging → one canary pod → wider; **abort** on burn rate > 10×.
-- Tools: Toxiproxy, Chaos Mesh, LitmusChaos, AWS FIS, Azure Chaos Studio, Gremlin.
+- **Observability first**: see the steady state, detect, explain, stop — then break things.
 
 ---
 
@@ -336,7 +410,7 @@ Experiments that build confidence the system **withstands turbulent conditions i
 
 | Time | Injection | Expected |
 |---|---|---|
-| 10:10 | provider latency 3 s | breaker opens; seats held |
+| 10:10 | provider latency 3 s | breaker opens < 10 s; seats held |
 | 10:25 | one `order` pod killed per minute | N+1 absorbs it |
 | 10:40 | Kafka broker stopped | outbox grows and drains; no lost e-mails |
 | 10:55 | database failover | ~30 s of write errors |
@@ -360,7 +434,7 @@ Roles: game master, on-call, observers, scribe. Output: a **blameless** list of 
 | `thirdparty`, `payment` | what if a dependency gets *slow*? | timeout, retry + jitter, breaker, bulkhead |
 | `apigw` | what do we refuse under overload? | rate limiting, load shedding, waiting room |
 | `healthcheck` | should traffic reach this instance? | liveness, readiness, startup |
-| `metrics`, `alerting` | are we reliable *enough*? | SLI, SLO, error budget, burn rate |
+| `metrics`, `alerting` | are we reliable *enough*? | SLI, service level objective (SLO), error budget, burn rate (class 9) |
 | `sql`, `objstore`, `dns` | how much data and time can we lose? | RPO/RTO, PITR, DR strategies, failover |
 
 <p class="small">Redundancy keeps instances serving, patterns contain slow dependencies, DR covers what redundancy cannot, SLOs say how much is enough — and <b>chaos</b> proves all of it.</p>
@@ -369,9 +443,9 @@ Roles: game master, on-call, observers, scribe. Output: a **blameless** list of 
 
 ## Takeaways
 
-1. Availability = MTTF / (MTTF + MTTR); series **multiply**, parallel `1 − (1 − a)ⁿ`.
-2. **Slow** dependencies cascade through exhausted pools — Little's Law tells you how fast.
-3. SLOs per user journey; the **error budget** and its **burn rate** drive deploys and alerts.
-4. Timeout · one retry with jitter + budget · breaker counting slow calls · bulkhead · shedding · honest fallback.
-5. DR from **RPO/RTO**: replication ≠ backup; choose the cheapest strategy that meets them.
+1. Availability = MTTF / (MTTF + MTTR); series **multiply**, parallel `1 − (1 − a)ⁿ` — only with independent failures.
+2. Lowering the MTTR is usually cheaper than raising the MTTF.
+3. **Slow** dependencies cascade through exhausted pools — Little's Law tells you how fast.
+4. Timeout · retry with jitter · breaker counting slow calls · bulkhead · honest fallback — sized with numbers.
+5. Redundancy is bought: the **error budget** decides how much; DR starts from **RPO/RTO**, and replication ≠ backup.
 6. **Chaos experiments and game days** prove the defences — observability first.

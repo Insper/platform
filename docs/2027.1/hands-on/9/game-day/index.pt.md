@@ -20,7 +20,7 @@ Troque os papéis entre as rodadas, para que todos operem uma vez.
 ## Antes de começar { #before-you-start }
 
 1. **Estado estável.** Rode o `load/pay-under-chaos.js` com `DURATION=30m` e anote os valores normais
-   do dashboard RED: taxa, % de erros e p95 do `order` e do `payment`. Essa é a linha de base com que
+   do dashboard RED (*rate, errors, duration*: taxa, erros, duração): taxa, % de erros e p95 do `order` e do `payment`. Essa é a linha de base com que
    todo experimento é comparado.
 2. **Hipóteses.** Para cada experimento abaixo, o time escreve *antes* de injetar o que espera ver
    (por exemplo, "com o `payment` +2 s, o p95 do `pay` no `order` fica abaixo de 1,5 s e o
@@ -56,7 +56,7 @@ que nunca parou de disparar):
 | 2 | buraco negro no `psp` (toxic `timeout`, 0) | o timeout de leitura do `payment` (2 s) faz as chamadas falharem; o breaker do `order` abre | segue o trace um salto adiante, até o provedor |
 | 3 | 40% de `reset_peer` no `payment` | os retries escondem a maioria dos erros; a taxa de erros sobe só um pouco | percebe os retries nas métricas, não entra em pânico |
 | 4 | proxy do `payment` desativado | breaker aberto, `503` rápido, os pedidos ficam em `PENDING_PAYMENT` | comunica "pagamentos fora do ar, pedidos a salvo" |
-| 5 | `db` pausado (`docker compose pause db`) | tudo fica lento; o alerta de SLO dispara | identifica a dependência compartilhada, não o sintoma |
+| 5 | `db` pausado (`docker compose pause db`) | tudo fica lento; o alerta de objetivo de nível de serviço (SLO, *service level objective*) dispara | identifica a dependência compartilhada, não o sintoma |
 | 6 | `bandwidth` de 1 KB/s no `payment` | `pay` cerca de 0,5 s mais lento (algumas centenas de bytes a 1 KB/s), abaixo do timeout de leitura: sem erros, só latência | distingue "lento" de "fora do ar" |
 
 Comandos de injeção:
@@ -73,6 +73,22 @@ incidente quando um alerta dispara ou um sintoma aparece, designam um incident c
 pelo caminho dashboard → trace → logs, **mitigam primeiro** (por exemplo, parar de mandar tráfego para
 um caminho quebrado, aumentar um timeout, escalar) e investigam depois. O escriba registra os horários
 neste formato:
+
+``` diagram-sim
+sequenceDiagram
+    participant GM as game master
+    participant S as BoxOffice
+    participant Op as operadores
+    participant Sc as escriba
+    GM->>S: injeta o experimento 1, payment +2 s (oculto)
+    S-->>Op: o alerta de burn rate dispara
+    Op->>Sc: incidente declarado, neste horário
+    Op->>S: dashboard, depois trace, depois logs
+    Op->>S: mitigar primeiro
+    Sc->>Sc: tempo para detectar e tempo para mitigar
+    GM->>S: reset, o fim da rodada (ou o aborto)
+    Note over GM,Sc: uma revisão blameless, depois os papéis giram
+```
 
 | Horário | Quem | Observação / decisão |
 |---|---|---|

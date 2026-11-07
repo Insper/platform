@@ -148,19 +148,17 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q11.** At peak, `order` makes **100 payment calls per second** with a normal latency of **200 ms**. The team sets a payment **bulkhead of 50** concurrent calls. What does that give?
+**Q11.** In lab 9, `order` makes **20 payment calls per second** with a normal latency of **200 ms**, and its payment **bulkhead allows 10** concurrent calls (of 50 threads). What does that give?
 
-- A. Payment calls are limited to 50 per second
-- B. About 20 calls are normally in flight; the bulkhead tolerates latency growing about 2.5× before rejecting, and when payment is very slow at most 50 threads wait on it, leaving the rest for other routes
-- C. 50 threads are reserved and always busy
-- D. Payment calls will be retried 50 times
+- A. Payment calls are limited to 10 per second
+- B. About 4 calls are normally in flight; the bulkhead tolerates latency growing about 2.5× before rejecting, and when payment is very slow at most 10 threads wait on it, leaving the other 40 for other routes
+- C. 10 threads are reserved and always busy
+- D. Payment calls will be retried 10 times
 
 ??? success "Answer"
-    **B — headroom of about 2.5× and a cap on the damage.**
+    **B — about 2.5× of slack and a ceiling on the damage.**
 
-    Little's Law: $100 \times 0.2 = 20$ concurrent calls normally. With 50 permits, latency can reach about 500 ms before calls are rejected. If payment goes to 4 s, at most 50 threads wait (instead of 400), and calls beyond that fail immediately into the fallback while seat holds and the catalog keep working.
-
----
+    Little's Law: $20 \times 0.2 = 4$ concurrent calls normally. With 10 permits, latency can reach about 500 ms before calls are rejected. If payment goes to 3 s, at most 10 threads wait (instead of 60, more than the pool of 50), and calls beyond that fail immediately into the fallback (`max-wait-duration: 0`), while `GET /orders/{id}` keeps its threads.
 
 **Q12.** A team adds a database check to the **liveness** probe of `order`. The database has a 20-second blip. What happens?
 
@@ -209,7 +207,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 **Q15.** The team wants to verify that the `payment` circuit breaker really protects the catalog. Which plan is a proper **chaos experiment**?
 
 - A. Kill random production pods during the next stadium on-sale and see what happens
-- B. State the steady state (catalog p99 < 300 ms, purchase success ≥ 99.9%) and the hypothesis (with 3 s of provider latency the breaker opens within 30 s and catalog latency stays flat); inject the latency with Toxiproxy under k6 load, first in staging, with an abort condition on the burn rate
+- B. State the steady state (catalog p99 < 300 ms, purchase success ≥ 99.9%) and the hypothesis (with 3 s of provider latency the breaker opens within 10 s and catalog latency stays flat); inject the latency with Toxiproxy under k6 load, first in staging, with an abort condition on the burn rate
 - C. Write a unit test that mocks the breaker as open
 - D. Wait for the next real provider incident and read the postmortem
 

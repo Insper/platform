@@ -4,7 +4,7 @@ Performance engineering is the discipline that prevents that post-mortem. It is 
 
 !!! quote "The story so far"
 
-    Chapter 15 of the [story of the course](../../index.md#story). Every chapter added a box to BoxOffice because a number asked for it: an edge and stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), a database that sells each seat once ([class 6](../databases/index.md)), a cache ([class 7](../caching/index.md)), a waiting room ([class 8](../messaging/index.md)), SLOs and breakers ([class 9](../observability/index.md), [class 10](../reliability/index.md)), Kubernetes ([class 11](../cloud-native/index.md)) — and, since [class 14](../ai-delivery/index.md), changes arrive faster than anyone can re-check them by hand. Each box was measured alone, in its own lab. **This class** answers: does the *whole* design hold the next on-sale — 2 M fans at 10:00, p99 under 300 ms — how do we prove it, and how do we keep it proven on every change?
+    Chapter 15 of the [story of the course](../../index.md#story). Every chapter added a box to BoxOffice because a number asked for it: an edge and stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), a database that sells each seat once ([class 6](../databases/index.md)), a cache ([class 7](../caching/index.md)), a waiting room ([class 8](../messaging/index.md)), service level objectives (SLOs) and breakers ([class 9](../observability/index.md), [class 10](../reliability/index.md)), Kubernetes ([class 11](../cloud-native/index.md)) — and, since [class 14](../ai-delivery/index.md), changes arrive faster than anyone can re-check them by hand. Each box was measured alone, in its own lab. **This class** answers: does the *whole* design hold the next on-sale — 2 M fans at 10:00, p99 under 300 ms — how do we prove it, and how do we keep it proven on every change?
 
 !!! abstract "Learning objectives"
 
@@ -12,7 +12,7 @@ Performance engineering is the discipline that prevents that post-mortem. It is 
 
     - **Define** latency, service time, throughput, concurrency, utilization and saturation, and **relate** them with Little's Law.
     - **Read** a throughput–latency curve, **locate** the knee and the saturation point, and **explain** why latency explodes as utilization approaches 100 %.
-    - **Apply** a performance methodology — workload characterization, the USE method, RED metrics — to find the bottleneck of a system instead of guessing.
+    - **Apply** a performance methodology — workload characterization, the USE method (utilization, saturation, errors), RED metrics (rate, errors, duration) — to find the bottleneck of a system instead of guessing.
     - **Design and write** smoke, load, stress, spike, soak and breakpoint tests in k6, choosing between open (arrival-rate) and closed (virtual-user) workload models, with thresholds that encode the SLOs.
     - **Detect** coordinated omission and other measurement errors (unrealistic data, cold caches, a saturated load generator) that make a test lie.
     - **Diagnose** a bottleneck with profiling (flame graphs from async-profiler and py-spy), database tools (`EXPLAIN ANALYZE`, `pg_stat_statements`) and pool sizing.
@@ -194,7 +194,7 @@ flowchart LR
 
 | Level | Question | Tools |
 |---|---|---|
-| **Micro-benchmark** | Is this function/data structure faster? | JMH (Java), `pytest-benchmark` |
+| **Micro-benchmark** | Is this function/data structure faster? | JMH (Java Microbenchmark Harness), `pytest-benchmark` |
 | **Component test** | How many req/s does one `inventory` pod sustain within the SLO? | k6 against one pod, profiler attached |
 | **System test** | Does the whole purchase path hold at the on-sale peak? | k6 scenarios against a production-like environment[^4] |
 | **Production** | Is it holding right now? Where is the tail coming from? | RED dashboards, traces, continuous profiling, SLO alerts |

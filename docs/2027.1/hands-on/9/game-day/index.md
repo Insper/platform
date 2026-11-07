@@ -20,7 +20,7 @@ Rotate roles between rounds, so that everyone operates once.
 ## Before you start
 
 1. **Steady state.** Run `load/pay-under-chaos.js` with `DURATION=30m` and write down the normal
-   values from the RED dashboard: `order` and `payment` rate, error %, p95. This is the baseline every
+   values from the RED (rate, errors, duration) dashboard: `order` and `payment` rate, error %, p95. This is the baseline every
    experiment is compared with.
 2. **Hypotheses.** For each experiment below, the team writes *before* injecting what it expects to see
    (e.g. "with `payment` +2 s, `order` p95 for `pay` stays under 1.5 s and `GET /orders/{id}` is
@@ -54,7 +54,7 @@ previous experiment, or the next one is "detected" by an alert that never stoppe
 | 2 | `psp` black hole (`timeout` toxic, 0) | `payment` read timeout (2 s) fails calls; `order` breaker opens | follows the trace one hop further, to the provider |
 | 3 | 40% `reset_peer` on `payment` | retries hide most errors; error rate rises only a little | notices retries in the metrics, does not panic |
 | 4 | `payment` proxy disabled | breaker open, fast `503`, orders stay `PENDING_PAYMENT` | communicates "payments down, orders safe" |
-| 5 | `db` paused (`docker compose pause db`) | everything slows; the SLO alert fires | identifies the shared dependency, not the symptom |
+| 5 | `db` paused (`docker compose pause db`) | everything slows; the service level objective (SLO) alert fires | identifies the shared dependency, not the symptom |
 | 6 | 1 KB/s `bandwidth` on `payment` | `pay` about 0.5 s slower (a few hundred bytes at 1 KB/s), under the read timeout: no errors, only latency | distinguishes "slow" from "down" |
 
 Injection commands:
@@ -70,6 +70,22 @@ The operators work as in a real incident (see the
 incident when an alert fires or a symptom is seen, assign an incident commander, diagnose with the
 dashboard → trace → logs path, **mitigate first** (e.g. stop sending traffic to a broken path,
 raise a timeout, scale), investigate later. The scribe records times in this format:
+
+``` diagram-sim
+sequenceDiagram
+    participant GM as game master
+    participant S as BoxOffice
+    participant Op as operators
+    participant Sc as scribe
+    GM->>S: inject experiment 1, payment +2 s (hidden)
+    S-->>Op: the burn-rate alert fires
+    Op->>Sc: incident declared, at this time
+    Op->>S: dashboard, then trace, then logs
+    Op->>S: mitigate first
+    Sc->>Sc: time to detect and time to mitigate
+    GM->>S: reset, the end of the round (or the abort)
+    Note over GM,Sc: a blameless review, then rotate the roles
+```
 
 | Time | Who | Observation / decision |
 |---|---|---|

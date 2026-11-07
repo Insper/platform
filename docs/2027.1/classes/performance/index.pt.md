@@ -4,7 +4,7 @@ Engenharia de desempenho é a disciplina que evita esse post-mortem. Não é "ro
 
 !!! quote "A história até aqui"
 
-    Capítulo 15 da [história da disciplina](../../index.md#story). Cada capítulo acrescentou uma caixa ao BoxOffice porque um número pediu: uma borda e réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), um banco que vende cada assento uma vez só ([aula 6](../databases/index.md)), um cache ([aula 7](../caching/index.md)), uma sala de espera ([aula 8](../messaging/index.md)), SLOs e disjuntores ([aula 9](../observability/index.md), [aula 10](../reliability/index.md)), Kubernetes ([aula 11](../cloud-native/index.md)) — e, desde a [aula 14](../ai-delivery/index.md), as mudanças chegam mais rápido do que alguém consegue reverificá-las à mão. Cada caixa foi medida sozinha, no seu próprio lab. **Esta aula** responde: o projeto *inteiro* aguenta a próxima venda — 2 M de fãs às 10:00, p99 abaixo de 300 ms —, como provar isso e como manter a prova a cada mudança?
+    Capítulo 15 da [história da disciplina](../../index.md#story). Cada capítulo acrescentou uma caixa ao BoxOffice porque um número pediu: uma borda e réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), um banco que vende cada assento uma vez só ([aula 6](../databases/index.md)), um cache ([aula 7](../caching/index.md)), uma sala de espera ([aula 8](../messaging/index.md)), objetivos de nível de serviço (SLOs, *service level objectives*) e disjuntores ([aula 9](../observability/index.md), [aula 10](../reliability/index.md)), Kubernetes ([aula 11](../cloud-native/index.md)) — e, desde a [aula 14](../ai-delivery/index.md), as mudanças chegam mais rápido do que alguém consegue reverificá-las à mão. Cada caixa foi medida sozinha, no seu próprio lab. **Esta aula** responde: o projeto *inteiro* aguenta a próxima venda — 2 M de fãs às 10:00, p99 abaixo de 300 ms —, como provar isso e como manter a prova a cada mudança?
 
 !!! abstract "Objetivos de aprendizagem"
 
@@ -12,7 +12,7 @@ Engenharia de desempenho é a disciplina que evita esse post-mortem. Não é "ro
 
     - **Definir** latência, tempo de serviço, vazão, concorrência, utilização e saturação, e **relacioná-los** com a Lei de Little.
     - **Ler** uma curva vazão–latência, **localizar** o joelho e o ponto de saturação e **explicar** por que a latência explode quando a utilização se aproxima de 100 %.
-    - **Aplicar** uma metodologia de desempenho — caracterização da carga, o método USE, métricas RED — para encontrar o gargalo de um sistema em vez de adivinhar.
+    - **Aplicar** uma metodologia de desempenho — caracterização da carga, o método USE (*utilization, saturation, errors*: utilização, saturação, erros), métricas RED (*rate, errors, duration*: taxa, erros, duração) — para encontrar o gargalo de um sistema em vez de adivinhar.
     - **Projetar e escrever** testes smoke, load, stress, spike, soak e breakpoint em k6, escolhendo entre os modelos de carga aberto (taxa de chegada) e fechado (usuários virtuais), com thresholds que codificam os SLOs.
     - **Detectar** a omissão coordenada e outros erros de medição (dados irreais, caches frios, gerador de carga saturado) que fazem um teste mentir.
     - **Diagnosticar** um gargalo com profiling (flame graphs do async-profiler e do py-spy), ferramentas de banco de dados (`EXPLAIN ANALYZE`, `pg_stat_statements`) e dimensionamento de pools.
@@ -194,7 +194,7 @@ flowchart LR
 
 | Nível | Pergunta | Ferramentas |
 |---|---|---|
-| **Micro-benchmark** | Esta função/estrutura de dados é mais rápida? | JMH (Java), `pytest-benchmark` |
+| **Micro-benchmark** | Esta função/estrutura de dados é mais rápida? | JMH (Java Microbenchmark Harness), `pytest-benchmark` |
 | **Teste de componente** | Quantas req/s um pod de `inventory` sustenta dentro do SLO? | k6 contra um pod, com profiler acoplado |
 | **Teste de sistema** | O caminho de compra inteiro aguenta o pico da venda? | Cenários k6 contra um ambiente parecido com produção[^4] |
 | **Produção** | Está aguentando agora? De onde vem a cauda? | Dashboards RED, traces, profiling contínuo, alertas de SLO |

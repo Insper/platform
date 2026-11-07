@@ -6,23 +6,23 @@ Um sistema confiável não é aquele que nunca falha. É aquele que **falha de f
 
 !!! quote "A história até aqui"
 
-    Capítulo 10 da [história do curso](../../index.md#story). O BoxOffice espalha a multidão das 10:00 por réplicas stateless ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), vende cada assento uma única vez ([aula 6](../databases/index.md)), responde leituras de um cache ([aula 7](../caching/index.md)) e admite fãs por uma sala de espera ([aula 8](../messaging/index.md)); a [aula 9](../observability/index.md) o tornou visível, com um SLO por jornada e um trace por checkout. Agora o trace mostra o problema: o provedor de pagamento responde em segundos em vez de milissegundos e nada no BoxOffice está quebrado. **Esta aula** responde: como impedir que uma dependência lenta derrube tudo e quanta redundância o SLO nos pede para comprar?
+    Capítulo 10 da [história do curso](../../index.md#story). O BoxOffice espalha a multidão das 10:00 por réplicas stateless ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), vende cada assento uma única vez ([aula 6](../databases/index.md)), responde leituras de um cache ([aula 7](../caching/index.md)) e admite fãs por uma sala de espera ([aula 8](../messaging/index.md)); a [aula 9](../observability/index.md) o tornou visível, com um objetivo de nível de serviço (SLO, *service level objective*) por jornada e um trace por checkout. Agora o trace mostra o problema: o provedor de pagamento responde em segundos em vez de milissegundos e nada no BoxOffice está quebrado. **Esta aula** responde: como impedir que uma dependência lenta derrube tudo e quanta redundância o SLO nos pede para comprar?
 
 !!! abstract "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
 
-    - **Calcular** a disponibilidade a partir de MTTF e MTTR, a indisponibilidade permitida por um número de "noves" e a disponibilidade de ponta a ponta de componentes em série e em paralelo.
+    - **Calcular** a disponibilidade a partir do tempo médio até a falha (MTTF, *mean time to failure*) e do tempo médio de reparo (MTTR, *mean time to repair*), a indisponibilidade permitida por um número de "noves" e a disponibilidade de ponta a ponta de componentes em série e em paralelo.
     - **Explicar** como uma dependência lenta causa uma falha em cascata e **estimar** com a Lei de Little os recursos que ela esgota.
     - **Escolher e configurar** padrões de resiliência — timeouts, retries com backoff e jitter, circuit breakers, bulkheads, load shedding e rate limiting — para uma chamada entre dois serviços, e **prever** o que cada um faz sob falha.
-    - **Projetar** uma estratégia de recuperação de desastres a partir de metas de RPO e RTO, escolhendo entre backup e restore, pilot light, warm standby e ativo-ativo.
+    - **Projetar** uma estratégia de recuperação de desastres a partir de objetivos de ponto e de tempo de recuperação (RPO e RTO, *recovery point* e *recovery time objectives*), escolhendo entre backup e restore, pilot light, warm standby e ativo-ativo.
     - **Planejar** um experimento de caos e um game day com uma hipótese de estado estável e um raio de impacto controlado.
 
 ## Roteiro { #roadmap }
 
 1. **Esta visão geral** — disponibilidade, MTTF/MTTR, os "noves", disponibilidade composta, redundância e failover, modos de falha e falhas em cascata.
 2. [Padrões de resiliência](patterns/index.md) — timeout, retry com backoff e jitter, circuit breaker, bulkhead, load shedding, rate limiting, health checks, com Resilience4j.
-3. [Recuperação de desastres](disaster-recovery/index.md) — RPO e RTO, backups, multi-AZ e multi-região, e as quatro estratégias de DR.
+3. [Recuperação de desastres](disaster-recovery/index.md) — RPO e RTO, backups, múltiplas zonas de disponibilidade (multi-AZ, *availability zones*) e multirregião e as quatro estratégias de recuperação de desastres (DR, *disaster recovery*).
 4. [Engenharia do caos](chaos/index.md) — injetar falhas de propósito para provar que as defesas funcionam; game days.
 5. [Quiz](quiz.md) — teste seu entendimento.
 
@@ -63,6 +63,17 @@ $$
     Recuperar mais rápido foi o ganho maior — e muito mais barato que nunca falhar.
 
 O trabalho de confiabilidade puxa uma de duas alavancas. **Aumentar o MTTF** (menos falhas): testes, revisão de código, redundância, projeto tolerante a falhas, deploys cuidadosos. **Reduzir o MTTR** (recuperação mais rápida): bons alertas, dashboards e traces, runbooks, reinícios e failover automáticos, rollbacks rápidos. Em sistemas modernos o MTTR costuma ser a alavanca mais barata e o próprio MTTR é uma soma — **tempo para detectar + tempo para diagnosticar + tempo para corrigir** — cada parcela atacada por uma prática diferente (veja [Observabilidade](../observability/index.md)).
+
+``` diagram-sim
+stateDiagram-v2
+    [*] --> Servindo
+    Servindo --> Falhou : uma falha, em média depois do MTTF
+    Falhou --> Detectado : um alerta dispara (tempo para detectar)
+    Detectado --> Diagnosticado : dashboards e traces (tempo para diagnosticar)
+    Diagnosticado --> Servindo : restart, rollback ou failover (tempo para corrigir)
+```
+
+Tudo de **Falhou** de volta a **Servindo** é o MTTR e cada seta desse caminho é um número separado a reduzir.
 
 ### Os "noves" { #the-nines }
 
@@ -180,6 +191,16 @@ flowchart LR
     o -.->|"fallback"| p2["provedor de pagamento B<br/>99,9%"]
 ```
 
+Agora mude o projeto você mesmo: replique os serviços, ligue o failover e o segundo provedor e veja para onde vão os minutos.
+
+<div class="csim" data-sim="availability-path" data-replicas="1" data-onezone="off"></div>
+
+!!! tip "Experimente"
+    1. Uma instância de tudo: 98,30%, 745 min por mês sem compras e o elo mais fraco é um dos três serviços a 99,5%.
+    2. Dê 2 réplicas aos três serviços: 99,78% (95 min). Uma terceira réplica só leva a 99,79%: os serviços agora são quase perfeitos e o elo mais fraco é o SQL — nenhuma réplica de serviço o resolve.
+    3. Ligue o failover do SQL: 99,84% (70 min) e o provedor de pagamento passa a ser o elo mais fraco; ligue o segundo provedor: 99,94%, 26 min.
+    4. Agora ponha todas as réplicas numa zona (suponha uma zona a 99,9%): 99,84% e 70 min — a zona única desfaz o que o failover e o segundo provedor compraram. Redundância só conta se as suas falhas forem independentes.
+
 !!! tip "Redundância tem preço"
     Cada passo do gráfico custa dinheiro (três vezes mais instâncias, um banco em standby, o contrato com um segundo provedor) e complexidade (lógica de failover, testar o fallback). Confiabilidade se compra, não é de graça: o [error budget](../observability/slo/index.md) é como você decide quanto comprar.
 
@@ -213,7 +234,7 @@ Sistemas distribuídos falham de formas que uma máquina sozinha não falha. **F
 |---|---|---|
 | **Crash (fail-stop)** | O processo morre e continua morto | Health checks, reinício, failover para uma réplica |
 | **Transitória** | Se resolve sozinha em segundos (oscilação de rede, eleição de líder) | Retry com backoff e jitter |
-| **Lenta / gray failure** | Ainda responde, mas devagar ou com alguns erros; os health checks podem continuar passando | Timeouts, circuit breakers, detecção de outliers, SLIs de latência |
+| **Lenta / gray failure** | Ainda responde, mas devagar ou com alguns erros; os health checks podem continuar passando | Timeouts, circuit breakers, detecção de outliers, indicadores de nível de serviço (SLIs, *service level indicators*) de latência |
 | **Intermitente** | Aparece e some (pausas de GC, um recurso vazando) | Latência em percentis, detecção de anomalias, profiling |
 | **Bizantina / incorreta** | Devolve dados errados sem cair (bit flips, cache corrompido, bug) | Checksums, validação, reconciliação |
 | **Correlacionada** | Muitos componentes falham juntos (deploy ruim, certificado expirado, queda de zona) | Rollouts graduais, diversidade, multi-zona, testes de caos |
@@ -304,12 +325,12 @@ flowchart LR
 | [`apigw`](../../reference/components/edge/index.md#apigw) | Que trabalho recusamos em sobrecarga? | rate limiting por cliente, descarte de carga por prioridade, sala de espera | [Padrões de resiliência](patterns/index.md#load-shedding) | `rate-limiter`, `flash-sale` |
 | [`healthcheck`](../../reference/components/observability/index.md#healthcheck) | O tráfego deve chegar a esta instância? | liveness, readiness, startup; nenhuma dependência no liveness | [Padrões de resiliência](patterns/index.md#health-checks) | `scale-out` |
 | [`metrics`](../../reference/components/observability/index.md#metrics), [`alerting`](../../reference/components/observability/index.md#alerting) | Somos confiáveis o *suficiente*? | SLI, SLO, orçamento de erros, burn rate, política de orçamento — a meta pela qual cada defesa aqui é julgada | [Observabilidade — SLIs, SLOs e orçamento de erros](../observability/slo/index.md) (aula 9) | `observability-stack` |
-| [`sql`](../../reference/components/storage/index.md#sql), [`objstore`](../../reference/components/storage/index.md#objstore) | Quantos dados e quanto tempo podemos perder? | RPO/RTO, PITR, backups 3-2-1, réplica atrasada | [Recuperação de desastres](disaster-recovery/index.md#rpo-rto) | `db-failover`, `db-replicas` |
-| [`dns`](../../reference/components/edge/index.md#dns) | Como os fãs chegam à região sobrevivente? | multirregião, as quatro estratégias de DR, fencing, TTL do DNS | [Recuperação de desastres](disaster-recovery/index.md#dr-strategies) | `multi-region` |
+| [`sql`](../../reference/components/storage/index.md#sql), [`objstore`](../../reference/components/storage/index.md#objstore) | Quantos dados e quanto tempo podemos perder? | RPO/RTO, recuperação a um ponto no tempo (PITR, *point-in-time recovery*), PITR, backups 3-2-1, réplica atrasada | [Recuperação de desastres](disaster-recovery/index.md#rpo-rto) | `db-failover`, `db-replicas` |
+| [`dns`](../../reference/components/edge/index.md#dns) | Como os fãs chegam à região sobrevivente? | multirregião, as quatro estratégias de DR, fencing, tempo de vida (TTL, *time to live*) do DNS | [Recuperação de desastres](disaster-recovery/index.md#dr-strategies) | `multi-region` |
 | *(todos eles)* | As defesas funcionam de verdade? | hipótese de estado estável, injeção de falhas, raio de impacto, game days | [Engenharia do caos](chaos/index.md) | `flash-sale` (caos) |
 
 !!! tip "Na entrevista"
-    Quando você termina um projeto, entrevistadores costumam perguntar "e se X falhar?" ou "e se X ficar lento?". Responda com uma cadeia: *quem chama X*, *que recurso segura enquanto espera*, *qual é o timeout*, *qual é o fallback* e *o que o usuário vê*. Para o BoxOffice: "o pagamento é chamado pelo `order` com timeout de 2 s, um circuit breaker e um bulkhead próprio de 50 chamadas concorrentes; quando o breaker abre, o fã vê 'pagamento temporariamente indisponível, seus lugares continuam reservados por 10 minutos' — e o catálogo não é afetado." Cite também a matemática da disponibilidade: "duas dependências com três noves em série nos limitam a 99,8%".
+    Quando você termina um projeto, entrevistadores costumam perguntar "e se X falhar?" ou "e se X ficar lento?". Responda com uma cadeia: *quem chama X*, *que recurso segura enquanto espera*, *qual é o timeout*, *qual é o fallback* e *o que o usuário vê*. Para o BoxOffice: "o pagamento é chamado pelo `order` com timeout de leitura de 1 s, três tentativas com backoff com jitter, um circuit breaker que também conta as chamadas acima de 800 ms e um bulkhead próprio de 10 chamadas concorrentes; quando o breaker abre, o fã vê 'pagamento temporariamente indisponível, seus lugares continuam reservados por 10 minutos' — e o catálogo não é afetado." Cite também a matemática da disponibilidade: "duas dependências com três noves em série nos limitam a 99,8%".
 
 !!! success "Boas práticas"
 
@@ -332,10 +353,20 @@ flowchart LR
 
 ## Relacionados { #related }
 
-- **Hands-on** (na semana seguinte a esta aula e à aula 9): primeiro o [Hands-on 8 — Observabilidade](../../hands-on/8/index.md) — OpenTelemetry, um dashboard RED e alertas de burn rate de SLO, para que os experimentos tenham o que mostrar; depois o [Hands-on 9 — Resiliência e caos](../../hands-on/9/index.md): Resilience4j entre `order` e `payment`, latência e falhas com Toxiproxy, um game day. [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes e autorrecuperação.
+- **Hands-on** (na semana seguinte a esta aula e à aula 9): primeiro o [Hands-on 8 — Observabilidade](../../hands-on/8/index.md) — OpenTelemetry, um dashboard RED (*rate, errors, duration*: taxa, erros, duração) e alertas de burn rate de SLO, para que os experimentos tenham o que mostrar; depois o [Hands-on 9 — Resiliência e caos](../../hands-on/9/index.md): Resilience4j entre `order` e `payment`, latência e falhas com Toxiproxy, um game day. [Hands-on 10 — Kubernetes](../../hands-on/10/index.md): probes e autorrecuperação.
 - **Projeto:** [Game day de caos](../../exercises/project/game-day/index.md).
 - **Estudos de caso:** [Sistema de pagamentos](../case-studies/payment-system/index.md), [Venda de ingressos (flash sale do BoxOffice)](../case-studies/ticketing/index.md).
 - **Aulas:** [Estimativas — matemática da disponibilidade](../estimation/availability-math/index.md), [Observabilidade](../observability/index.md) (aula anterior, na mesma semana: os SLOs, dashboards e alertas pelos quais estas defesas são julgadas), [Mensageria](../messaging/index.md) (a assincronia tira dependências do caminho crítico), [Cloud-Native](../cloud-native/index.md) (próxima aula: probes, autorrecuperação, autoescala).
+
+## Pontos-chave { #key-takeaways }
+
+!!! takeaways ""
+
+    - Disponibilidade = MTTF / (MTTF + MTTR); componentes em série se **multiplicam**, réplicas em paralelo dão $1 - (1 - a)^n$ — só se as suas falhas forem independentes.
+    - Reduzir o MTTR (detectar, diagnosticar, corrigir) costuma ser mais barato que aumentar o MTTF: um restart em 1 minuto levou o `inventory` de 99,72% a 99,998%.
+    - Uma dependência **lenta** é pior que uma morta: pela Lei de Little ela enche as threads de quem chama e o esgotamento sobe até funcionalidades que nunca a chamam.
+    - Redundância se compra, não é de graça: o orçamento de erros do SLO ([aula 9](../observability/slo/index.md)) decide quantos noves pagar.
+    - Timeouts, retries com jitter, circuit breakers, bulkheads e fallbacks honestos contêm uma dependência lenta; a recuperação de desastres parte do RPO e do RTO; experimentos de caos provam os dois.
 
 ## O que quebra em seguida { #what-breaks-next }
 

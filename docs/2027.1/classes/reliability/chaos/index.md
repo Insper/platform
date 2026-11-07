@@ -21,7 +21,7 @@ The insight: **failure is not a special case to avoid; it is the environment pro
 The [Principles of Chaos Engineering](https://principlesofchaos.org){target="_blank"}[^1] define the discipline with five ideas:
 
 **1. Build a hypothesis around steady-state behaviour**
-: Describe "normal" with measurable outputs users care about — the SLIs ([SLOs](../../observability/slo/index.md)): purchase success rate, seat-hold p99, e-mail freshness. The hypothesis: *"the steady state continues even when X happens."*
+: Describe "normal" with measurable outputs users care about — the service level indicators, SLIs ([service level objectives, SLOs](../../observability/slo/index.md)): purchase success rate, seat-hold p99, e-mail freshness. The hypothesis: *"the steady state continues even when X happens."*
 
 **2. Vary real-world events**
 : Inject failures that actually happen: instance and zone loss, latency, packet loss, a dependency returning errors, a full disk, clock skew, a traffic spike, an expired certificate.
@@ -57,9 +57,9 @@ An experiment that **confirms** the hypothesis is evidence that a defence works.
 
     | Step | Content |
     |---|---|
-    | **Steady state** | Purchase success ≥ 99.9% and seat-hold p99 < 500 ms; catalog p99 < 300 ms (the RED dashboard of [Hands-on 8](../../../hands-on/8/index.md)). |
-    | **Hypothesis** | "If the payment provider answers in 3 s instead of 200 ms, the `payment` circuit breaker opens within 30 s, purchases fail fast with 'payment temporarily unavailable, seats held', the bulkhead caps payment calls at 50, and catalog and seat holds keep their latency." |
-    | **Injection** | Toxiproxy between `payment` and the provider stub: a `latency` toxic of 3 s ± 0.5 s, under a k6 load of 100 purchases/s. |
+    | **Steady state** | Purchase success ≥ 99.9% and seat-hold p99 < 500 ms; catalog p99 < 300 ms (the RED — rate, errors, duration — dashboard of [Hands-on 8](../../../hands-on/8/index.md)). |
+    | **Hypothesis** | "If the payment provider answers in 3 s instead of 200 ms, the `payment` circuit breaker opens within 10 s, purchases fail fast with 'payment temporarily unavailable, seats held', the bulkhead caps payment calls at 10 of `order`'s 50 threads, and catalog and seat holds keep their latency." |
+    | **Injection** | Toxiproxy between `payment` and the provider stub: a `latency` toxic of 3 s ± 0.5 s, under the k6 load of lab 9: 20 purchases/s and 20 order reads/s. |
     | **Scope and abort** | Compose environment first; later one canary pod. Abort if catalog p99 > 1 s or the purchase error budget burns faster than 10×. |
     | **Observe** | `resilience4j_circuitbreaker_state`, bulkhead available permits, error rate and p99 per route, `order` busy threads, traces of slow purchases. |
     | **Possible findings** | The read timeout was never set, so slow calls are not counted until 60 s; the retry at the gateway multiplies calls; the fallback message is a raw 500; the bulkhead is shared with `inventory` calls. |
@@ -78,12 +78,12 @@ An experiment that **confirms** the hypothesis is evidence that a defence works.
 
 | Category | Examples | Tools |
 |---|---|---|
-| **Instance / process** | Kill a pod, OOM-kill a process, terminate a VM | `kubectl delete pod`, Chaos Mesh `PodChaos`, LitmusChaos, AWS FIS |
+| **Instance / process** | Kill a pod, out-of-memory (OOM) kill a process, terminate a virtual machine | `kubectl delete pod`, Chaos Mesh `PodChaos`, LitmusChaos, AWS Fault Injection Service (FIS) |
 | **Network** | Latency, packet loss, bandwidth limit, partition, DNS failure | Toxiproxy, Chaos Mesh `NetworkChaos`, `tc netem` |
 | **Dependency** | Errors or slow answers from a service or third party | Toxiproxy, WireMock, a feature flag in the client |
 | **Resource** | CPU or memory pressure, disk full, file-descriptor exhaustion | `stress-ng`, Chaos Mesh `StressChaos` |
-| **State and time** | Clock skew, expired certificate, corrupted cache entry, failover of the database | Chaos Mesh `TimeChaos`, managed DB "reboot with failover" |
-| **Infrastructure** | Lose an availability zone or a region | AWS FIS, Azure Chaos Studio, routing changes, the DR drill |
+| **State and time** | Clock skew, expired certificate, corrupted cache entry, failover of the database | Chaos Mesh `TimeChaos`, managed database "reboot with failover" |
+| **Infrastructure** | Lose an availability zone or a region | AWS FIS, Azure Chaos Studio, routing changes, the disaster-recovery (DR) drill |
 
 ### Toxiproxy: chaos on your laptop { #toxiproxy }
 
@@ -93,7 +93,7 @@ An experiment that **confirms** the hypothesis is evidence that a defence works.
 # docker-compose.yaml (excerpt)
 services:
   toxiproxy:
-    image: ghcr.io/shopify/toxiproxy:2.9.0
+    image: ghcr.io/shopify/toxiproxy:2.13.0
     ports:
       - "8474:8474"           # Toxiproxy API
   payment:
@@ -118,7 +118,7 @@ toxiproxy-cli toxic remove -n timeout_downstream provider
 
 !!! example "In the BoxOffice code: Toxiproxy and the game master's script (lab 9)"
 
-    [Hands-on 9 — Payment, provider and Toxiproxy](../../../hands-on/9/payment/index.md) loads the proxies from a file at startup instead of creating them with the CLI: one in front of `payment` (`order` calls `toxiproxy:18085`) and one in front of `psp`, the fake provider (`payment` calls `toxiproxy:18095`). Two proxies give two places to break, so an operator must find *which* hop is slow — our adapter or the provider. Toxics go in through the HTTP API on port 8474; the [game day](../../../hands-on/9/game-day/index.md) wraps six of them in a script for the game master, and `reset` (remove every toxic, re-enable every proxy) is the abort button.
+    [Hands-on 9 — Payment, provider and Toxiproxy](../../../hands-on/9/payment/index.md) loads the proxies from a file at startup instead of creating them with the command-line interface (CLI): one in front of `payment` (`order` calls `toxiproxy:18085`) and one in front of `psp`, the fake provider (`payment` calls `toxiproxy:18095`). Two proxies give two places to break, so an operator must find *which* hop is slow — our adapter or the provider. Toxics go in through the HTTP API on port 8474; the [game day](../../../hands-on/9/game-day/index.md) wraps six of them in a script for the game master, and `reset` (remove every toxic, re-enable every proxy) is the abort button.
 
     ``` { .json title="infra/toxiproxy/toxiproxy.json" }
     --8<-- "docs/2027.1/hands-on/9/code/infra/toxiproxy/toxiproxy.json"
@@ -184,7 +184,7 @@ A **game day** is a planned, team-wide exercise in which failures are injected a
     | Time | Injection | Expected behaviour | Measure |
     |---|---|---|---|
     | 10:00 | Spike starts (no fault) | Waiting room admits at the configured rate; SQL < 70% | Baseline SLIs |
-    | 10:10 | Payment provider latency 3 s | Breaker opens < 30 s; seats held; catalog unaffected | Time to detect (alert), purchase error rate |
+    | 10:10 | Payment provider latency 3 s | Breaker opens < 10 s; seats held; catalog unaffected | Time to detect (alert), purchase error rate |
     | 10:25 | One `order` pod killed per minute | Readiness removes it; N+1 capacity absorbs it | Errors during restarts |
     | 10:40 | Kafka broker stopped | Producers retry; outbox backlog grows and drains; no lost e-mails | Outbox age, consumer lag, e-mail freshness SLI |
     | 10:55 | Database failover to the standby | ~30 s of errors on writes, then recovery | Actual RTO vs expected |
@@ -229,7 +229,7 @@ It is also the order of the labs: [lab 8](../../../hands-on/8/index.md) instrume
 | Tool | Maintained by | Strengths |
 |---|---|---|
 | [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} | Shopify (open source) | Simple TCP proxy; ideal for local and CI tests |
-| [Chaos Mesh](https://chaos-mesh.org){target="_blank"} | CNCF | Kubernetes-native; network, pod, stress, time, I/O faults; workflows |
+| [Chaos Mesh](https://chaos-mesh.org){target="_blank"} | Cloud Native Computing Foundation (CNCF) | Kubernetes-native; network, pod, stress, time, I/O faults; workflows |
 | [LitmusChaos](https://litmuschaos.io){target="_blank"} | CNCF | Kubernetes-native; experiment hub; GitOps-friendly |
 | [AWS Fault Injection Service](https://aws.amazon.com/fis/){target="_blank"} | Amazon | Managed; AWS-level faults (AZ power, API errors); stop conditions |
 | [Azure Chaos Studio](https://azure.microsoft.com/products/chaos-studio){target="_blank"} | Microsoft | Managed chaos for Azure resources |
@@ -237,7 +237,7 @@ It is also the order of the labs: [lab 8](../../../hands-on/8/index.md) instrume
 | [Chaos Monkey](https://github.com/Netflix/chaosmonkey){target="_blank"} | Netflix | Random instance termination; the original |
 
 !!! tip "In the interview"
-    After proposing resilience mechanisms, add how you would **verify** them: "I'd run a chaos experiment with a steady-state hypothesis on the purchase SLO — inject 3 s of latency on the payment provider for one canary pod, expect the breaker to open within 30 s and catalog latency to stay flat, with an automatic abort if the burn rate exceeds 10×". It shows you know that untested failover and untested fallbacks are the most common reason resilient-looking designs fail.
+    After proposing resilience mechanisms, add how you would **verify** them: "I'd run a chaos experiment with a steady-state hypothesis on the purchase SLO — inject 3 s of latency on the payment provider for one canary pod, expect the breaker to open within 10 s and catalog latency to stay flat, with an automatic abort if the burn rate exceeds 10×". It shows you know that untested failover and untested fallbacks are the most common reason resilient-looking designs fail.
 
 !!! success "Best practices"
 

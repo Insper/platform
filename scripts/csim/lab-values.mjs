@@ -165,6 +165,39 @@ export default [
     ].map(e => ({ sim: "resilience", ...e }));
   })(),
 
+  // hands-on/9: the lab twin of lab 9 (order's application.yaml, the k6 script, the toxics of the patterns page)
+  ...(() => {
+    const yaml = H + "9/code/services/order/src/main/resources/application.yaml", k6 = H + "9/code/load/pay-under-chaos.js";
+    const page = H + "9/patterns/index.md";
+    const ms = re => t => { const m = t.match(re); return m ? Number(m[1]) * (m[2] === "s" ? 1000 : 1) : undefined; };
+    return [
+      { key: "threads", value: 50, lab: yaml, read: num(/threads:\s*\n\s*max:\s*(\d+)/) },
+      { key: "payRate", value: 20, unit: "payments/s", lab: k6, read: num(/rate: Number\(__ENV\.PAY_RATE \|\| (\d+)\)/) },
+      { key: "browseRate", value: 20, unit: "req/s", lab: k6, read: num(/exec: 'browse',\s*rate: (\d+)/) },
+      { key: "payMaxVUs", value: 600, lab: k6, read: num(/exec: 'pay',[^}]*maxVUs: (\d+)/) },
+      { key: "browseMaxVUs", value: 300, lab: k6, read: num(/exec: 'browse',[^}]*maxVUs: (\d+)/) },
+      { key: "duration", value: 120, unit: "s", lab: k6, read: t => (num(/DURATION = __ENV\.DURATION \|\| '(\d+)m'/)(t) ?? NaN) * 60 },
+      { key: "timeoutMs", value: 1000, unit: "ms", lab: yaml, read: ms(/read-timeout:\s*\$\{PAYMENT_READ_TIMEOUT:(\d+)(ms|s)\}/) },
+      { key: "attempts", value: 3, lab: yaml, read: num(/max-attempts:\s*\$\{PAYMENT_RETRY_ATTEMPTS:(\d+)\}/) },
+      { key: "backoff", value: 200, unit: "ms", lab: yaml, read: ms(/wait-duration:\s*(\d+)(ms|s)\b/) },
+      { key: "mult", value: 2, lab: yaml, read: num(/exponential-backoff-multiplier:\s*([\d.]+)/) },
+      { key: "jitter", value: 0.5, lab: yaml, read: num(/randomized-wait-factor:\s*([\d.]+)/) },
+      { key: "window", value: 20, lab: yaml, read: num(/sliding-window-size:\s*(\d+)/) },
+      { key: "minCalls", value: 10, lab: yaml, read: num(/minimum-number-of-calls:\s*(\d+)/) },
+      { key: "failRate", value: 0.5, lab: yaml, read: t => (num(/failure-rate-threshold:\s*(\d+)/)(t) ?? NaN) / 100 },
+      { key: "slowMs", value: 800, unit: "ms", lab: yaml, read: ms(/slow-call-duration-threshold:\s*(\d+)(ms|s)\b/) },
+      { key: "slowRate", value: 0.5, lab: yaml, read: t => (num(/slow-call-rate-threshold:\s*(\d+)/)(t) ?? NaN) / 100 },
+      { key: "openMs", value: 10000, unit: "ms", lab: yaml, read: ms(/wait-duration-in-open-state:\s*(\d+)(ms|s)\b/) },
+      { key: "probes", value: 3, lab: yaml, read: num(/permitted-number-of-calls-in-half-open-state:\s*(\d+)/) },
+      { key: "bulkhead", value: 10, lab: yaml, read: num(/max-concurrent-calls:\s*\$\{PAYMENT_BULKHEAD:(\d+)\}/) },
+      { key: "slowLatency", value: 3000, unit: "ms", lab: page, read: num(/"attributes":\{"latency":(\d+)\}\}'\s*\nk6 run load\/pay-under-chaos\.js/) },
+      { key: "resetToxicity", value: 0.3, lab: page, read: num(/"type":"reset_peer","toxicity":([\d.]+)/) },
+      { key: "bulkLatency", value: 700, unit: "ms", lab: page, read: num(/"attributes":\{"latency":(\d+)\}\}'\s*\nPAYMENT_BULKHEAD=/) },
+      { key: "bulkRate", value: 70, unit: "payments/s", lab: page, read: num(/k6 run -e PAY_RATE=(\d+) load\/pay-under-chaos\.js/) },
+      { key: "bulkOff", value: 1000, lab: page, read: num(/PAYMENT_BULKHEAD=(\d+) docker compose up -d --wait order\s+# effectively no bulkhead/) },
+    ].map(e => ({ sim: "pay-under-chaos", ...e }));
+  })(),
+
   // cloud-native/kubernetes: lab 10's catalog HPA and resources
   ...(() => {
     const hpa = H + "10/code/k8s/base/catalog-hpa.yaml", dep = H + "10/code/k8s/base/catalog.yaml";

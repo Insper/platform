@@ -1,4 +1,4 @@
-The test that failed to predict last year's outage used 200 virtual users, each looping "request, wait for the response, sleep one second". It reported p95 = 180 ms. On the real day the p99 was over 10 seconds. Both numbers were *measured*; only one described reality. The difference was not the tool — it was how the test generated load, what it measured, and what it asked. This page is about designing load tests that tell the truth: the six classic test types, the workload model behind each, thresholds that encode SLOs, and the measurement errors that make tests lie.
+The test that failed to predict last year's outage used 200 virtual users, each looping "request, wait for the response, sleep one second". It reported p95 = 180 ms. On the real day the p99 was over 10 seconds. Both numbers were *measured*; only one described reality. The difference was not the tool — it was how the test generated load, what it measured, and what it asked. This page is about designing load tests that tell the truth: the six classic test types, the workload model behind each, thresholds that encode service level objectives (SLOs), and the measurement errors that make tests lie.
 
 All examples use **k6** (Grafana Labs), the load-testing tool of the course labs: tests are JavaScript, the engine is Go, and it supports both workload models through its *executors*[^1]. Equivalent snippets for Gatling, Locust, JMeter, wrk2 and vegeta are at the end.
 
@@ -6,7 +6,7 @@ All examples use **k6** (Grafana Labs), the load-testing tool of the course labs
 
 ## Anatomy of a k6 test
 
-A k6 script has an **init** part (imports, data, `options`), an optional `setup()` that runs once, the **VU code** (the default function or a named function per scenario) that runs many times, and an optional `teardown()`. BoxOffice's tests share one module with the user flows, so every test type below is just a different *load shape* over the same behaviour:
+A k6 script has an **init** part (imports, data, `options`), an optional `setup()` that runs once, the **virtual-user (VU) code** (the default function or a named function per scenario) that runs many times, and an optional `teardown()`. BoxOffice's tests share one module with the user flows, so every test type below is just a different *load shape* over the same behaviour:
 
 ```javascript title="k6/lib/boxoffice.js"
 import http from 'k6/http';
@@ -97,8 +97,8 @@ The consequence is dramatic exactly when it matters. Take 200 virtual users with
 | System response time R | Closed model: throughput $N/(R+Z)$ | Open model at 182 req/s |
 |---|---|---|
 | 0.1 s (healthy) | 200 / 1.1 = **182 req/s** | 182 req/s |
-| 0.5 s (degrading) | 200 / 1.5 = 133 req/s | 182 req/s — queue starts to grow |
-| 2.0 s (struggling) | 200 / 3.0 = **67 req/s** | 182 req/s — queue grows without bound |
+| 0.5 s (degrading) | 200 / 1.5 = 133 req/s | 182 req/s — ⚠️ queue starts to grow |
+| 2.0 s (struggling) | 200 / 3.0 = **67 req/s** | 182 req/s — 🔴 queue grows without bound |
 
 The closed test **reduced the load by 63 % at the moment the system struggled** — a load generator that backs off is a gift no real on-sale gives you. Use the model that matches the real population:
 
@@ -418,7 +418,7 @@ Never run a breakpoint test against production, and always watch the **load gene
 
 Coordinated omission is the measurement error that made last year's test lie[^3]. It happens whenever the load generator **waits for a response before sending the next request** and measures latency **from the moment it actually sent the request**. When the server stalls, the tester stops sending — so it *omits* exactly the requests that would have experienced the stall, in *coordination* with the server's misbehaviour. The few samples it does record during the stall are drowned among thousands of fast ones.
 
-The simulation below reproduces it. A server answers in 1 ms, but freezes for 1.5 s four times during a 60 s test — a stop-the-world GC pause or a table lock. The tester intends to send 100 requests per second. The closed loop waits for each response; the open model sends on schedule and measures from the *intended* send time:
+The simulation below reproduces it. A server answers in 1 ms, but freezes for 1.5 s four times during a 60 s test — a stop-the-world garbage-collection (GC) pause or a table lock. The tester intends to send 100 requests per second. The closed loop waits for each response; the open model sends on schedule and measures from the *intended* send time:
 
 ```python exec="1" html="1"
 # Coordinated omission, simulated. A server answers in 1 ms, but freezes for
@@ -491,6 +491,15 @@ plt.close()
 
 The server and its four freezes are identical; only the measurement differs. The closed loop recorded ~600 fewer samples (the ones it never sent during the freezes) and reports a perfect p99 of 1 ms. In reality, about one request in ten during that minute would have waited between a few milliseconds and 1.5 s — the corrected p90 is ~150 ms and the p99 is over a second. **An SLO checked with the first row passes; an SLO checked with the second fails. Users experience the second.**
 
+Play it yourself: the simulator below runs the same minute, one second at a time, and lets you change the freezes.
+
+<div class="csim" data-sim="coordinated-omission" data-stalls="4" data-stall="1.5"></div>
+
+!!! tip "Try it"
+    1. Press play with the page's four freezes of 1.5 s. The closed loop ends with 5,405 samples and a p99 of 1.0 ms — 595 fewer than the 6,000 the open model sends, and its threshold `p99 < 100 ms` passes. The open model reports p90 152 ms and p99 1.37 s: the same threshold fails.
+    2. Set one freeze of 0.5 s (0.8% of the test): now even the open model shows p99 1.0 ms, because fewer than 1% of the requests were slow — the p99 cannot see them, its p99.9 447 ms can. A p99 only sees a tail wider than 1% of the requests.
+    3. Set 8 freezes: the closed loop finally shows a p99.9 1.5 s, but its p99 1.0 ms still passes. However much the server freezes, the closed loop keeps omitting the requests that would have waited.
+
 How to avoid it:
 
 - **Use open-model generators** for open-world traffic: k6 `constant-arrival-rate`/`ramping-arrival-rate`, Gatling `injectOpen`, wrk2, vegeta. They start requests on schedule regardless of earlier responses (as long as they have free VUs/connections — watch `dropped_iterations`).
@@ -525,7 +534,7 @@ k6 run --out experimental-prometheus-rw --tag testid=onsale-2027-03-14-run2 \
 K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run k6/load.js
 ```
 
-With k6 and the services' OpenTelemetry metrics in the same Grafana (the `grafana/otel-lgtm` stack of [Hands-on 8](../../../hands-on/8/index.md)), one dashboard shows the k6 arrival rate and p99 next to each service's RED metrics and each resource's USE metrics. Slow requests are found through **trace exemplars**, and their spans show where the time went. For tests beyond one machine, the **k6-operator** runs a test as several parallel pods in a Kubernetes cluster.
+With k6 and the services' OpenTelemetry metrics in the same Grafana (the `grafana/otel-lgtm` stack of [Hands-on 8](../../../hands-on/8/index.md)), one dashboard shows the k6 arrival rate and p99 next to each service's RED metrics (rate, errors, duration) and each resource's USE metrics (utilization, saturation, errors). Slow requests are found through **trace exemplars**, and their spans show where the time went. For tests beyond one machine, the **k6-operator** runs a test as several parallel pods in a Kubernetes cluster.
 
 ---
 
@@ -538,7 +547,7 @@ Failures rarely arrive on a quiet afternoon; they arrive at the peak, when retri
 | Payment provider +3 s latency | Circuit breaker opens within 10 s; holds and browsing keep their SLO; orders fail fast with a clear message | Toxiproxy, xk6-disruptor |
 | Kill 1 of 3 `inventory` pods | Error spike < 1 % for < 30 s; p99 recovers without manual action | `kubectl delete pod`, Chaos Mesh |
 | Redis unavailable for 60 s | Catalog falls back to PostgreSQL; p99 rises but stays < 1 s; no stampede on recovery | Toxiproxy, Chaos Mesh |
-| PostgreSQL failover | Writes fail for < 30 s; the connection pool recovers; no stuck threads | Managed DB failover API |
+| PostgreSQL failover | Writes fail for < 30 s; the connection pool recovers; no stuck threads | Managed database failover API |
 
 ```bash title="chaos-under-load.sh — Toxiproxy between order and payment"
 k6 run -e PEAK=800 k6/load.js &                       # steady load in the background
@@ -600,7 +609,7 @@ The playground's load profiles are the same six test types (plus chaos), applied
 | `breakpoint` | An ever-increasing rate until the SLO breaks | `ramping-arrival-rate` + `abortOnFail` | `rampUsersPerSec` + `assertions` | `LoadTestShape` + stop condition |
 | `chaos` | Load plus injected faults (latency, errors, instance loss) at the chosen chaos level | load script + xk6-disruptor / Toxiproxy | load + Toxiproxy | load + Toxiproxy |
 
-What the playground **simplifies**: it models capacity, service times, queues, timeouts, retries and failures, but not JIT warm-up, garbage collection, lock contention inside a database, network variance or the cost of your actual code. A design that fails in the playground will fail in reality; a design that passes in the playground still has to be measured.
+What the playground **simplifies**: it models capacity, service times, queues, timeouts, retries and failures, but not just-in-time (JIT) compiler warm-up, garbage collection, lock contention inside a database, network variance or the cost of your actual code. A design that fails in the playground will fail in reality; a design that passes in the playground still has to be measured.
 
 ---
 
@@ -610,7 +619,7 @@ All the tools below can express the six test types; they differ in scripting lan
 
 === "Gatling"
 
-    Java/Kotlin/Scala DSL, open and closed injection profiles, detailed HTML reports. Strong for JVM teams.
+    A Java/Kotlin/Scala domain-specific language (DSL), open and closed injection profiles, detailed HTML reports. Strong for JVM teams.
 
     ```java
     public class HoldSimulation extends Simulation {
@@ -655,7 +664,7 @@ All the tools below can express the six test types; they differ in scripting lan
 
 === "JMeter"
 
-    The veteran: GUI to build plans, CLI to run them, many protocols. Thread groups are closed-model; use the *Constant Throughput Timer* or the *Arrivals Thread Group* plugin for arrival rates.
+    The veteran: a graphical user interface (GUI) to build plans, a command-line interface (CLI) to run them, many protocols. Thread groups are closed-model; use the *Constant Throughput Timer* or the *Arrivals Thread Group* plugin for arrival rates.
 
     ```bash
     jmeter -n -t onsale.jmx -l results.jtl -e -o report/    # headless run + HTML report
@@ -663,7 +672,7 @@ All the tools below can express the six test types; they differ in scripting lan
 
 === "wrk2 / vegeta"
 
-    Command-line, constant-rate HTTP generators: ideal for one endpoint, quick checks and CO-free latency distributions.
+    Command-line, constant-rate HTTP generators: ideal for one endpoint, quick checks and latency distributions free of coordinated omission (CO).
 
     ```bash
     # wrk2: constant 5 000 req/s, latency corrected for coordinated omission
@@ -680,7 +689,7 @@ All the tools below can express the six test types; they differ in scripting lan
 | **Gatling** | Java/Kotlin/Scala | Yes (`injectOpen`) | Enterprise edition | JVM teams, rich reports |
 | **Locust** | Python | Approximate | Yes (workers) | Python teams, custom protocols |
 | **JMeter** | XML plans (GUI) | With plugins | Yes | Many protocols, legacy suites |
-| **wrk2**, **vegeta** | CLI | Yes (constant rate) | No | Single endpoints, quick CO-free numbers |
+| **wrk2**, **vegeta** | CLI | Yes (constant rate) | No | Single endpoints, quick numbers free of CO |
 
 !!! tip "In the interview"
 

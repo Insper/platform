@@ -7,7 +7,7 @@ O negócio faz uma pergunta simples: "Podemos abrir a venda do show no estádio 
 Planejamento de capacidade é aritmética sobre três entradas que você já sabe obter:
 
 1. **Demanda** — a taxa de chegada de pico por endpoint, do [modelo de carga](../methodology/index.md#workload-model) (previsão × fator de segurança).
-2. **Capacidade por unidade** — o **joelho** de um pod (ou de um banco), de um [teste breakpoint](../load-testing/index.md): a maior taxa em que ele ainda cumpre o SLO.
+2. **Capacidade por unidade** — o **joelho** de um pod (ou de um banco), de um [teste breakpoint](../load-testing/index.md): a maior taxa em que ele ainda cumpre o objetivo de nível de serviço (SLO, *service level objective*).
 3. **Folga** (*headroom*) — quão abaixo do joelho você quer operar e a quais falhas precisa sobreviver.
 
 $$
@@ -17,7 +17,7 @@ $$
 
 ### A Lei de Little dimensiona tudo o que segura uma requisição { #littles-law-sizes-everything-that-holds-a-request }
 
-Réplicas não são o único recurso. Todo componente que *segura* uma requisição enquanto ela está em andamento — threads, conexões, sockets, VUs, posições de fila — precisa ser dimensionado para a concorrência e a Lei de Little a dá diretamente: **concorrência = taxa de chegada × tempo em que é segurada**[^1].
+Réplicas não são o único recurso. Todo componente que *segura* uma requisição enquanto ela está em andamento — threads, conexões, sockets, usuários virtuais (VUs), posições de fila — precisa ser dimensionado para a concorrência e a Lei de Little a dá diretamente: **concorrência = taxa de chegada × tempo em que é segurada**[^1].
 
 | Recurso | Taxa | Tempo segurado | Concorrência necessária |
 |---|---|---|---|
@@ -91,7 +91,7 @@ O que o modelo diz:
 | **Falhas** | Uma zona, um nó ou um pod se perde; os sobreviventes absorvem sua carga |
 | **Deploys** | Rolling updates e canaries removem ou desviam capacidade temporariamente |
 | **Atraso do autoscaling** | A nova capacidade chega minutos depois da demanda |
-| **Vizinhos barulhentos, GC, compactação** | A capacidade por pod varia de execução para execução |
+| **Vizinhos barulhentos, coleta de lixo (GC, *garbage collection*), compactação** | A capacidade por pod varia de execução para execução |
 
 Metas típicas operam os serviços entre 50 e 75 % do joelho no pico esperado; o número certo depende de quão rápido você consegue adicionar capacidade e de quão caro é violar o SLO. Para a venda do BoxOffice — que dura minutos, é muito visível e não pode ser repetida —, uma folga generosa é um seguro barato.
 
@@ -104,17 +104,37 @@ O autoscaling reage à demanda; ele não a antecipa. Uma linha do tempo aproxima
 | Etapa | Duração típica |
 |---|---|
 | O pipeline de métricas percebe a mudança (scrape + agregação) | 15–60 s |
-| Avaliação e decisão do HPA | até 15 s |
+| Avaliação e decisão do Horizontal Pod Autoscaler (HPA, *escalonador horizontal de pods*) | até 15 s |
 | Pod escalonado — **se** um nó tiver espaço; senão, provisionamento de nó | segundos / 1–3 min |
 | Download da imagem em um nó novo | segundos a um minuto |
-| Início da JVM, contexto Spring, readiness, aquecimento do JIT | 20–60 s |
+| Início da JVM, contexto Spring, readiness, aquecimento do compilador just-in-time (JIT) | 20–60 s |
 | **Total** | **≈ 1–4 minutos** |
+
+``` diagram-sim
+sequenceDiagram
+    participant F as fãs
+    participant M as pipeline de métricas
+    participant H as HPA
+    participant K as scheduler e nós
+    participant P as pod novo
+    F->>M: 10:00:00, as reservas saltam de 500 para 4 500 por segundo
+    M->>H: CPU acima do alvo (15 a 60 s depois)
+    H->>K: mais réplicas (até 15 s)
+    K->>P: agendar, ou antes provisionar um nó (segundos a 3 min)
+    P->>P: baixar a imagem, subir a JVM, passar no readiness (20 a 60 s)
+    P-->>F: capacidade nova, 1 a 4 minutos depois do pico
+    Note over F,P: todo esse tempo o backlog cresce 4 500 − 1 100 = 3 400 requisições por segundo
+```
 
 Durante essa janela, o backlog cresce na diferença entre demanda e capacidade. Se as reservas saltam de 500/s para 4 500/s enquanto o deployment consegue atender 1 100/s por dois minutos, o backlog é $(4\,500 - 1\,100) \times 120 \approx 408\,000$ requisições — muito além de qualquer timeout. Elas viram erros, os retries pioram tudo e os fãs que chegaram primeiro têm a pior experiência. Daí as regras para picos **conhecidos**:
 
-- **Pré-escale** antes do evento (um aumento agendado às 09:45; o scaler de cron do KEDA; `minReplicas` elevado) e mantenha capacidade livre nos nós.
+- **Pré-escale** antes do evento (um aumento agendado às 09:45; o scaler de cron do KEDA (Kubernetes Event-driven Autoscaling); `minReplicas` elevado) e mantenha capacidade livre nos nós.
 - **Controle de admissão** (sala de espera, rate limiting), para que a demanda excedente espere *fora* do sistema, em ordem, em vez de expirar dentro dele[^3].
 - **Aqueça** a nova capacidade: caches pré-carregados com o evento, pools de conexão cheios (`minimum-idle = maximum-pool-size`), uma requisição de aquecimento a cada pod novo antes de ele ficar pronto.
+
+O preset `boxoffice-hpa` é a mesma corrida no [Hands-on 10](../../../hands-on/10/index.md): o `catalog` no kind com 2 pods e um HPA — mín. 2, máx. 8, alvo de 60% de CPU —, cada pod fazendo cerca de 500 req/s e precisando de cerca de 40 s para ficar pronto. Em t = 60 s a carga vai de 300 para 1 000 req/s. Rode-o: o HPA decide em até 15 s, os pods novos ficam prontos 40 s depois e enquanto isso 2 pods a 100% descartam requisições. Depois faça a pré-escala — aumente o mínimo do HPA para 4 pods, o aumento agendado das 09:45: 1 000 ÷ (4 × 500) = 50%, abaixo do alvo de 60% — e rode de novo.
+
+<div class="sdp" data-scenario="boxoffice-hpa" data-mode="compact" data-height="460"></div>
 
 Plataformas serverless encurtam o atraso, mas não o eliminam: novas instâncias de função têm **cold starts** e os provedores limitam quão rápido a concorrência pode crescer e quanta concorrência uma conta pode usar (verifique as cotas atuais do seu provedor).
 
@@ -141,12 +161,12 @@ Uma regressão de desempenho que chega à produção é descoberta pelos fãs. U
 
 | Orçamento | Exemplo para o BoxOffice | Ruído | Como impor |
 |---|---|---|---|
-| **Latência** a uma taxa moderada fixa | `POST /holds` p95 < 150 ms a 20 reservas/s | Médio–alto em runners de CI compartilhados | Thresholds do k6 com margem + comparação com a linha de base da `main` |
-| **Taxa de erros** | < 0,1 % | Baixo | Threshold do k6 |
-| **Consultas por requisição** | `GET /orders/{id}`: ≤ 3 statements SQL | Nenhum (determinístico) | Teste de integração que conta statements (pega N+1 com confiabilidade) |
-| **Tamanho do payload** | JSON do mapa de assentos ≤ 60 KB | Nenhum | Teste de contrato |
-| **Alocações / CPU por requisição** | ≤ linha de base + 10 % | Baixo (com JMH ou um profiler) | Job de micro-benchmark |
-| **Tamanho da imagem e tempo de início** | Imagem ≤ 250 MB; pronta em ≤ 30 s | Baixo | Passo do pipeline sobre a imagem construída |
+| **Latência** a uma taxa moderada fixa | `POST /holds` p95 < 150 ms a 20 reservas/s | 🟠 Médio–alto em runners de CI compartilhados | Thresholds do k6 com margem + comparação com a linha de base da `main` |
+| **Taxa de erros** | < 0,1 % | 🟢 Baixo | Threshold do k6 |
+| **Consultas por requisição** | `GET /orders/{id}`: ≤ 3 statements SQL | 🟢 Nenhum (determinístico) | Teste de integração que conta statements (pega N+1 com confiabilidade) |
+| **Tamanho do payload** | JSON do mapa de assentos ≤ 60 KB | 🟢 Nenhum | Teste de contrato |
+| **Alocações / CPU por requisição** | ≤ linha de base + 10 % | 🟢 Baixo (com o Java Microbenchmark Harness, JMH, ou um profiler) | Job de micro-benchmark |
+| **Tamanho da imagem e tempo de início** | Imagem ≤ 250 MB; pronta em ≤ 30 s | 🟢 Baixo | Passo do pipeline sobre a imagem construída |
 
 O orçamento do k6 é um teste curto, de modelo aberto, contra uma stack parecida com a produção iniciada dentro do job. Não é um teste de capacidade — runners de CI são pequenos e ruidosos —, mas pega com confiabilidade as grandes regressões: um índice ausente, um N+1, uma chamada síncrona adicionada ao caminho quente.
 
@@ -244,6 +264,17 @@ for name, value in sorted(current.items()):
     failed |= regression
     print(f"{name}: {ref:.1f} -> {value:.1f} ms ({change:+.0%}){'  REGRESSION' if regression else ''}")
 sys.exit(1 if failed else 0)
+```
+
+``` diagram-sim
+flowchart LR
+    pr(["pull request"]) --> up["compose up --wait<br/>semear um evento de 60 000 assentos"]
+    up --> warm["aquecimento de 30 s<br/>não medido"]
+    warm --> abs{"k6 budget.js<br/>thresholds passam?"}
+    abs -->|"não"| red["o check falha<br/>endpoint e regressão nomeados"]:::problem
+    abs -->|"sim"| rel{"mais de 15% mais lento<br/>que a linha de base da main?"}
+    rel -->|"sim"| red
+    rel -->|"não"| green(["o check passa,<br/>resumo enviado"]):::comp
 ```
 
 Dois gates protegem o orçamento: os thresholds **absolutos** em `budget.js` (derivados dos SLOs, com margem para o runner pequeno) e a comparação **relativa** com a `main` (uma desaceleração de 15 % falha mesmo que o threshold absoluto ainda passe). Para manter o gate confiável em vez de ignorado:

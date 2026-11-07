@@ -23,7 +23,7 @@ A test is only as good as its model of the load. Workload characterization answe
 
 | Question | Meaning | BoxOffice answer |
 |---|---|---|
-| **Who** is causing the load? | Clients, bots, internal jobs, regions | Fans on mobile (70 %) and web, partner resellers' API, scalper bots (blocked at the [WAF](../../../reference/components/edge/index.md#waf)) |
+| **Who** is causing the load? | Clients, bots, internal jobs, regions | Fans on mobile (70 %) and web, partner resellers' API, scalper bots (blocked at the web application firewall, [WAF](../../../reference/components/edge/index.md#waf)) |
 | **Why** is the load happening? | User flows and business events | Browsing on normal days; an on-sale at 10:00 creates a synchronized rush |
 | **What** is the load? | Endpoint mix, payload sizes, read/write ratio, data accessed | 80 % reads (event page, seat map, search), 20 % writes (holds, orders) during the on-sale |
 | **How** does it change over time? | Arrival pattern, peaks, seasonality | Flat daily wave; on-sale = near-vertical ramp at 10:00:00, peak in the first 5 minutes, long tail |
@@ -48,9 +48,9 @@ ORDER BY requests DESC;
 
 The result becomes the workload model that every test in this class reuses (numbers are illustrative assumptions for a stadium on-sale):
 
-| Endpoint | Share of requests | Peak req/s | Latency SLO (p99) | Notes |
+| Endpoint | Share of requests | Peak req/s | Latency service level objective (SLO, p99) | Notes |
 |---|---|---|---|---|
-| `GET /events/{id}` (event page) | 35 % | 10 500 | 200 ms | Cacheable; CDN + Redis |
+| `GET /events/{id}` (event page) | 35 % | 10 500 | 200 ms | Cacheable; content delivery network (CDN) + Redis |
 | `GET /events/{id}/seats` (seat map) | 30 % | 9 000 | 300 ms | Changes every second during the on-sale |
 | `GET /search` | 10 % | 3 000 | 400 ms | Search service |
 | `POST /holds` (hold seats) | 15 % | 4 500 | 300 ms | Strongly consistent; row locks |
@@ -78,13 +78,13 @@ Resources are not only hardware. In a Java service, the **software resources** �
 | Resource | Utilization | Saturation | Errors | Where to read it |
 |---|---|---|---|---|
 | **CPU** | `%usr + %sys` per core | Run-queue length (`vmstat` column `r` > number of cores); container **throttling** | — | `mpstat -P ALL 1`, `vmstat 1`, cgroup `cpu.stat` (`nr_throttled`) |
-| **Memory** | Used vs limit | Swapping, page scanning; GC running more often | `OOMKilled`, `OutOfMemoryError` | `free -m`, `vmstat` (`si/so`), JVM GC logs / JFR |
+| **Memory** | Used vs limit | Swapping, page scanning; garbage collection (GC) running more often | `OOMKilled`, `OutOfMemoryError` | `free -m`, `vmstat` (`si/so`), JVM GC logs / Java Flight Recorder (JFR) |
 | **Network** | Throughput vs link capacity | Socket backlog, retransmits | Drops, resets | `sar -n DEV,TCP,ETCP 1`, `ss -s`, `nstat` |
 | **Disk** | `%util` | Average queue size (`aqu-sz`), await | I/O errors | `iostat -xz 1` |
 | **Thread pool** (Tomcat) | Busy threads / max | Accept queue / requests waiting | Rejected requests | `tomcat_threads_busy_threads`, `..._config_max_threads` (Micrometer) |
 | **Connection pool** (HikariCP) | Active / maximum | **Pending threads** waiting for a connection | Connection timeouts | `hikaricp_connections_active`, `..._pending`, `..._timeout_total` |
-| **Database** | CPU, I/O of the DB host | Sessions waiting (`wait_event`), lock waits | Deadlocks, statement timeouts | `pg_stat_activity`, `pg_locks`, `pg_stat_statements` |
-| **Kafka partition / queue** | Consumer busy time | **Consumer lag** | DLQ messages | Consumer-lag exporter, broker metrics |
+| **Database** | CPU, I/O of the database host | Sessions waiting (`wait_event`), lock waits | Deadlocks, statement timeouts | `pg_stat_activity`, `pg_locks`, `pg_stat_statements` |
+| **Kafka partition / queue** | Consumer busy time | **Consumer lag** | dead-letter queue (DLQ) messages | Consumer-lag exporter, broker metrics |
 
 ### A walk-through: why is `POST /holds` slow?
 
@@ -193,7 +193,7 @@ export function pickUser() {
 
 ## Warm-up: measure the steady state — and test the cold one { #warm-up }
 
-Right after a deploy, a JVM service is slower than it will be in five minutes: classes are loading, the JIT compiler has not yet compiled the hot methods, connection pools are filling, Redis and PostgreSQL's buffer cache are cold, and the autoscaler is at its minimum. Measuring that period mixes two different questions.
+Right after a deploy, a JVM service is slower than it will be in five minutes: classes are loading, the just-in-time (JIT) compiler has not yet compiled the hot methods, connection pools are filling, Redis and PostgreSQL's buffer cache are cold, and the autoscaler is at its minimum. Measuring that period mixes two different questions.
 
 - **Steady-state tests** (load, soak, breakpoint) should **warm up first** and exclude the warm-up from the thresholds.
 - **Cold-start tests** deliberately measure the cold system, because production has cold moments too: a deploy during traffic, a cache flush, a failover to a cold replica, new pods added by the autoscaler during the spike.
@@ -226,7 +226,7 @@ export const options = {
 Cloud environments are noisy: neighbours share hosts, networks vary, autoscalers take different paths. One run is an anecdote.
 
 - **Repeat** each configuration at least three times and report the median and the spread; a difference smaller than the run-to-run spread is not a result.
-- **Check the load generator**: CPU below ~70 %, no network saturation, enough virtual users allocated (k6 warns when an arrival-rate scenario runs out of VUs: `dropped_iterations`). For large tests, run k6 distributed (k6-operator on Kubernetes or a cloud service).
+- **Check the load generator**: CPU below ~70 %, no network saturation, enough virtual users (VUs) allocated (k6 warns when an arrival-rate scenario runs out of VUs: `dropped_iterations`). For large tests, run k6 distributed (k6-operator on Kubernetes or a cloud service).
 - **Same conditions**: same data snapshot, same time window, same versions; record them in the report.
 - **Long enough**: a 2-minute test cannot reveal a connection leak, log-file growth or a memory leak — that is the job of the [soak test](../load-testing/index.md#soak-test).
 

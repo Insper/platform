@@ -121,6 +121,15 @@ novo. Em `retry-storm`, compare `retries: 3` com e sem backoff `exp+jitter` dura
 
 <div class="sdp" data-scenario="retry-storm" data-mode="compact" data-height="460" data-profile="chaos"></div>
 
+O preset `boxoffice-payment` é este lab no playground: os 20 pagamentos/s e as 20 requisições de navegação/s do
+`pay-under-chaos.js` contra as 50 threads do Tomcat do `order` e, em t = 60 s, o Toxiproxy acrescenta 3 s a
+toda chamada ao `payment`. Rode como está e veja a navegação falhar junto; depois selecione a aresta
+`order → payment`, defina o timeout do lab (1 000 ms), 3 tentativas com backoff com jitter, o circuit
+breaker e um bulkhead de 0,2 das threads (10 de 50) e rode de novo: os pagamentos falham rápido durante o
+incidente e a navegação mantém as suas threads.
+
+<div class="sdp" data-scenario="boxoffice-payment" data-mode="compact" data-height="460"></div>
+
 O simulador completo está no [playground](../../../playground/index.md).
 
 ## Meça { #measure-it }
@@ -188,7 +197,7 @@ Faça commit e tag: `git add -A && git commit -m "lab 9: resilience" && git tag 
 ## Relacionados { #related }
 
 - Teoria: [Confiabilidade](../../classes/reliability/index.md) ·
-  [SLOs e orçamentos de erro](../../classes/observability/slo/index.md) ·
+  [Objetivos de nível de serviço (SLOs, *service level objectives*) e orçamentos de erro](../../classes/observability/slo/index.md) ·
   [Padrões de resiliência](../../classes/reliability/patterns/index.md) ·
   [Engenharia do caos](../../classes/reliability/chaos/index.md) ·
   [Integrações externas](../../classes/compute/integrations/index.md)

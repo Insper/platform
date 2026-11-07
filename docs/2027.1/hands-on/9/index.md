@@ -121,6 +121,14 @@ a timeout and enable the circuit breaker on the edge to the 3rd party, and run a
 
 <div class="sdp" data-scenario="retry-storm" data-mode="compact" data-height="460" data-profile="chaos"></div>
 
+The `boxoffice-payment` preset is this lab in the playground: `pay-under-chaos.js`'s 20 payments/s and 20 browse
+requests/s against `order`'s 50 Tomcat threads, and at t = 60 s Toxiproxy adds 3 s to every call to `payment`.
+Run it as it is and watch browsing fail too; then select the edge `order → payment`, set the lab's
+timeout (1 000 ms), 3 attempts with jittered backoff, the circuit breaker and a bulkhead of 0.2 of the
+threads (10 of 50), and run again: payments fail fast during the incident and browsing keeps its threads.
+
+<div class="sdp" data-scenario="boxoffice-payment" data-mode="compact" data-height="460"></div>
+
 The full simulator is in the [playground](../../../playground/index.md).
 
 ## Measure it
@@ -188,7 +196,7 @@ Commit and tag: `git add -A && git commit -m "lab 9: resilience" && git tag lab9
 ## Related
 
 - Theory: [Reliability](../../classes/reliability/index.md) ·
-  [SLOs and error budgets](../../classes/observability/slo/index.md) ·
+  [Service level objectives (SLOs) and error budgets](../../classes/observability/slo/index.md) ·
   [Resilience patterns](../../classes/reliability/patterns/index.md) ·
   [Chaos engineering](../../classes/reliability/chaos/index.md) ·
   [External integrations](../../classes/compute/integrations/index.md)

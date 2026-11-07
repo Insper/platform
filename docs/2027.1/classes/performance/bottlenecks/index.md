@@ -72,7 +72,7 @@ plt.close()
 
 Three regions are visible, and each has a name you should use in reports:
 
-- **Up to the knee (≈ 1 100 req/s)**: achieved = offered, p99 within the SLO. This is the **usable capacity** of this deployment.
+- **Up to the knee (≈ 1 100 req/s)**: achieved = offered, p99 within the service level objective (SLO). This is the **usable capacity** of this deployment.
 - **Between the knee and the maximum**: achieved still ≈ offered, but the p99 breaks the SLO — the system is *working*, just *too slowly*; queues are building.
 - **Past the maximum (≈ 1 250 req/s)**: achieved throughput *falls* while offered keeps growing, requests time out, errors appear. The system is **saturated** and, here, retrograde: overload makes it less efficient (timeouts, retries, lock convoys).
 
@@ -83,13 +83,13 @@ The capacity you report is the knee: "one `inventory` deployment of 4 pods susta
 | What you see | Likely cause | Confirm with |
 |---|---|---|
 | Latency rises with load **and** CPU is near 100 % | CPU-bound code path | CPU flame graph |
-| Latency rises with load, **CPU stays low** | Waiting: a pool, a lock, I/O or a slow dependency | USE on pools and locks; wall-clock profile; traces |
+| Latency rises with load, **CPU stays low** | Waiting: a pool, a lock, I/O or a slow dependency | USE (utilization, saturation, errors) on pools and locks; wall-clock profile; traces |
 | Throughput plateaus while offered load grows | A saturated resource (the bottleneck) | USE: find the one at 100 % or with a queue |
-| Throughput **decreases** past a point | Contention / thrashing / retries (retrograde, USL) | Lock waits, GC time, retry counters |
+| Throughput **decreases** past a point | Contention / thrashing / retries (retrograde, Universal Scalability Law) | Lock waits, garbage-collection (GC) time, retry counters |
 | **Bimodal** latency histogram (two humps) | Two code paths: cache hit vs miss, fast vs slow shard, retries | Split by tag (cache status, shard) |
 | Periodic spikes at fixed intervals | GC cycles, cron jobs, database checkpoints, log rotation, token refresh | Correlate timestamps with GC logs, cron schedules, DB logs |
 | Latency grows slowly at **constant** load | Leak or unbounded growth (memory, connections, table bloat) | Soak test trends; heap after GC |
-| Errors only in the first minutes | Cold start: JIT, empty pools and caches, autoscaling lag | Compare with a warmed-up run |
+| Errors only in the first minutes | Cold start: just-in-time (JIT) compilation, empty pools and caches, autoscaling lag | Compare with a warmed-up run |
 | Client p99 ≫ server-side p99 | Queueing *before* the service (load balancer, accept queue, CPU throttling) — or coordinated omission in server metrics | Compare gateway and service histograms; throttling counters |
 
 ---
@@ -99,7 +99,7 @@ The capacity you report is the knee: "one `inventory` deployment of 4 pods susta
 | Bottleneck | Typical sign | Typical fix |
 |---|---|---|
 | **Missing or wrong index** | One query dominates `pg_stat_statements`; `Seq Scan` with many rows removed | Index matching the filter and sort; partial index |
-| **N+1 queries** | A trace with one parent span and dozens of identical DB spans | Join or batch fetch (`IN (...)`), entity graph, DTO projection |
+| **N+1 queries** | A trace with one parent span and dozens of identical DB spans | Join or batch fetch (`IN (...)`), entity graph, data transfer object (DTO) projection |
 | **Connection-pool exhaustion** | Hikari `pending` > 0; latency ≈ pool wait | Shorter transactions first; then size the pool; PgBouncer |
 | **Lock contention / hot rows** | DB CPU low, sessions waiting on `Lock: tuple` or `transactionid` | Shorter transactions, `SKIP LOCKED`, finer-grained rows, queue the writes |
 | **Thread-pool exhaustion** | All request threads busy, CPU low | Find what they wait on (usually one of the above or a dependency); timeouts; virtual threads for I/O-bound code |
@@ -109,7 +109,7 @@ The capacity you report is the knee: "one `inventory` deployment of 4 pods susta
 | **Serialization** | `ObjectMapper`/JSON frames wide in CPU profiles | Smaller payloads, pagination, avoid serializing twice |
 | **Synchronous logging** | Logger frames in the hot path; disk I/O on the node | Async appenders, lower log level, sampling |
 | **Cache problems** | Low hit ratio; stampede after expiry; one hot key | See [Caching — failure modes](../../caching/failure-modes/index.md) |
-| **Network limits** | Connection resets, ephemeral-port or conntrack exhaustion at high RPS | Keep-alive and connection reuse, HTTP/2, tune limits |
+| **Network limits** | Connection resets, ephemeral-port or conntrack exhaustion at high requests per second | Keep-alive and connection reuse, HTTP/2, tune limits |
 
 ---
 
@@ -204,7 +204,7 @@ asprof -d 30 -e lock  -f /tmp/lock.html  1    # contended Java monitors and lock
 asprof -d 30 -e alloc -f /tmp/alloc.html 1    # allocation hot spots (GC pressure)
 ```
 
-Run the profiler **while the load test is at the plateau** — a profile of an idle service shows only idle code. If `perf_events` are not permitted in the container, `-e itimer` (or `ctimer`) is a CPU-sampling fallback. The JDK's built-in **Java Flight Recorder** is the alternative with no extra tool (`jcmd 1 JFR.start duration=60s filename=/tmp/inventory.jfr settings=profile`); open the recording in JDK Mission Control or convert it to a flame graph with async-profiler's converter.
+Run the profiler **while the load test is at the plateau** — a profile of an idle service shows only idle code. If `perf_events` are not permitted in the container, `-e itimer` (or `ctimer`) is a CPU-sampling fallback. The Java Development Kit (JDK)'s built-in **Java Flight Recorder** is the alternative with no extra tool (`jcmd 1 JFR.start duration=60s filename=/tmp/inventory.jfr settings=profile`); open the recording in JDK Mission Control or convert it to a flame graph with async-profiler's converter.
 
 ### py-spy for Python
 
@@ -380,7 +380,7 @@ Keep a log of every run: what changed, the new knee, and what saturated next. A 
 | 2 | Partial index on available seats | 700 | Hikari pool: 10/10 active, 150 pending |
 | 3 | Pricing call moved out of the transaction | 1 100 | Row-lock waits on hot sections |
 | 4 | `FOR UPDATE SKIP LOCKED` for seat selection | 1 800 | `inventory` CPU 85 % (JSON, TLS) |
-| 5 | 4 → 10 pods (HPA min), PgBouncer | 3 400 | PostgreSQL primary CPU 80 % |
+| 5 | 4 → 10 pods (Horizontal Pod Autoscaler, HPA, minimum), PgBouncer | 3 400 | PostgreSQL primary CPU 80 % |
 | 6 | Waiting room admitting 3 000 holds/s | 3 000 admitted, p99 140 ms | — by design: admission is the limit |
 
 After run 6 the bottleneck is deliberate: the waiting room's admission rate, set below the database's knee. Scaling further would require partitioning inventory by event or venue ([Databases — partitioning](../../databases/partitioning/index.md)) — a much bigger change, now justified by numbers.
@@ -388,6 +388,12 @@ After run 6 the bottleneck is deliberate: the waiting room's admission rate, set
 Try it: the `monolith` scenario (one app server and one PostgreSQL, the **breakpoint** profile) produces the first two lines of such a log in a few minutes. Run it as it is and open the Report: the bottleneck is `app`, already 86 % busy at about 430 req/s, and the system breaks at about **590 req/s**. Change one thing — select `app` and raise its replicas to 6 — and run again: the breaking point jumps to about **2,520 req/s**, and the bottleneck moves to `db`, 87 % busy at about 2,180 req/s. Now change the *wrong* thing: 12 replicas instead of 6. The breaking point stays at about 2,520 req/s while the monthly cost goes from about 1,170 to 1,890 USD — adding capacity to a component that is not the bottleneck buys nothing.
 
 <div class="sdp" data-scenario="monolith" data-mode="full" data-profile="breakpoint" data-height="620"></div>
+
+!!! info "Try it in the playground: lab 2's pool"
+
+    The `boxoffice-pool` preset is the start of such a log on [Hands-on 2](../../../hands-on/2/index.md)'s numbers: one `catalog` (1 CPU) and its PostgreSQL with the default pool of 10 connections, under the breakpoint profile. p99 stays flat up to about 300 req/s and breaks by 500 while the CPU is far from full — Little's Law: 10 connections ÷ about 20 ms per query ≈ 480 queries/s. Open the Report: the bottleneck is the database's connections, not its CPU. Make one change — raise `catalog-db`'s connections to 30, as the lab does with `DB_POOL_SIZE=30` — and run again: the knee moves to about 1 400 queries/s and `catalog`'s CPU becomes the next limit.
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="460"></div>
 
 !!! tip "In the interview"
 
