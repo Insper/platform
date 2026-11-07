@@ -171,7 +171,8 @@ update the registry entry and `LAB`, run `node scripts/csim/test.mjs <sim>`, and
 reports (en and pt); **when you write a simulator that uses a lab value**, register it the same way.
 
 Quiz pages (2026.2, 2027.1 and `appendix/network/quiz.md`) keep plain Markdown (**Qn.** question, `- A.` … options, `??? success "Answer"` / `"Resposta"`
-whose first bold starts with the letter); `assets/javascripts/quiz.js` turns them into compact cards with clickable options and a score.
+whose first bold starts with the letter); `assets/javascripts/quiz.js` turns each `##` section into one compact quiz box (the AI course's layout: numbered rows, lettered
+options, one "Check answers" per box with the score in its header, explanations after Check).
 
 Every class page closes with `## Key takeaways { #key-takeaways }` (pt `## Pontos-chave`) followed by the list
 inside `!!! takeaways ""` (a highlighted box, styled in `extra.css`).
