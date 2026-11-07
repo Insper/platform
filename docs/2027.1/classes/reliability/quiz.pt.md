@@ -207,7 +207,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q15.** O time quer verificar se o circuit breaker do `payment` realmente protege o catálogo. Qual plano é um **experimento de caos** adequado?
 
 - A. Matar pods aleatórios de produção durante a próxima abertura de vendas do estádio e ver o que acontece
-- B. Definir o estado estável (p99 do catálogo < 300 ms, sucesso das compras ≥ 99,9%) e a hipótese (com 3 s de latência no provedor o breaker abre em até 10 s e a latência do catálogo fica estável); injetar a latência com Toxiproxy sob carga k6, primeiro em homologação, com uma condição de aborto pelo burn rate
+- B. Definir o estado estável (p99 do catálogo < 300 ms, reservas com sucesso ≥ 99,9%) e a hipótese (com 3 s de latência no provedor o breaker abre em até 10 s e a latência do catálogo fica estável); injetar a latência com Toxiproxy sob carga k6, primeiro em homologação, com uma condição de aborto pelo burn rate
 - C. Escrever um teste unitário que simula o breaker aberto com um mock
 - D. Esperar o próximo incidente real do provedor e ler o postmortem
 
@@ -215,3 +215,43 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
     **B — hipótese, injeção controlada, raio de impacto pequeno, condição de aborto.**
 
     Engenharia do caos é um experimento: prever o estado estável, injetar uma falha realista, observar os SLIs, comparar. A (falhas aleatórias durante uma abertura de vendas, sem hipótese, sem aborto) é imprudente; C não exercita timeouts, pools e tráfego real; D é esperar a produção rodar o experimento por você, no pior momento.
+
+---
+
+## Orçamentos e limites { #budgets-and-thresholds }
+
+**Q16.** O page de queima rápida do caminho da compra só dispara quando o burn rate está acima de **14,4 na última hora *e* nos últimos 5 minutos**. Para que serve a janela de 5 minutos?
+
+- A. Ela faz o page disparar mais cedo durante uma indisponibilidade total
+- B. Ela faz o alerta parar logo depois que o problema é corrigido: a média de 1 hora fica acima de 14,4 por até uma hora depois da recuperação, a de 5 minutos cai em minutos
+- C. Ela filtra oscilações curtas, que a janela de 1 hora acionaria
+- D. O Prometheus não consegue avaliar uma janela de 1 hora sozinha
+
+??? success "Resposta"
+    **B — ela prova que a queima *ainda está acontecendo*.**
+
+    A janela longa (1 h) prova que a queima é significativa: quando ela dispara, 2% do orçamento de 28 dias já se foi. Mas uma média de uma hora se lembra do incidente por uma hora, então sozinha ela continuaria acionando muito depois da correção. A janela curta — 1/12 da longa — só fica acima do limite enquanto os erros continuam, então o alerta se desarma cerca de 5 minutos depois da recuperação. A detecção é dada pela janela longa, não pela curta (A); as oscilações são filtradas pela janela longa (C).
+
+**Q17.** O gateway espera no máximo **5 s** pelo `order`. O `order` chama o `payment` com **timeout de leitura de 1 s** e o time aumenta o retry para **4 tentativas** com backoff de 200 ms, 400 ms e 800 ms. O provedor para de responder. O que acontece?
+
+- A. Nada muda: cada tentativa é limitada pelo timeout de 1 s
+- B. No pior caso o `order` precisa de 4 × 1 s + 0,2 + 0,4 + 0,8 s = 5,4 s: o gateway desiste em 5 s e responde `504`, enquanto o `order` continua trabalhando — e cobrando — para ninguém
+- C. O breaker impede a quarta tentativa, então o total fica sempre abaixo de 5 s
+- D. O gateway espera o `order`, porque os timeouts de baixo têm precedência
+
+??? success "Resposta"
+    **B — o orçamento de dentro precisa caber no de fora.**
+
+    Timeouts se aninham: tentativas × timeout + as esperas precisam ficar abaixo do prazo de quem chama. Com 3 tentativas (1 + 0,2 + 1 + 0,4 + 1 ≈ 3,6 s) o lab 9 cabe nos 5 s do gateway; uma quarta tentativa não cabe. O breaker (C) só ajuda depois de abrir e nada faz quem chama esperar mais que o seu próprio timeout (D).
+
+**Q18.** O `order` lê o `payment` com **timeout de 1 s** e o seu breaker conta como lentas as chamadas acima de **1,5 s**. O provedor responde em **900 ms** em vez de 200 ms. O que o breaker faz?
+
+- A. Abre pela taxa de chamadas lentas, já que 900 ms são 4,5× a latência normal
+- B. Nada: 900 ms está abaixo do timeout e do limite de 1,5 s, então toda chamada é um sucesso; e uma chamada mais lenta que 1 s estoura o timeout — uma falha —, então nenhuma chamada pode contar como lenta
+- C. Abre depois de 60 s, a duração padrão de chamada lenta do Resilience4j
+- D. Fica meio-aberto para testar o provedor
+
+??? success "Resposta"
+    **B — um limite de chamada lenta acima do timeout nunca dispara.**
+
+    Uma chamada mais lenta que o timeout de leitura nunca termina, então um limite de chamada lenta acima do timeout só vê chamadas que já deram certo rápido o bastante. Defina-o **abaixo** do timeout — o lab 9 usa 800 ms contra um timeout de leitura de 1 s, com taxa de chamadas lentas de 50% —, para que um provedor lento abra o breaker antes que as threads se encham esperando timeouts.

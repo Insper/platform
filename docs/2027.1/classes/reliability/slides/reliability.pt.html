@@ -231,6 +231,11 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="8" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="24">
 <h2 id="como-sistemas-distribu%C3%ADdos-falham">Como sistemas distribuídos falham</h2>
+<div class="flow">
+<div class="group"><div class="caption">quanto tempo dura?</div><div class="box">transitória · intermitente · permanente</div></div>
+<div class="arrow">×</div>
+<div class="group"><div class="caption">como se comporta?</div><div class="box">crash-stop · <b>lenta</b> · bizantina</div></div>
+</div>
 <table>
 <thead>
 <tr>
@@ -254,10 +259,6 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
 <tr>
 <td>Bizantina / incorreta</td>
 <td>checksums, validação, reconciliação</td>
-</tr>
-<tr>
-<td>Correlacionada</td>
-<td>rollouts graduais, multizona, testes de caos</td>
 </tr>
 </tbody>
 </table>
@@ -335,7 +336,8 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
 <h2 id="retries-amplifica%C3%A7%C3%A3o-jitter-or%C3%A7amentos">Retries: amplificação, jitter, orçamentos</h2>
 <ul>
 <li>Faça retry só de falhas <strong>transitórias</strong> (erros de conexão, <code>503</code>, <code>429</code>); nunca <code>4xx</code> ou &quot;cartão recusado&quot;.</li>
-<li><strong>Uma camada</strong>: 3 camadas × 3 tentativas = <strong>27</strong> chamadas por clique.</li>
+<li><strong>Uma camada</strong>: 3 camadas × até 3 tentativas = <strong>27</strong> chamadas por clique.</li>
+<li>As esperas se somam: 1, 2, 4 s → retries em <strong>1, 3 e 7 s</strong> depois da primeira falha.</li>
 <li><strong>Full jitter</strong>: <code>espera = random(0, base · 2ⁿ)</code> — 1.000 clientes que falham juntos se recuperam em ~1,5 s em vez de ondas por 15 s.</li>
 <li><strong>Orçamento de retry</strong> (retries ≤ 10% do tráfego): sem ele, os retries podem manter um sistema <strong>metaestavelmente</strong> fora do ar.</li>
 </ul>
@@ -349,10 +351,10 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
 <div class="box orange">meio-aberto<small>3 sondas decidem</small></div>
 </div>
 <ul>
-<li>Aberto = threads livres, a dependência ganha fôlego. <strong>Conte chamadas lentas</strong>, ou um provedor a 4 s nunca o dispara.</li>
-<li><strong>Ignore erros de negócio</strong>: um cartão recusado (lab 9: qualquer 4xx) é uma resposta correta.</li>
-<li>10 s aberto = até ~10 s de &quot;pagamento temporariamente indisponível&quot; depois que o provedor se recupera.</li>
-<li><strong>Fallback</strong>: esconder recomendações, busca desatualizada… para o pagamento, <strong>nunca sucesso falso</strong> — lugares reservados por 10 min.</li>
+<li>Abre com taxa <strong>≥</strong> o limite; chamadas lentas têm <strong>a sua própria</strong> taxa. O meio-aberto julga as <strong>taxas das sondas</strong>.</li>
+<li>Limite de chamada lenta <strong>abaixo do timeout</strong> (800 ms &lt; 1 s): uma chamada além do timeout é falha, nunca &quot;lenta&quot;.</li>
+<li>Padrões do Resilience4j: janela 100, mínimo 100, espera 60 s, 10 sondas, lentas em 60 s / 100% — lentos demais para reagir.</li>
+<li>10 s aberto = até ~10 s de &quot;pagamento temporariamente indisponível&quot; depois que o provedor se recupera. <strong>Nunca sucesso falso</strong>.</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="14" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="24">
@@ -367,6 +369,7 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
 <ul>
 <li>20 pagamentos/s × 0,2 s = <strong>4</strong> em voo → 10 = 2,5× de folga.</li>
 <li>Provedor a 3 s → <strong>10</strong> threads esperam, não 60.</li>
+<li>Custo: capacidade que <strong>não pode ser compartilhada</strong>.</li>
 </ul>
 </div>
 <div>
@@ -401,7 +404,7 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
     <span class="hljs-attr">max-concurrent-calls:</span> <span class="hljs-string">${PAYMENT_BULKHEAD:10}</span>
     <span class="hljs-attr">max-wait-duration:</span> <span class="hljs-number">0</span>
 </code></pre>
-<p class="small">Fallback na camada externa: <code>503</code>, o pedido fica <code>PENDING_PAYMENT</code>. Medido: mediana do <code>GET /orders/{id}</code> de 9,04 s sem proteção e 6,5 ms com proteção.</p>
+<p class="small">Da mais externa para dentro, cada uma por um motivo: o retry fora do breaker (um breaker aberto o para), o fallback no retry (roda uma vez), o timeout por dentro (limita cada tentativa). A mesma ordem do handler de resiliência padrão do .NET, da Microsoft. Medido: mediana do <code>GET /orders/{id}</code> de 9,04 s sem proteção e 6,5 ms com proteção.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="16" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="24">
 <h2 id="simulador-o-que-segura-um-provedor-lento">Simulador: o que segura um provedor lento?</h2>
@@ -415,8 +418,8 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
 <li>O simulador <strong>resilience</strong> da página de padrões: provedor a 4 s, as chaves do lab 9, uma de cada vez.</li>
 <li>Arraste a latência de volta para 200 ms: 10 s depois de abrir, meio-aberto, 3 sondas, fechado.</li>
 </ul>
-<div class="ok">
-<p>Um timeout protege o <code>order</code>, não o pagamento; retries sem breaker pioram o dia ruim do provedor.</p>
+<div class="warn">
+<p>Timeout + retries <strong>sem</strong> breaker é pior que nada: 0 pagamentos dão certo a cada 10 s (128 com nada ligado), o pool lota de novo e o provedor recebe 2× a carga.</p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="17" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="24">
@@ -450,6 +453,7 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
 <div class="warn">
 <p>Nunca ponha dependências no <strong>liveness</strong>: se o liveness do <code>order</code> verifica o provedor de pagamento, um soluço do provedor reinicia <strong>todas as réplicas do <code>order</code> de uma vez</strong>.</p>
 </div>
+<p class="small">Spring Boot 4: <code>/actuator/health/liveness</code> e <code>/readiness</code> vêm ligados por padrão (antes, só no Kubernetes).</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="18" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="24">
 <h2 id="recupera%C3%A7%C3%A3o-de-desastres-dr-quantos-dados-quanto-tempo">Recuperação de desastres (DR): quantos dados, quanto tempo?</h2>
@@ -501,10 +505,11 @@ Por que fãs que só querem <strong>navegar no catálogo</strong> recebem erros 
 <div class="box green">melhorar<small>depois ampliar</small></div>
 </div>
 <ul>
-<li>BoxOffice: o Toxiproxy acrescenta <strong>3 s</strong> ao provedor sob a carga k6 do lab 9 → espera-se o breaker aberto em &lt; 10 s e o <code>browse</code> estável.</li>
+<li>BoxOffice: o Toxiproxy acrescenta <strong>3 s</strong> ao provedor sob a carga k6 do lab 9 → espera-se o breaker aberto em &lt; 10 s e o <code>browse</code> estável — as compras <strong>não</strong> entram no estado estável, a hipótese espera que falhem rápido.</li>
 <li>Raio de impacto pequeno: Compose → homologação → um pod canary → mais amplo; <strong>aborte</strong> com burn rate &gt; 10×.</li>
-<li><strong>Observabilidade primeiro</strong>: ver o estado estável, detectar, explicar, parar — depois quebrar.</li>
+<li><strong>Observabilidade primeiro</strong>: dashboards mostram a queda em segundos, alertas em minutos — depois quebrar.</li>
 </ul>
+<p class="small">A Netflix escreveu os princípios (principlesofchaos.org, IEEE Software 2016). Ferramentas: Toxiproxy, Chaos Mesh, AWS Fault Injection Service (FIS, chamado Fault Injection Simulator até nov. de 2023).</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="22" data-paginate="true" data-lang="pt-BR" data-theme="platform" lang="pt-BR" data-marpit-pagination="22" style="--paginate:true;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="24">
 <h2 id="game-day-a-flash-sale">Game day: a flash sale</h2>

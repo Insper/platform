@@ -106,7 +106,17 @@ $$
 \text{wait}_n = \min\left(\text{base} \cdot 2^{n},\ \text{cap}\right)
 $$
 
-With base 200 ms: 200 ms, 400 ms, 800 ms, … up to the cap. But if many clients failed at the same moment (the provider blipped for everyone), they all retry at the same moments too — synchronized waves. **Jitter** randomizes the waits; Marc Brooker's analysis at AWS recommends **full jitter**[^2]:
+The waits add up: what matters to the caller is the time since the first failure. With base 1 s and a cap of 16 s:
+
+| Before retry | Wait | Time since the first failure |
+|---|---|---|
+| 1st ($n$ = 0) | 1 s | 1 s |
+| 2nd ($n$ = 1) | 2 s | 3 s |
+| 3rd ($n$ = 2) | 4 s | 7 s |
+| 4th ($n$ = 3) | 8 s | 15 s |
+| 5th and later | 16 s (the cap) | +16 s each |
+
+Lab 9 uses base 200 ms and up to 3 attempts — waits of 200 ms then 400 ms, the last retry 600 ms after the first failure (plus each attempt's own time). But if many clients failed at the same moment (the provider blipped for everyone), they all retry at the same moments too — synchronized waves. **Jitter** randomizes the waits; Marc Brooker's analysis at AWS recommends **full jitter**[^2]:
 
 $$
 \text{wait}_n = \text{random}\left(0,\ \min\left(\text{base} \cdot 2^{n},\ \text{cap}\right)\right)
@@ -208,7 +218,7 @@ plt.close()
 
 Three rules follow:
 
-1. **Retry at one layer only.** If the gateway, `order` and the `payment` adapter each retry 3 times, one fan click can become $3 \times 3 \times 3 = 27$ calls to the provider. Retry close to the failing dependency and let upper layers fail fast.
+1. **Retry at one layer only.** If the gateway, `order` and the `payment` adapter each make up to 3 attempts, one fan click can become $3 \times 3 \times 3 = 27$ calls to the provider. Retry close to the failing dependency and let upper layers fail fast.
 2. **Cap attempts and total time**: few attempts (1–2 retries), all inside the caller's deadline.
 3. **Use a retry budget** (Envoy, gRPC retry throttling, Finagle): retries are allowed only while they are a small fraction of requests. When the dependency is really down, retries stop by themselves.
 
@@ -232,8 +242,8 @@ stateDiagram-v2
     [*] --> Closed
     Closed --> Open : failure or slow-call rate ≥ 50% (last 20 calls)
     Open --> HalfOpen : after 10 s
-    HalfOpen --> Closed : 3 probe calls succeed
-    HalfOpen --> Open : a probe fails
+    HalfOpen --> Closed : the 3 probes' rates below the thresholds
+    HalfOpen --> Open : failure or slow-call rate of the probes ≥ 50%
 ```
 
 **Closed** (normal)
@@ -243,16 +253,18 @@ stateDiagram-v2
 : Calls fail immediately (`CallNotPermittedException` in Resilience4j). The caller's threads are free, and the dependency gets breathing room instead of a retry storm.
 
 **Half-open** (testing)
-: After the wait duration, a few calls are allowed. If they succeed, the breaker closes; if not, it opens again.
+: After the wait duration, a few probe calls are allowed and every other call is still rejected. When the probes are done, the breaker computes *their* failure and slow-call rates: below the thresholds, it closes; otherwise it opens for another wait.
 
-| Parameter | Lab 9 value for `payment` | Effect |
-|---|---|---|
-| Sliding window | last 20 calls (count-based) | How much history decides |
-| Minimum calls | 10 | Avoids opening on 1 failure out of 2 |
-| Failure-rate threshold | 50% | Sensitivity |
-| Slow-call threshold | 800 ms, slow-call rate 50% | A *slow* provider also opens the breaker — essential against gray failures |
-| Wait in open state | 10 s | Time the dependency gets to recover — and how long fans see fail-fast |
-| Calls in half-open | 3 | How carefully recovery is tested |
+| Parameter (Resilience4j property) | Resilience4j default | Lab 9 value for `payment` | Effect |
+|---|---|---|---|
+| Sliding window (`sliding-window-size`) | 100 calls | last 20 calls (count-based) | How much history decides |
+| Minimum calls (`minimum-number-of-calls`) | 100 | 10 | No decision before this many calls — avoids opening on 1 failure out of 2 |
+| Failure-rate threshold (`failure-rate-threshold`) | 50% | 50% | Opens when the share of failed calls is **equal to or above** it |
+| Slow calls (`slow-call-duration-threshold`, `slow-call-rate-threshold`) | 60 s, 100% | 800 ms, 50% | A *slow* provider also opens the breaker — essential against gray failures |
+| Wait in open state (`wait-duration-in-open-state`) | 60 s | 10 s | Time the dependency gets to recover — and how long fans see fail-fast |
+| Calls in half-open (`permitted-number-of-calls-in-half-open-state`) | 10 | 3 | How carefully recovery is tested |
+
+The defaults are conservative: with a window of 100 calls, a breaker that sees 1 call per second needs well over a minute to decide. Slow calls have **their own rate threshold**: with the default 100%, they open the breaker only when *every* call in the window is slow, and with the default 60 s duration a call behind a 1 s read timeout never counts as slow. Lab 9 sets the slow-call threshold to 800 ms, **below** its 1 s read timeout: a call slower than the timeout never completes — it becomes a failure — so a threshold above the timeout could never see a slow call, and the breaker would wait for timeouts instead of reacting to the slowness first.
 
 Which errors count matters: a **declined card** is a correct answer from a healthy provider, not a failure. Configure it as ignored, or a wave of declined cards on a stolen-card attack would open the breaker for every honest fan. Lab 9 has no card declines; its retry ignores every 4xx (`HttpClientErrorException`), because the same request would fail again, and its breaker ignores `BulkheadFullException`, a refusal of our own that says nothing about `payment`.
 
@@ -291,6 +303,8 @@ flowchart LR
 ```
 
 Sizing comes from Little's Law again. At lab 9's 20 payments/s and 200 ms per charge, about 4 calls are in flight. A bulkhead of **10** leaves room for latency to grow 2.5× (to 0.5 s) before calls are rejected; when the provider goes to 3 s, at most 10 threads wait on it (instead of 60, more than the pool), and the other 40 keep creating and reading orders. With `max-wait-duration: 0` the 11th concurrent call does not queue: it fails in microseconds and goes to the fallback.
+
+The cost of a bulkhead is **capacity that cannot be shared**: with the payment bulkhead full, an 11th payment is refused at once even while other threads sit idle, whereas one shared pool would have served it. That refusal is the point — the idle threads are kept for the routes that work.
 
 Resilience4j offers a **semaphore bulkhead** (limits concurrent calls on the caller's threads; cheap, the default) and a **thread-pool bulkhead** (runs calls on a dedicated pool). The idea is general: separate connection pools per workload in a database, separate Kafka consumer groups, separate deployments for critical and non-critical traffic, separate queues for confirmations and marketing e-mails.
 
@@ -331,6 +345,8 @@ Health checks let orchestrators and load balancers stop sending traffic to broke
 
 **Startup**
 : *Has the application finished starting?* Liveness and readiness are not checked until it succeeds, so a slow-starting JVM is not killed during boot.
+
+Spring Boot Actuator serves the probes at `/actuator/health/liveness` and `/actuator/health/readiness`. In Spring Boot 4 (the version of the labs) these probe groups are **on by default**, in any environment; in Spring Boot 2.3 to 3.x they were automatic only on Kubernetes, and elsewhere — Docker Compose, for instance — needed `management.endpoint.health.probes.enabled=true` (lab 9 still sets it, which is harmless). By default they reflect only the application's own state: a dependency appears in readiness only if you add it.
 
 ``` diagram-sim
 stateDiagram-v2
@@ -396,7 +412,7 @@ The patterns are layered. For the `order` → `payment` call, BoxOffice uses all
 
     1. **Nothing on**: 20 payments/s × 4 s needs 80 threads; all **50** are busy within seconds and, in 30 s, about 220 payments find no thread at all — nor would `GET /orders`.
     2. **Timeout**: only about 20 threads are busy, but **0%** of the payments succeed. The timeout protects `order`, not the payment.
-    3. **+ retries**: the provider now receives about **2×** the payments (44 calls/s) exactly while it is struggling, and the 50 threads are full again — 3 attempts of 1 s plus backoff hold each thread for about 3.6 s.
+    3. **+ retries**: the provider now receives about **2×** the payments (44 calls/s) exactly while it is struggling, and the 50 threads are full again — 3 attempts of 1 s plus backoff hold each thread for about 3.6 s. A timeout plus retries **without** a breaker is worse than nothing: after 30 s, 0 payments succeed per 10 s (128 did with nothing on, slowly), about 200 have found no thread, and the provider takes twice the load.
     4. **+ circuit breaker**: it opens 1.6 s into the run; payments fail fast, threads drop to about 1 and the provider gets no calls. Drag the latency back to 200 ms: 10 s after opening, the breaker goes half-open, 3 probes succeed and it closes. Red dots in its window are failures, orange ones slow calls.
 
 The annotations decide the path of every call. Read it from the left: the retry wraps the breaker, which wraps the bulkhead, which wraps the HTTP call — and every refusal ends in the same fallback.
@@ -433,18 +449,20 @@ How the layers interact — check these before shipping:
 
 <div class="sdp" data-scenario="boxoffice-payment" data-mode="compact" data-height="460"></div>
 
-| Layer | Handles | BoxOffice setting |
-|---|---|---|
-| Rate limiting (gateway) | Abusive clients, bots | per-account token bucket |
-| Load shedding (gateway) | Overload | shed recommendations/autocomplete first |
-| Bulkhead | One slow dependency eating all threads | 10 concurrent payment calls of 50 threads, no queue |
-| Circuit breaker | A dependency known to be failing or slow | 50% failures or calls over 800 ms in the last 20, open 10 s |
-| Timeout | Unbounded waiting | 500 ms connect, 1 s read |
-| Retry + backoff + jitter | Transient errors | 3 attempts, 200 ms × 2 ± 50%, idempotency key |
-| Fallback | What the fan sees | "payment temporarily unavailable, seats held" |
+The layers also have an order, outermost first, and each position has a reason:
+
+| Layer, outermost first | Handles | Why in this position | BoxOffice setting |
+|---|---|---|---|
+| Rate limiting, load shedding (gateway) | Abusive clients, overload | Refuses excess work before it costs anything | per-account token bucket; recommendations and autocomplete shed first |
+| Retry + backoff + jitter, with the fallback | Transient errors | Outside the breaker: an open breaker stops the retries at once; the fallback runs once, after everything inside gave up | 3 attempts, 200 ms × 2 ± 50%, idempotency key; `503`, seats held |
+| Circuit breaker | A dependency known to be failing or slow | Sees every attempt, timeouts included, as a call to judge | 50% failures or calls over 800 ms in the last 20, open 10 s |
+| Bulkhead | One slow dependency eating all threads | Caps the threads the attempts can hold | 10 concurrent payment calls of 50 threads, no queue |
+| Timeout | Unbounded waiting | Innermost: bounds each attempt, not the sum | 500 ms connect, 1 s read |
+
+This is Resilience4j's default aspect order in Spring Boot, `Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( call ) ) ) ) )` — in lab 9 the read timeout of the HTTP client plays the time limiter's role, inside the call. Microsoft's standard resilience handler for .NET's `HttpClient` stacks the same way: rate limiter → total timeout → retry → circuit breaker → attempt timeout[^6]. Whatever the library, check that retries do not bypass the breaker and that the timeout bounds each attempt.
 
 !!! tip "In the interview"
-    When a design has a call to a third party or a critical dependency, volunteer the protection stack in one breath: "timeout at roughly the p99.9, one retry with jittered backoff and an idempotency key, a circuit breaker that also counts slow calls, a bulkhead sized with Little's Law, and a fallback that tells the user the truth". Then justify one number (the bulkhead or the timeout) with arithmetic. If asked about overload, distinguish **rate limiting** (per client) from **load shedding** (whole system, by priority), and mention retry amplification across layers.
+    When a design has a call to a third party or a critical dependency, volunteer the protection stack in one breath: "timeout at roughly the p99.9, one or two retries with jittered backoff and an idempotency key, a circuit breaker that also counts slow calls, a bulkhead sized with Little's Law, and a fallback that tells the user the truth". Then justify one number (the bulkhead or the timeout) with arithmetic. If asked about overload, distinguish **rate limiting** (per client) from **load shedding** (whole system, by priority), and mention retry amplification across layers.
 
 !!! success "Best practices"
 
@@ -490,3 +508,4 @@ flowchart LR
 [^3]: FOWLER, M. [CircuitBreaker](https://martinfowler.com/bliki/CircuitBreaker.html){target="_blank"}. martinfowler.com, 2014.
 [^4]: BEYER, B. et al. [Site Reliability Engineering](https://sre.google/books/){target="_blank"}. O'Reilly, 2016. Chapter 21, "Handling Overload"; YANACEK, D. [Using load shedding to avoid overload](https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/){target="_blank"}. Amazon Builders' Library.
 [^5]: [Resilience4j Documentation](https://resilience4j.readme.io/docs){target="_blank"}.
+[^6]: MICROSOFT. [Build resilient HTTP apps: key development patterns](https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience){target="_blank"}. Microsoft Learn (the standard resilience handler).

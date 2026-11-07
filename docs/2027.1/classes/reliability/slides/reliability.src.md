@@ -152,13 +152,18 @@ Redundancy counts only if its failures are **independent** — one zone (one con
 
 ## How distributed systems fail
 
+<div class="flow">
+<div class="group"><div class="caption">how long?</div><div class="box">transient · intermittent · permanent</div></div>
+<div class="arrow">×</div>
+<div class="group"><div class="caption">how does it behave?</div><div class="box">crash-stop · <b>slow</b> · Byzantine</div></div>
+</div>
+
 | Class | Handling |
 |---|---|
 | Crash (fail-stop) | health checks, restart, failover |
 | Transient | retry with backoff and jitter |
 | **Slow / gray failure** | timeouts, breakers that count slow calls, latency service level indicators (SLIs) |
 | Byzantine / incorrect | checksums, validation, reconciliation |
-| Correlated | gradual rollouts, multi-zone, chaos tests |
 
 <div class="warn">
 
@@ -224,7 +229,8 @@ The way out is to **drop load**: load shedding, retry budgets, circuit breakers.
 ## Retries: amplification, jitter, budgets
 
 - Retry **transient** failures only (connect errors, `503`, `429`); never `4xx` or "card declined".
-- **One layer**: 3 layers × 3 attempts = **27** calls per click.
+- **One layer**: 3 layers × up to 3 attempts = **27** calls per click.
+- Waits add up: 1, 2, 4 s → retries at **1, 3 and 7 s** after the first failure.
 - **Full jitter**: `wait = random(0, base · 2ⁿ)` — 1,000 clients failing together recover in ~1.5 s instead of waves for 15 s.
 - **Retry budget** (retries ≤ 10% of traffic): without it, retries can keep a system **metastably** down.
 
@@ -240,10 +246,10 @@ The way out is to **drop load**: load shedding, retry budgets, circuit breakers.
 <div class="box orange">half-open<small>3 probes decide</small></div>
 </div>
 
-- Open = threads free, dependency gets breathing room. **Count slow calls**, or a 4 s provider never trips it.
-- **Ignore business errors**: a declined card (lab 9: any 4xx) is a correct answer.
-- 10 s open = up to ~10 s of "payment temporarily unavailable" after the provider recovers.
-- **Fallback**: hide recommendations, stale search… for payment, **never fake success** — seats held for 10 min.
+- Opens at a rate **≥** the threshold; slow calls have **their own** rate. Half-open judges the **probes' rates**.
+- Slow-call threshold **below the timeout** (800 ms < 1 s): a call past the timeout is a failure, never "slow".
+- Resilience4j defaults: window 100, minimum 100, wait 60 s, 10 probes, slow calls at 60 s / 100% — far too slow to react.
+- 10 s open = up to ~10 s of "payment temporarily unavailable" after the provider recovers. **Never fake success**.
 
 ---
 
@@ -261,6 +267,7 @@ The way out is to **drop load**: load shedding, retry budgets, circuit breakers.
 
 - 20 payments/s × 0.2 s = **4** in flight → 10 = 2.5× slack.
 - Provider at 3 s → **10** threads wait, not 60.
+- Cost: capacity that **cannot be shared**.
 
 </div>
 <div>
@@ -304,7 +311,7 @@ resilience4j:
     max-wait-duration: 0
 ```
 
-<p class="small">Fallback on the outer layer: <code>503</code>, order stays <code>PENDING_PAYMENT</code>. Measured: <code>GET /orders/{id}</code> median 9.04 s unprotected, 6.5 ms protected.</p>
+<p class="small">Outermost first, each for a reason: the retry outside the breaker (an open breaker stops it), the fallback on the retry (runs once), the timeout innermost (bounds each attempt). Same order in Microsoft's .NET standard resilience handler. Measured: <code>GET /orders/{id}</code> median 9.04 s unprotected, 6.5 ms protected.</p>
 
 ---
 
@@ -320,9 +327,9 @@ resilience4j:
 - The patterns page's **resilience** simulator: provider at 4 s, lab 9's switches, one at a time.
 - Drag the latency back to 200 ms: 10 s after opening, half-open, 3 probes, closed.
 
-<div class="ok">
+<div class="warn">
 
-A timeout protects `order`, not the payment; retries without a breaker make the provider's bad day worse.
+Timeout + retries **without** a breaker is worse than nothing: 0 payments succeed per 10 s (128 with nothing on), the pool is full again and the provider takes 2× the load.
 
 </div>
 
@@ -341,6 +348,8 @@ A timeout protects `order`, not the payment; retries without a breaker make the 
 Never put dependencies in **liveness**: if `order`'s liveness checks the payment provider, one provider blip restarts **every `order` replica at once**.
 
 </div>
+
+<p class="small">Spring Boot 4: <code>/actuator/health/liveness</code> and <code>/readiness</code> are on by default (before, only on Kubernetes).</p>
 
 ---
 
@@ -400,9 +409,11 @@ Never put dependencies in **liveness**: if `order`'s liveness checks the payment
 <div class="box green">improve<small>then widen</small></div>
 </div>
 
-- BoxOffice: Toxiproxy adds **3 s** to the provider under lab 9's k6 load → expect the breaker open < 10 s, `browse` flat.
+- BoxOffice: Toxiproxy adds **3 s** to the provider under lab 9's k6 load → expect the breaker open < 10 s and `browse` flat — purchases are **not** in the steady state, the hypothesis expects them to fail fast.
 - Small blast radius: Compose → staging → one canary pod → wider; **abort** on burn rate > 10×.
-- **Observability first**: see the steady state, detect, explain, stop — then break things.
+- **Observability first**: dashboards show the drop in seconds, alerts in minutes — then break things.
+
+<p class="small">Netflix wrote the principles down (principlesofchaos.org, IEEE Software 2016). Tools: Toxiproxy, Chaos Mesh, AWS Fault Injection Service (FIS, renamed from Fault Injection Simulator in Nov 2023).</p>
 
 ---
 

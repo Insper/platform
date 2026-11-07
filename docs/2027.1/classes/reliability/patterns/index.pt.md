@@ -106,7 +106,17 @@ $$
 \text{wait}_n = \min\left(\text{base} \cdot 2^{n},\ \text{cap}\right)
 $$
 
-Com base de 200 ms: 200 ms, 400 ms, 800 ms, … até o teto. Mas se muitos clientes falharam no mesmo instante (o provedor oscilou para todos), todos repetem nos mesmos instantes também — ondas sincronizadas. O **jitter** torna as esperas aleatórias; a análise de Marc Brooker na AWS recomenda o **full jitter**[^2]:
+As esperas se somam: o que importa a quem chama é o tempo desde a primeira falha. Com base de 1 s e teto de 16 s:
+
+| Antes do retry | Espera | Tempo desde a primeira falha |
+|---|---|---|
+| 1º ($n$ = 0) | 1 s | 1 s |
+| 2º ($n$ = 1) | 2 s | 3 s |
+| 3º ($n$ = 2) | 4 s | 7 s |
+| 4º ($n$ = 3) | 8 s | 15 s |
+| 5º em diante | 16 s (o teto) | +16 s cada |
+
+O lab 9 usa base de 200 ms e até 3 tentativas — esperas de 200 ms e depois 400 ms, o último retry 600 ms depois da primeira falha (mais o tempo de cada tentativa). Mas se muitos clientes falharam no mesmo instante (o provedor oscilou para todos), todos repetem nos mesmos instantes também — ondas sincronizadas. O **jitter** torna as esperas aleatórias; a análise de Marc Brooker na AWS recomenda o **full jitter**[^2]:
 
 $$
 \text{wait}_n = \text{random}\left(0,\ \min\left(\text{base} \cdot 2^{n},\ \text{cap}\right)\right)
@@ -208,7 +218,7 @@ plt.close()
 
 Daí saem três regras:
 
-1. **Faça retry em uma só camada.** Se o gateway, o `order` e o adaptador `payment` repetem 3 vezes cada, um clique do fã pode virar $3 \times 3 \times 3 = 27$ chamadas ao provedor. Faça retry perto da dependência que falha e deixe as camadas de cima falharem rápido.
+1. **Faça retry em uma só camada.** Se o gateway, o `order` e o adaptador `payment` fazem até 3 tentativas cada, um clique do fã pode virar $3 \times 3 \times 3 = 27$ chamadas ao provedor. Faça retry perto da dependência que falha e deixe as camadas de cima falharem rápido.
 2. **Limite as tentativas e o tempo total**: poucas tentativas (1–2 retries), todas dentro do prazo de quem chama.
 3. **Use um retry budget** (Envoy, retry throttling do gRPC, Finagle): retries só são permitidos enquanto forem uma pequena fração das requisições. Quando a dependência está realmente fora, os retries param sozinhos.
 
@@ -235,8 +245,8 @@ stateDiagram-v2
     [*] --> Closed
     Closed --> Open : taxa de falhas ou de chamadas lentas ≥ 50% (últimas 20)
     Open --> HalfOpen : depois de 10 s
-    HalfOpen --> Closed : 3 chamadas de teste com sucesso
-    HalfOpen --> Open : uma chamada de teste falha
+    HalfOpen --> Closed : taxas das 3 sondas abaixo dos limites
+    HalfOpen --> Open : taxa de falhas ou de lentas das sondas ≥ 50%
 ```
 
 **Fechado** (normal)
@@ -246,16 +256,18 @@ stateDiagram-v2
 : As chamadas falham na hora (`CallNotPermittedException` no Resilience4j). As threads de quem chama ficam livres e a dependência ganha espaço para respirar em vez de uma tempestade de retries.
 
 **Meio-aberto** (testando)
-: Depois do tempo de espera, algumas chamadas são permitidas. Se derem certo, o breaker fecha; se não, abre de novo.
+: Depois do tempo de espera, algumas chamadas de sonda são permitidas e toda outra chamada continua rejeitada. Quando as sondas terminam, o breaker calcula as taxas de falhas e de chamadas lentas *delas*: abaixo dos limites, ele fecha; senão, abre para mais uma espera.
 
-| Parâmetro | Valor do lab 9 para o `payment` | Efeito |
-|---|---|---|
-| Janela deslizante | últimas 20 chamadas (por contagem) | Quanto histórico decide |
-| Mínimo de chamadas | 10 | Evita abrir com 1 falha em 2 |
-| Limite de taxa de falhas | 50% | Sensibilidade |
-| Limite de chamada lenta | 800 ms, taxa de chamadas lentas de 50% | Um provedor *lento* também abre o breaker — essencial contra gray failures |
-| Espera no estado aberto | 10 s | Tempo que a dependência ganha para se recuperar — e quanto tempo os fãs veem a falha rápida |
-| Chamadas no meio-aberto | 3 | Com quanto cuidado a recuperação é testada |
+| Parâmetro (propriedade do Resilience4j) | Padrão do Resilience4j | Valor do lab 9 para o `payment` | Efeito |
+|---|---|---|---|
+| Janela deslizante (`sliding-window-size`) | 100 chamadas | últimas 20 chamadas (por contagem) | Quanto histórico decide |
+| Mínimo de chamadas (`minimum-number-of-calls`) | 100 | 10 | Nenhuma decisão antes desse número — evita abrir com 1 falha em 2 |
+| Limite de taxa de falhas (`failure-rate-threshold`) | 50% | 50% | Abre quando a fração de chamadas com falha é **igual ou maior** que ele |
+| Chamadas lentas (`slow-call-duration-threshold`, `slow-call-rate-threshold`) | 60 s, 100% | 800 ms, 50% | Um provedor *lento* também abre o breaker — essencial contra gray failures |
+| Espera no estado aberto (`wait-duration-in-open-state`) | 60 s | 10 s | Tempo que a dependência ganha para se recuperar — e quanto tempo os fãs veem a falha rápida |
+| Chamadas no meio-aberto (`permitted-number-of-calls-in-half-open-state`) | 10 | 3 | Com quanto cuidado a recuperação é testada |
+
+Os padrões são conservadores: com uma janela de 100 chamadas, um breaker que vê 1 chamada por segundo precisa de bem mais de um minuto para decidir. Chamadas lentas têm **o seu próprio limite de taxa**: com o padrão de 100%, elas só abrem o breaker quando *toda* chamada da janela é lenta e, com a duração padrão de 60 s, uma chamada atrás de um timeout de leitura de 1 s nunca conta como lenta. O lab 9 define o limite de chamada lenta em 800 ms, **abaixo** do seu timeout de leitura de 1 s: uma chamada mais lenta que o timeout nunca termina — vira falha —, então um limite acima do timeout jamais veria uma chamada lenta e o breaker esperaria os timeouts em vez de reagir primeiro à lentidão.
 
 Importa quais erros contam: um **cartão recusado** é uma resposta correta de um provedor saudável, não uma falha. Configure-o como ignorado, ou uma onda de cartões recusados num ataque com cartões roubados abriria o breaker para todos os fãs honestos. O lab 9 não tem cartões recusados; o seu retry ignora todo 4xx (`HttpClientErrorException`), porque a mesma requisição falharia de novo, e o seu breaker ignora a `BulkheadFullException`, uma recusa nossa que não diz nada sobre o `payment`.
 
@@ -294,6 +306,8 @@ flowchart LR
 ```
 
 O dimensionamento vem de novo da Lei de Little. Com os 20 pagamentos/s do lab 9 e 200 ms por cobrança, cerca de 4 chamadas estão em voo. Um bulkhead de **10** deixa espaço para a latência crescer 2,5× (até 0,5 s) antes de as chamadas serem rejeitadas; quando o provedor vai para 3 s, no máximo 10 threads esperam por ele (em vez de 60, mais que o pool) e as outras 40 continuam criando e lendo pedidos. Com `max-wait-duration: 0` a 11ª chamada concorrente não entra em fila: ela falha em microssegundos e vai para o fallback.
+
+O custo de um bulkhead é **capacidade que não pode ser compartilhada**: com o bulkhead do pagamento cheio, um 11º pagamento é recusado na hora mesmo com outras threads ociosas, enquanto um pool compartilhado o teria atendido. Essa recusa é o objetivo — as threads ociosas ficam para as rotas que funcionam.
 
 O Resilience4j oferece um **bulkhead de semáforo** (limita chamadas concorrentes nas threads de quem chama; barato, o padrão) e um **bulkhead de pool de threads** (executa as chamadas num pool dedicado). A ideia é geral: pools de conexão separados por carga de trabalho num banco, consumer groups separados no Kafka, deployments separados para tráfego crítico e não crítico, filas separadas para confirmações e e-mails de marketing.
 
@@ -334,6 +348,8 @@ Health checks permitem que orquestradores e load balancers parem de enviar tráf
 
 **Startup**
 : *A aplicação terminou de iniciar?* Liveness e readiness só são verificados depois que ele passa, então uma JVM que demora para subir não é morta durante o boot.
+
+O Spring Boot Actuator serve as probes em `/actuator/health/liveness` e `/actuator/health/readiness`. No Spring Boot 4 (a versão dos labs) esses grupos de probes vêm **ligados por padrão**, em qualquer ambiente; do Spring Boot 2.3 ao 3.x eram automáticos só no Kubernetes e em outros lugares — no Docker Compose, por exemplo — pediam `management.endpoint.health.probes.enabled=true` (o lab 9 ainda o define, o que não faz mal). Por padrão eles refletem só o estado da própria aplicação: uma dependência só aparece no readiness se você a adicionar.
 
 ``` diagram-sim
 stateDiagram-v2
@@ -399,7 +415,7 @@ Os padrões trabalham em camadas. Para a chamada `order` → `payment`, o BoxOff
 
     1. **Nada ligado**: 20 pagamentos/s × 4 s pedem 80 threads; as **50** ficam ocupadas em segundos e, em 30 s, cerca de 220 pagamentos não encontram thread nenhuma — nem o `GET /orders` encontraria.
     2. **Timeout**: só cerca de 20 threads ficam ocupadas, mas **0%** dos pagamentos dão certo. O timeout protege o `order`, não o pagamento.
-    3. **+ retentativas**: o provedor passa a receber cerca de **2×** os pagamentos (44 chamadas/s) justamente quando está com dificuldade e as 50 threads lotam de novo — 3 tentativas de 1 s mais o backoff prendem cada thread por cerca de 3,6 s.
+    3. **+ retentativas**: o provedor passa a receber cerca de **2×** os pagamentos (44 chamadas/s) justamente quando está com dificuldade e as 50 threads lotam de novo — 3 tentativas de 1 s mais o backoff prendem cada thread por cerca de 3,6 s. Timeout mais retentativas **sem** breaker é pior que nada: depois de 30 s, 0 pagamentos dão certo a cada 10 s (128 deram certo com nada ligado, devagar), cerca de 200 não encontraram thread e o provedor recebe o dobro da carga.
     4. **+ circuit breaker**: ele abre 1,6 s depois do início; os pagamentos falham rápido, as threads caem para cerca de 1 e o provedor não recebe chamadas. Arraste a latência de volta para 200 ms: 10 s depois de abrir, o breaker fica semiaberto, 3 sondas dão certo e ele fecha. Pontos vermelhos na janela dele são falhas, laranja são chamadas lentas.
 
 As anotações decidem o caminho de cada chamada. Leia da esquerda: o retry envolve o breaker, que envolve o bulkhead, que envolve a chamada HTTP — e toda recusa termina no mesmo fallback.
@@ -436,18 +452,20 @@ Como as camadas interagem — verifique antes de lançar:
 
 <div class="sdp" data-scenario="boxoffice-payment" data-mode="compact" data-height="460"></div>
 
-| Camada | Trata | Configuração no BoxOffice |
-|---|---|---|
-| Rate limiting (gateway) | Clientes abusivos, bots | token bucket por conta |
-| Load shedding (gateway) | Sobrecarga | descartar recomendações/autocomplete primeiro |
-| Bulkhead | Uma dependência lenta comendo todas as threads | 10 chamadas concorrentes ao pagamento das 50 threads, sem fila |
-| Circuit breaker | Uma dependência sabidamente falhando ou lenta | 50% de falhas ou de chamadas acima de 800 ms nas últimas 20, aberto por 10 s |
-| Timeout | Espera sem limite | 500 ms de conexão, 1 s de leitura |
-| Retry + backoff + jitter | Erros transitórios | 3 tentativas, 200 ms × 2 ± 50%, chave de idempotência |
-| Fallback | O que o fã vê | "pagamento temporariamente indisponível, lugares reservados" |
+As camadas também têm uma ordem, da mais externa para dentro, e cada posição tem um motivo:
+
+| Camada, da mais externa | Trata | Por que nesta posição | Configuração no BoxOffice |
+|---|---|---|---|
+| Rate limiting, load shedding (gateway) | Clientes abusivos, sobrecarga | Recusa o trabalho excedente antes que ele custe algo | token bucket por conta; recomendações e autocomplete descartados primeiro |
+| Retry + backoff + jitter, com o fallback | Erros transitórios | Fora do breaker: um breaker aberto para os retries na hora; o fallback roda uma vez, depois que tudo lá dentro desistiu | 3 tentativas, 200 ms × 2 ± 50%, chave de idempotência; `503`, lugares reservados |
+| Circuit breaker | Uma dependência sabidamente falhando ou lenta | Vê cada tentativa, timeouts incluídos, como uma chamada a julgar | 50% de falhas ou de chamadas acima de 800 ms nas últimas 20, aberto por 10 s |
+| Bulkhead | Uma dependência lenta comendo todas as threads | Limita as threads que as tentativas podem segurar | 10 chamadas concorrentes ao pagamento das 50 threads, sem fila |
+| Timeout | Espera sem limite | A mais interna: limita cada tentativa, não a soma | 500 ms de conexão, 1 s de leitura |
+
+Essa é a ordem padrão dos aspectos do Resilience4j no Spring Boot, `Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( call ) ) ) ) )` — no lab 9 o timeout de leitura do cliente HTTP faz o papel do time limiter, dentro da chamada. O handler de resiliência padrão da Microsoft para o `HttpClient` do .NET empilha do mesmo jeito: rate limiter → timeout total → retry → circuit breaker → timeout por tentativa[^6]. Qualquer que seja a biblioteca, verifique que os retries não contornam o breaker e que o timeout limita cada tentativa.
 
 !!! tip "Na entrevista"
-    Quando um projeto tem uma chamada a um terceiro ou a uma dependência crítica, ofereça a pilha de proteção de uma vez: "timeout por volta do p99,9, um retry com backoff e jitter e uma chave de idempotência, um circuit breaker que também conta chamadas lentas, um bulkhead dimensionado com a Lei de Little e um fallback que diz a verdade ao usuário". Depois justifique um número (o bulkhead ou o timeout) com aritmética. Se perguntarem sobre sobrecarga, diferencie **rate limiting** (por cliente) de **load shedding** (o sistema todo, por prioridade) e mencione a amplificação de retries entre camadas.
+    Quando um projeto tem uma chamada a um terceiro ou a uma dependência crítica, ofereça a pilha de proteção de uma vez: "timeout por volta do p99,9, um ou dois retries com backoff e jitter e uma chave de idempotência, um circuit breaker que também conta chamadas lentas, um bulkhead dimensionado com a Lei de Little e um fallback que diz a verdade ao usuário". Depois justifique um número (o bulkhead ou o timeout) com aritmética. Se perguntarem sobre sobrecarga, diferencie **rate limiting** (por cliente) de **load shedding** (o sistema todo, por prioridade) e mencione a amplificação de retries entre camadas.
 
 !!! success "Boas práticas"
 
@@ -493,3 +511,4 @@ flowchart LR
 [^3]: FOWLER, M. [CircuitBreaker](https://martinfowler.com/bliki/CircuitBreaker.html){target="_blank"}. martinfowler.com, 2014.
 [^4]: BEYER, B. et al. [Site Reliability Engineering](https://sre.google/books/){target="_blank"}. O'Reilly, 2016. Capítulo 21, "Handling Overload"; YANACEK, D. [Using load shedding to avoid overload](https://aws.amazon.com/builders-library/using-load-shedding-to-avoid-overload/){target="_blank"}. Amazon Builders' Library.
 [^5]: [Documentação do Resilience4j](https://resilience4j.readme.io/docs){target="_blank"}.
+[^6]: MICROSOFT. [Build resilient HTTP apps: key development patterns](https://learn.microsoft.com/en-us/dotnet/core/resilience/http-resilience){target="_blank"}. Microsoft Learn (o handler de resiliência padrão).

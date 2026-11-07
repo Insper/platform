@@ -229,7 +229,7 @@ Alerte pelo orçamento, não por taxas de erro brutas ou CPU. O SRE Workbook rec
     - **Degradação lenta** (2× a partir do dia 16): nenhum page; o ticket de 3 dias dispara 34 horas depois (dia 17,4), com 39% do orçamento gasto — mais de 8 dias antes de ele acabar (dia 25,9).
     - Aperte **limpar incidentes**, avance até o dia 2, pause e injete *0,7% por 3 dias*: nenhum page rápido, mas a regra de 6× aciona após cerca de 5 horas. Com *20% por 30 min* o page chega após 4 minutos e mesmo assim o incidente custa cerca de 15%: um alerta só salva o orçamento que ainda não foi queimado.
 
-    O lab 9 provisiona as mesmas regras de 14,4× e 6× (como page e ticket) para o `order`, com um SLO de 99,5%.
+    O lab 9 provisiona as mesmas regras de 14,4× e 6× para o `order`, com um SLO de 99,5%; os labs acionam alguém (page) com 14,4× e abrem um ticket com 6×, um sinal mais barato para um time pequeno — o Workbook aciona com as duas.
 
 ```yaml
 # Prometheus alerting rule: purchase path, SLO 99.9% (budget = 0.001)
@@ -254,7 +254,7 @@ Os detalhes do projeto de alertas, do roteamento e do plantão estão em [Observ
 
 !!! example "No código do BoxOffice: o SLO como regra de alerta (labs 8 e 9)"
 
-    O [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md) escreve a promessa do `catalog`: 99,5% das requisições, sem contar os health checks, respondidas sem 5xx em 28 dias — a 100 req/s, um orçamento de cerca de 1,21 milhão de requisições com falha. Ele provisiona a regra de 14,4× como page e a de 6× como ticket, em arquivos que o Grafana carrega na inicialização. O [Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md) copia o arquivo para o `order`, para que uma falha escondida no caminho do pagamento acione os operadores. Leia o trecho buscando as três partes da regra: a consulta A (a razão de erros em 1 h, dividida pelo orçamento 0,005, é o burn rate), a consulta B (a mesma em 5 min; B repete A com `[5m]`, cortada aqui) e a condição C, que exige as duas. `http_route!~"/actuator.*"` deixa as probes fora do SLI.
+    O [Hands-on 8 — SLO e alerta de burn rate](../../../hands-on/8/slo/index.md) escreve a promessa do `catalog`: 99,5% das requisições, sem contar os health checks, respondidas sem 5xx em 28 dias — a 100 req/s, um orçamento de cerca de 1,21 milhão de requisições com falha. Ele provisiona a regra de 14,4× como page e a de 6× como ticket (o Workbook aciona alguém também com 6×; o ticket é a escolha mais barata do lab para um time pequeno), em arquivos que o Grafana carrega na inicialização. O [Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md) copia o arquivo para o `order`, para que uma falha escondida no caminho do pagamento acione os operadores. Leia o trecho buscando as três partes da regra: a consulta A (a razão de erros em 1 h, dividida pelo orçamento 0,005, é o burn rate), a consulta B (a mesma em 5 min; B repete A com `[5m]`, cortada aqui) e a condição C, que exige as duas. `http_route!~"/actuator.*"` deixa as probes fora do SLI.
 
     ``` { .yaml title="infra/grafana/alerting/slo-order.yaml (the fast-burn rule)" }
     --8<-- "docs/2027.1/hands-on/9/code/infra/grafana/alerting/slo-order.yaml:12:26,38:52"

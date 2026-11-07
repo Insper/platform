@@ -13,6 +13,7 @@ Um sistema confiável não é aquele que nunca falha. É aquele que **falha de f
     Ao final desta aula você deve ser capaz de:
 
     - **Calcular** a disponibilidade a partir do tempo médio até a falha (MTTF, *mean time to failure*) e do tempo médio de reparo (MTTR, *mean time to repair*), a indisponibilidade permitida por um número de "noves" e a disponibilidade de ponta a ponta de componentes em série e em paralelo.
+    - **Classificar** uma falha por quanto tempo ela dura (transitória, intermitente, permanente) e por como se comporta (crash, lenta, bizantina).
     - **Explicar** como uma dependência lenta causa uma falha em cascata e **estimar** com a Lei de Little os recursos que ela esgota.
     - **Escolher e configurar** padrões de resiliência — timeouts, retries com backoff e jitter, circuit breakers, bulkheads, load shedding e rate limiting — para uma chamada entre dois serviços, e **prever** o que cada um faz sob falha.
     - **Projetar** uma estratégia de recuperação de desastres a partir de objetivos de ponto e de tempo de recuperação (RPO e RTO, *recovery point* e *recovery time objectives*), escolhendo entre backup e restore, pilot light, warm standby e ativo-ativo.
@@ -229,6 +230,22 @@ Duas regras fazem a redundância funcionar:
 ## Modos de falha { #failure-modes }
 
 Sistemas distribuídos falham de formas que uma máquina sozinha não falha. **Falhas parciais** — alguns componentes funcionam e outros não — são muito mais comuns que indisponibilidades totais e mais difíceis de tratar.
+
+Uma falha tem duas propriedades independentes: **quanto tempo dura** e **como o componente falho se comporta** enquanto ela dura. Um pod morto por falta de memória é permanente *e* crash-stop; uma pausa de coleta de lixo é intermitente *e* lenta; uma oscilação de rede é transitória e, para quem chama, parece um crash. Uma terceira pergunta — **quantos falham juntos** — separa falhas correlacionadas de independentes.
+
+``` diagram
+flowchart LR
+    F["uma falha"] --> D["Quanto tempo dura?"]
+    F --> B["Como se comporta?"]
+    D --> T["transitória<br/>some em segundos: uma oscilação de rede"]
+    D --> I["intermitente<br/>vai e volta: uma pausa de GC, um vazamento"]
+    D --> P["permanente<br/>até alguém agir: um disco morto"]
+    B --> CS["crash-stop<br/>para e continua parado"]
+    B --> SL["lenta<br/>responde, mas tarde demais"]:::problem
+    B --> BZ["bizantina<br/>responde dados errados"]
+```
+
+A tabela nomeia as classes que você vai encontrar, com a **lenta** como classe própria:
 
 | Classe de falha | Características | Estratégia de tratamento |
 |---|---|---|

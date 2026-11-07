@@ -152,13 +152,18 @@ Redundância só conta se as suas falhas forem **independentes** — uma zona (u
 
 ## Como sistemas distribuídos falham
 
+<div class="flow">
+<div class="group"><div class="caption">quanto tempo dura?</div><div class="box">transitória · intermitente · permanente</div></div>
+<div class="arrow">×</div>
+<div class="group"><div class="caption">como se comporta?</div><div class="box">crash-stop · <b>lenta</b> · bizantina</div></div>
+</div>
+
 | Classe | Tratamento |
 |---|---|
 | Crash (fail-stop) | health checks, restart, failover |
 | Transitória | retry com backoff e jitter |
 | **Lenta / gray failure** | timeouts, breakers que contam chamadas lentas, indicadores de nível de serviço (SLIs, *service level indicators*) de latência |
 | Bizantina / incorreta | checksums, validação, reconciliação |
-| Correlacionada | rollouts graduais, multizona, testes de caos |
 
 <div class="warn">
 
@@ -224,7 +229,8 @@ A saída é **descartar carga**: load shedding, orçamentos de retry, circuit br
 ## Retries: amplificação, jitter, orçamentos
 
 - Faça retry só de falhas **transitórias** (erros de conexão, `503`, `429`); nunca `4xx` ou "cartão recusado".
-- **Uma camada**: 3 camadas × 3 tentativas = **27** chamadas por clique.
+- **Uma camada**: 3 camadas × até 3 tentativas = **27** chamadas por clique.
+- As esperas se somam: 1, 2, 4 s → retries em **1, 3 e 7 s** depois da primeira falha.
 - **Full jitter**: `espera = random(0, base · 2ⁿ)` — 1.000 clientes que falham juntos se recuperam em ~1,5 s em vez de ondas por 15 s.
 - **Orçamento de retry** (retries ≤ 10% do tráfego): sem ele, os retries podem manter um sistema **metaestavelmente** fora do ar.
 
@@ -240,10 +246,10 @@ A saída é **descartar carga**: load shedding, orçamentos de retry, circuit br
 <div class="box orange">meio-aberto<small>3 sondas decidem</small></div>
 </div>
 
-- Aberto = threads livres, a dependência ganha fôlego. **Conte chamadas lentas**, ou um provedor a 4 s nunca o dispara.
-- **Ignore erros de negócio**: um cartão recusado (lab 9: qualquer 4xx) é uma resposta correta.
-- 10 s aberto = até ~10 s de "pagamento temporariamente indisponível" depois que o provedor se recupera.
-- **Fallback**: esconder recomendações, busca desatualizada… para o pagamento, **nunca sucesso falso** — lugares reservados por 10 min.
+- Abre com taxa **≥** o limite; chamadas lentas têm **a sua própria** taxa. O meio-aberto julga as **taxas das sondas**.
+- Limite de chamada lenta **abaixo do timeout** (800 ms < 1 s): uma chamada além do timeout é falha, nunca "lenta".
+- Padrões do Resilience4j: janela 100, mínimo 100, espera 60 s, 10 sondas, lentas em 60 s / 100% — lentos demais para reagir.
+- 10 s aberto = até ~10 s de "pagamento temporariamente indisponível" depois que o provedor se recupera. **Nunca sucesso falso**.
 
 ---
 
@@ -261,6 +267,7 @@ A saída é **descartar carga**: load shedding, orçamentos de retry, circuit br
 
 - 20 pagamentos/s × 0,2 s = **4** em voo → 10 = 2,5× de folga.
 - Provedor a 3 s → **10** threads esperam, não 60.
+- Custo: capacidade que **não pode ser compartilhada**.
 
 </div>
 <div>
@@ -304,7 +311,7 @@ resilience4j:
     max-wait-duration: 0
 ```
 
-<p class="small">Fallback na camada externa: <code>503</code>, o pedido fica <code>PENDING_PAYMENT</code>. Medido: mediana do <code>GET /orders/{id}</code> de 9,04 s sem proteção e 6,5 ms com proteção.</p>
+<p class="small">Da mais externa para dentro, cada uma por um motivo: o retry fora do breaker (um breaker aberto o para), o fallback no retry (roda uma vez), o timeout por dentro (limita cada tentativa). A mesma ordem do handler de resiliência padrão do .NET, da Microsoft. Medido: mediana do <code>GET /orders/{id}</code> de 9,04 s sem proteção e 6,5 ms com proteção.</p>
 
 ---
 
@@ -320,9 +327,9 @@ resilience4j:
 - O simulador **resilience** da página de padrões: provedor a 4 s, as chaves do lab 9, uma de cada vez.
 - Arraste a latência de volta para 200 ms: 10 s depois de abrir, meio-aberto, 3 sondas, fechado.
 
-<div class="ok">
+<div class="warn">
 
-Um timeout protege o `order`, não o pagamento; retries sem breaker pioram o dia ruim do provedor.
+Timeout + retries **sem** breaker é pior que nada: 0 pagamentos dão certo a cada 10 s (128 com nada ligado), o pool lota de novo e o provedor recebe 2× a carga.
 
 </div>
 
@@ -341,6 +348,8 @@ Um timeout protege o `order`, não o pagamento; retries sem breaker pioram o dia
 Nunca ponha dependências no **liveness**: se o liveness do `order` verifica o provedor de pagamento, um soluço do provedor reinicia **todas as réplicas do `order` de uma vez**.
 
 </div>
+
+<p class="small">Spring Boot 4: <code>/actuator/health/liveness</code> e <code>/readiness</code> vêm ligados por padrão (antes, só no Kubernetes).</p>
 
 ---
 
@@ -400,9 +409,11 @@ Nunca ponha dependências no **liveness**: se o liveness do `order` verifica o p
 <div class="box green">melhorar<small>depois ampliar</small></div>
 </div>
 
-- BoxOffice: o Toxiproxy acrescenta **3 s** ao provedor sob a carga k6 do lab 9 → espera-se o breaker aberto em < 10 s e o `browse` estável.
+- BoxOffice: o Toxiproxy acrescenta **3 s** ao provedor sob a carga k6 do lab 9 → espera-se o breaker aberto em < 10 s e o `browse` estável — as compras **não** entram no estado estável, a hipótese espera que falhem rápido.
 - Raio de impacto pequeno: Compose → homologação → um pod canary → mais amplo; **aborte** com burn rate > 10×.
-- **Observabilidade primeiro**: ver o estado estável, detectar, explicar, parar — depois quebrar.
+- **Observabilidade primeiro**: dashboards mostram a queda em segundos, alertas em minutos — depois quebrar.
+
+<p class="small">A Netflix escreveu os princípios (principlesofchaos.org, IEEE Software 2016). Ferramentas: Toxiproxy, Chaos Mesh, AWS Fault Injection Service (FIS, chamado Fault Injection Simulator até nov. de 2023).</p>
 
 ---
 

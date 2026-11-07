@@ -229,7 +229,7 @@ Alert on the budget, not on raw error rates or CPU. The SRE Workbook recommends 
     - **Slow degradation** (2× from day 16): no page at all; the 3-day ticket fires 34 hours in (day 17.4) with 39% of the budget spent — more than 8 days before it runs out (day 25.9).
     - Press **clear incidents**, play to day 2, pause and inject *0.7% for 3 days*: no fast page, but the 6× rule pages after about 5 hours. With *20% for 30 min* the page comes after 4 minutes, yet the incident still costs about 15%: an alert can only save the budget that is not burnt yet.
 
-    Lab 9 provisions the same 14.4× and 6× rules (as page and ticket) for `order`, with a 99.5% SLO.
+    Lab 9 provisions the same 14.4× and 6× rules for `order`, with a 99.5% SLO; the labs page on 14.4× and file the 6× rule as a ticket, a cheaper signal for a small team — the Workbook pages on both.
 
 ```yaml
 # Prometheus alerting rule: purchase path, SLO 99.9% (budget = 0.001)
@@ -254,7 +254,7 @@ The details of alert design, routing and on-call are in [Observability — alert
 
 !!! example "In the BoxOffice code: the SLO as an alert rule (labs 8 and 9)"
 
-    [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md) writes the promise for `catalog`: 99.5% of the requests, health checks excluded, answered without a 5xx over 28 days — at 100 req/s, a budget of about 1.21 million failed requests. It provisions the 14.4× rule as a page and the 6× rule as a ticket, as files Grafana loads at startup. [Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md) copies the file for `order`, so that a hidden failure on the payment path pages the operators. Read the excerpt for the three parts of the rule: query A (error ratio over 1 h, divided by the budget 0.005, is the burn rate), query B (the same over 5 min; B repeats A with `[5m]`, cut here) and condition C, which needs both. `http_route!~"/actuator.*"` keeps the probes out of the SLI.
+    [Hands-on 8 — SLO and burn-rate alert](../../../hands-on/8/slo/index.md) writes the promise for `catalog`: 99.5% of the requests, health checks excluded, answered without a 5xx over 28 days — at 100 req/s, a budget of about 1.21 million failed requests. It provisions the 14.4× rule as a page and the 6× rule as a ticket (the Workbook pages on 6× too; a ticket is the lab's cheaper choice for a small team), as files Grafana loads at startup. [Hands-on 9 — Game day](../../../hands-on/9/game-day/index.md) copies the file for `order`, so that a hidden failure on the payment path pages the operators. Read the excerpt for the three parts of the rule: query A (error ratio over 1 h, divided by the budget 0.005, is the burn rate), query B (the same over 5 min; B repeats A with `[5m]`, cut here) and condition C, which needs both. `http_route!~"/actuator.*"` keeps the probes out of the SLI.
 
     ``` { .yaml title="infra/grafana/alerting/slo-order.yaml (the fast-burn rule)" }
     --8<-- "docs/2027.1/hands-on/9/code/infra/grafana/alerting/slo-order.yaml:12:26,38:52"

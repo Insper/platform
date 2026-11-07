@@ -231,6 +231,11 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="24">
 <h2 id="how-distributed-systems-fail">How distributed systems fail</h2>
+<div class="flow">
+<div class="group"><div class="caption">how long?</div><div class="box">transient · intermittent · permanent</div></div>
+<div class="arrow">×</div>
+<div class="group"><div class="caption">how does it behave?</div><div class="box">crash-stop · <b>slow</b> · Byzantine</div></div>
+</div>
 <table>
 <thead>
 <tr>
@@ -254,10 +259,6 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
 <tr>
 <td>Byzantine / incorrect</td>
 <td>checksums, validation, reconciliation</td>
-</tr>
-<tr>
-<td>Correlated</td>
-<td>gradual rollouts, multi-zone, chaos tests</td>
 </tr>
 </tbody>
 </table>
@@ -335,7 +336,8 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
 <h2 id="retries-amplification-jitter-budgets">Retries: amplification, jitter, budgets</h2>
 <ul>
 <li>Retry <strong>transient</strong> failures only (connect errors, <code>503</code>, <code>429</code>); never <code>4xx</code> or &quot;card declined&quot;.</li>
-<li><strong>One layer</strong>: 3 layers × 3 attempts = <strong>27</strong> calls per click.</li>
+<li><strong>One layer</strong>: 3 layers × up to 3 attempts = <strong>27</strong> calls per click.</li>
+<li>Waits add up: 1, 2, 4 s → retries at <strong>1, 3 and 7 s</strong> after the first failure.</li>
 <li><strong>Full jitter</strong>: <code>wait = random(0, base · 2ⁿ)</code> — 1,000 clients failing together recover in ~1.5 s instead of waves for 15 s.</li>
 <li><strong>Retry budget</strong> (retries ≤ 10% of traffic): without it, retries can keep a system <strong>metastably</strong> down.</li>
 </ul>
@@ -349,10 +351,10 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
 <div class="box orange">half-open<small>3 probes decide</small></div>
 </div>
 <ul>
-<li>Open = threads free, dependency gets breathing room. <strong>Count slow calls</strong>, or a 4 s provider never trips it.</li>
-<li><strong>Ignore business errors</strong>: a declined card (lab 9: any 4xx) is a correct answer.</li>
-<li>10 s open = up to ~10 s of &quot;payment temporarily unavailable&quot; after the provider recovers.</li>
-<li><strong>Fallback</strong>: hide recommendations, stale search… for payment, <strong>never fake success</strong> — seats held for 10 min.</li>
+<li>Opens at a rate <strong>≥</strong> the threshold; slow calls have <strong>their own</strong> rate. Half-open judges the <strong>probes' rates</strong>.</li>
+<li>Slow-call threshold <strong>below the timeout</strong> (800 ms &lt; 1 s): a call past the timeout is a failure, never &quot;slow&quot;.</li>
+<li>Resilience4j defaults: window 100, minimum 100, wait 60 s, 10 probes, slow calls at 60 s / 100% — far too slow to react.</li>
+<li>10 s open = up to ~10 s of &quot;payment temporarily unavailable&quot; after the provider recovers. <strong>Never fake success</strong>.</li>
 </ul>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="14" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="24">
@@ -367,6 +369,7 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
 <ul>
 <li>20 payments/s × 0.2 s = <strong>4</strong> in flight → 10 = 2.5× slack.</li>
 <li>Provider at 3 s → <strong>10</strong> threads wait, not 60.</li>
+<li>Cost: capacity that <strong>cannot be shared</strong>.</li>
 </ul>
 </div>
 <div>
@@ -401,7 +404,7 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
     <span class="hljs-attr">max-concurrent-calls:</span> <span class="hljs-string">${PAYMENT_BULKHEAD:10}</span>
     <span class="hljs-attr">max-wait-duration:</span> <span class="hljs-number">0</span>
 </code></pre>
-<p class="small">Fallback on the outer layer: <code>503</code>, order stays <code>PENDING_PAYMENT</code>. Measured: <code>GET /orders/{id}</code> median 9.04 s unprotected, 6.5 ms protected.</p>
+<p class="small">Outermost first, each for a reason: the retry outside the breaker (an open breaker stops it), the fallback on the retry (runs once), the timeout innermost (bounds each attempt). Same order in Microsoft's .NET standard resilience handler. Measured: <code>GET /orders/{id}</code> median 9.04 s unprotected, 6.5 ms protected.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="16" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="24">
 <h2 id="simulator-what-stops-a-slow-provider">Simulator: what stops a slow provider?</h2>
@@ -415,8 +418,8 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
 <li>The patterns page's <strong>resilience</strong> simulator: provider at 4 s, lab 9's switches, one at a time.</li>
 <li>Drag the latency back to 200 ms: 10 s after opening, half-open, 3 probes, closed.</li>
 </ul>
-<div class="ok">
-<p>A timeout protects <code>order</code>, not the payment; retries without a breaker make the provider's bad day worse.</p>
+<div class="warn">
+<p>Timeout + retries <strong>without</strong> a breaker is worse than nothing: 0 payments succeed per 10 s (128 with nothing on), the pool is full again and the provider takes 2× the load.</p>
 </div>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="17" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="24">
@@ -450,6 +453,7 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
 <div class="warn">
 <p>Never put dependencies in <strong>liveness</strong>: if <code>order</code>'s liveness checks the payment provider, one provider blip restarts <strong>every <code>order</code> replica at once</strong>.</p>
 </div>
+<p class="small">Spring Boot 4: <code>/actuator/health/liveness</code> and <code>/readiness</code> are on by default (before, only on Kubernetes).</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="18" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="24">
 <h2 id="disaster-recovery-dr-how-much-data-how-much-time">Disaster recovery (DR): how much data, how much time?</h2>
@@ -501,10 +505,11 @@ Why do fans who only want to <strong>browse the catalog</strong> get errors a mi
 <div class="box green">improve<small>then widen</small></div>
 </div>
 <ul>
-<li>BoxOffice: Toxiproxy adds <strong>3 s</strong> to the provider under lab 9's k6 load → expect the breaker open &lt; 10 s, <code>browse</code> flat.</li>
+<li>BoxOffice: Toxiproxy adds <strong>3 s</strong> to the provider under lab 9's k6 load → expect the breaker open &lt; 10 s and <code>browse</code> flat — purchases are <strong>not</strong> in the steady state, the hypothesis expects them to fail fast.</li>
 <li>Small blast radius: Compose → staging → one canary pod → wider; <strong>abort</strong> on burn rate &gt; 10×.</li>
-<li><strong>Observability first</strong>: see the steady state, detect, explain, stop — then break things.</li>
+<li><strong>Observability first</strong>: dashboards show the drop in seconds, alerts in minutes — then break things.</li>
 </ul>
+<p class="small">Netflix wrote the principles down (principlesofchaos.org, IEEE Software 2016). Tools: Toxiproxy, Chaos Mesh, AWS Fault Injection Service (FIS, renamed from Fault Injection Simulator in Nov 2023).</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="22" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="22" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="24">
 <h2 id="game-day-the-flash-sale">Game day: the flash sale</h2>

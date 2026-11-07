@@ -11,6 +11,7 @@ function after(ms, o) {
 }
 
 /* the four steps of the tip */
+const okOf = r => r.sim.done.filter(d => d.outcome === "ok").length;   /* done keeps the last 10 s (KEEP) */
 const none = after(30000, {});
 const tmo = after(30000, { timeout: true });
 const rtr = after(30000, { timeout: true, retries: true });
@@ -63,6 +64,10 @@ test("the breaker opens, fails fast, probes after the wait and closes once the p
   console.log(`       open at ${all.open.t} ms, half-open at ${all.half.t} ms, closed at ${all.closed.t} ms`);
 });
 
+test("timeout + retries without a breaker are worse than nothing", () => {
+  ok(okOf(rtr) === 0 && okOf(none) > 100 && rtr.sim.rejected > 150 && rtr.m.amplification > 1.7, `none ${okOf(none)} ok, timeout+retry ${okOf(rtr)} ok, ${rtr.sim.rejected} without thread`);
+});
+
 test("the tip quotes lab 9 and the model's numbers", () => {
   ok(L.failRate === L.slowRate, "the tip states one threshold for failed and slow calls: split it");
   const tens = v => Math.round(v / 10) * 10;
@@ -78,6 +83,8 @@ test("the tip quotes lab 9 and the model's numbers", () => {
       en ? `about ${fmt(rtr.m.amplification, 0, lang)}× the payments (${rtr.m.callsPerSec} calls/s)` : `cerca de ${fmt(rtr.m.amplification, 0, lang)}× os pagamentos (${rtr.m.callsPerSec} chamadas/s)`,
       en ? `the ${rtr.m.busy} threads are full again — ${L.attempts} attempts of ${s(L.timeoutMs, lang)} plus backoff hold each thread for about ${fmt(R.holdMs(L) / 1000, 1, lang)} s`
          : `as ${rtr.m.busy} threads lotam de novo — ${L.attempts} tentativas de ${s(L.timeoutMs, lang)} mais o backoff prendem cada thread por cerca de ${fmt(R.holdMs(L) / 1000, 1, lang)} s`,
+      en ? `0 payments succeed per 10 s (${okOf(none)} did with nothing on, slowly), about ${tens(rtr.sim.rejected)} have found no thread`
+         : `0 pagamentos dão certo a cada 10 s (${okOf(none)} deram certo com nada ligado, devagar), cerca de ${tens(rtr.sim.rejected)} não encontraram thread`,
       en ? `it opens ${fmt(all.open.t / 1000, 1, lang)} s into the run` : `ele abre ${fmt(all.open.t / 1000, 1, lang)} s depois do início`,
       en ? `threads drop to about ${all.m.busy}` : `as threads caem para cerca de ${all.m.busy}`,
       en ? `${s(L.openMs, lang)} after opening, the breaker goes half-open, ${L.probes} probes succeed` : `${s(L.openMs, lang)} depois de abrir, o breaker fica semiaberto, ${L.probes} sondas dão certo`,

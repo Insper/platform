@@ -13,6 +13,7 @@ A reliable system is not one that never fails. It is one that **fails gracefully
     By the end of this class you should be able to:
 
     - **Calculate** availability from the mean time to failure (MTTF) and the mean time to repair (MTTR), the downtime allowed by a number of "nines", and the end-to-end availability of components in series and in parallel.
+    - **Classify** a failure by how long it lasts (transient, intermittent, permanent) and by how it behaves (crash, slow, Byzantine).
     - **Explain** how a slow dependency causes a cascading failure, and **estimate** the resources it exhausts with Little's Law.
     - **Choose and configure** resilience patterns — timeouts, retries with backoff and jitter, circuit breakers, bulkheads, load shedding and rate limiting — for a call between two services, and **predict** what each one does under failure.
     - **Design** a disaster-recovery strategy from recovery point and recovery time objectives (RPO and RTO), choosing between backup and restore, pilot light, warm standby and active-active.
@@ -229,6 +230,22 @@ Two rules make redundancy work:
 ## Failure modes
 
 Distributed systems fail in ways a single machine does not. **Partial failures** — some components work and others do not — are far more common than total outages, and harder to handle.
+
+A failure has two independent properties: **how long it lasts** and **how the failed component behaves** while it lasts. A pod killed for running out of memory is permanent *and* crash-stop; a garbage-collection pause is intermittent *and* slow; a network blip is transient and, to the caller, looks like a crash. A third question — **how many fail together** — separates correlated failures from independent ones.
+
+``` diagram
+flowchart LR
+    F["a failure"] --> D["How long?"]
+    F --> B["How does it behave?"]
+    D --> T["transient<br/>gone in seconds: a network blip"]
+    D --> I["intermittent<br/>comes and goes: a GC pause, a leak"]
+    D --> P["permanent<br/>until someone acts: a dead disk"]
+    B --> CS["crash-stop<br/>halts and stays halted"]
+    B --> SL["slow<br/>answers, but too late"]:::problem
+    B --> BZ["Byzantine<br/>answers wrong data"]
+```
+
+The table names the classes you will meet, with **slow** as a class of its own:
 
 | Failure class | Characteristics | Handling strategy |
 |---|---|---|

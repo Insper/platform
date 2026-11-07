@@ -10,7 +10,7 @@ A **engenharia do caos** é a disciplina de fazer experimentos em um sistema par
 
 A ideia é mais antiga que o nome. Na Amazon, no começo dos anos 2000, Jesse Robbins conduzia exercícios de **GameDay** que causavam deliberadamente falhas grandes em produção para expor fraquezas escondidas — no software e nos times que o operavam[^3].
 
-A Netflix deu nome e ferramentas à prática. Depois de sair do próprio data center para a AWS, por volta de 2010 — onde qualquer instância pode sumir a qualquer momento —, ela criou o **Chaos Monkey**, um serviço que encerra instâncias de produção aleatórias **em horário comercial**, para que todo time precisasse construir serviços que sobrevivem à perda de instâncias e os engenheiros estivessem em suas mesas para ver o que quebrava[^4]. Veio então todo um **Simian Army**: o Latency Monkey injetava atrasos nas chamadas, o Chaos Gorilla simulava a perda de uma zona de disponibilidade inteira. Em 2016, engenheiros da Netflix formalizaram a disciplina em um artigo da IEEE Software[^2], de onde vêm os princípios abaixo.
+A Netflix deu nome e ferramentas à prática. Depois de sair do próprio data center para a AWS, por volta de 2010 — onde qualquer instância pode sumir a qualquer momento —, ela criou o **Chaos Monkey**, um serviço que encerra instâncias de produção aleatórias **em horário comercial**, para que todo time precisasse construir serviços que sobrevivem à perda de instâncias e os engenheiros estivessem em suas mesas para ver o que quebrava[^4]. Veio então todo um **Simian Army**: o Latency Monkey injetava atrasos nas chamadas, o Chaos Gorilla simulava a perda de uma zona de disponibilidade inteira. Engenheiros da Netflix depois escreveram a prática, como os Princípios da Engenharia do Caos e em um artigo da IEEE Software em 2016[^2]; os princípios abaixo vêm desse trabalho.
 
 A percepção central: **falha não é um caso especial a evitar; é o ambiente em que os sistemas de produção vivem** e o único jeito de saber se um sistema sobrevive a ela é testá-lo ali.
 
@@ -57,12 +57,12 @@ Um experimento que **confirma** a hipótese é evidência de que uma defesa func
 
     | Passo | Conteúdo |
     |---|---|
-    | **Estado estável** | Sucesso das compras ≥ 99,9% e p99 das reservas < 500 ms; p99 do catálogo < 300 ms (o dashboard RED — *rate, errors, duration*: taxa, erros, duração — do [Hands-on 8](../../../hands-on/8/index.md)). |
+    | **Estado estável** | Reservas: 99,9% dão certo, p99 < 500 ms; catálogo: p99 < 300 ms (o dashboard RED — *rate, errors, duration*: taxa, erros, duração — do [Hands-on 8](../../../hands-on/8/index.md)). O sucesso das compras **não** entra: a hipótese espera que as compras falhem rápido enquanto o provedor está lento e um estado estável que a própria hipótese quebra não pode ser confirmado. |
     | **Hipótese** | "Se o provedor de pagamento responder em 3 s em vez de 200 ms, o circuit breaker do `payment` abre em até 10 s, as compras falham rápido com 'pagamento temporariamente indisponível, lugares reservados', o bulkhead limita as chamadas ao pagamento a 10 das 50 threads do `order` e o catálogo e as reservas mantêm sua latência." |
     | **Injeção** | Toxiproxy entre o `payment` e o stub do provedor: um toxic de `latency` de 3 s ± 0,5 s, sob a carga k6 do lab 9: 20 compras/s e 20 leituras de pedido/s. |
     | **Escopo e aborto** | Primeiro no ambiente Compose; depois em um pod canary. Abortar se o p99 do catálogo passar de 1 s ou se o error budget de compras queimar mais rápido que 10×. |
     | **Observação** | `resilience4j_circuitbreaker_state`, permissões livres do bulkhead, taxa de erros e p99 por rota, threads ocupadas do `order`, traces das compras lentas. |
-    | **Descobertas possíveis** | O timeout de leitura nunca foi configurado, então chamadas lentas só contam depois de 60 s; o retry no gateway multiplica as chamadas; a mensagem do fallback é um 500 cru; o bulkhead é compartilhado com as chamadas ao `inventory`. |
+    | **Descobertas possíveis** | O timeout de leitura nunca foi configurado e o limite de chamada lenta ficou no padrão de 60 s do Resilience4j: cada chamada leva 3 s e *dá certo*, então o breaker nunca abre enquanto as threads se acumulam; o retry no gateway multiplica as chamadas; a mensagem do fallback é um 500 cru; o bulkhead é compartilhado com as chamadas ao `inventory`. |
 
 !!! example "No código do BoxOffice: o estado estável como thresholds do k6 (lab 9)"
 
@@ -218,7 +218,7 @@ Depois que um experimento passa, mantenha-o passando:
 Caos sem observabilidade é só quebrar coisas. Antes de injetar qualquer coisa, você precisa conseguir:
 
 1. **Ver o estado estável** — dashboards de SLI com valores de referência.
-2. **Detectar o desvio** — alertas que disparam em minutos (alertas de burn rate).
+2. **Detectar o desvio** — dashboards que mostram a queda de um SLI em segundos e alertas em minutos (os alertas de burn rate de [Observabilidade — alertas](../../observability/alerting/index.md)).
 3. **Explicá-lo** — traces que mostram qual chamada ficou lenta, métricas de breakers e pools.
 4. **Pará-lo** — um botão de abortar que funciona em segundos.
 
@@ -231,13 +231,13 @@ Caos sem observabilidade é só quebrar coisas. Antes de injetar qualquer coisa,
 | [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} | Shopify (open source) | Proxy TCP simples; ideal para testes locais e no CI |
 | [Chaos Mesh](https://chaos-mesh.org){target="_blank"} | Cloud Native Computing Foundation (CNCF) | Nativo de Kubernetes; falhas de rede, pod, estresse, tempo, I/O; workflows |
 | [LitmusChaos](https://litmuschaos.io){target="_blank"} | CNCF | Nativo de Kubernetes; hub de experimentos; amigável a GitOps |
-| [AWS Fault Injection Service](https://aws.amazon.com/fis/){target="_blank"} | Amazon | Gerenciado; falhas no nível da AWS (energia de AZ, erros de API); condições de parada |
+| [AWS Fault Injection Service](https://aws.amazon.com/fis/){target="_blank"} (FIS; chamado Fault Injection Simulator até novembro de 2023) | Amazon | Gerenciado; falhas no nível da AWS (energia de AZ, erros de API); condições de parada |
 | [Azure Chaos Studio](https://azure.microsoft.com/products/chaos-studio){target="_blank"} | Microsoft | Caos gerenciado para recursos do Azure |
 | [Gremlin](https://www.gremlin.com){target="_blank"} | Gremlin Inc. | Plataforma comercial; biblioteca ampla de falhas; pontuação de confiabilidade |
 | [Chaos Monkey](https://github.com/Netflix/chaosmonkey){target="_blank"} | Netflix | Encerramento aleatório de instâncias; o original |
 
 !!! tip "Na entrevista"
-    Depois de propor mecanismos de resiliência, diga como você os **verificaria**: "eu rodaria um experimento de caos com uma hipótese de estado estável sobre o SLO de compra — injetar 3 s de latência no provedor de pagamento em um pod canary, esperar que o breaker abra em até 10 s e que a latência do catálogo fique estável, com aborto automático se o burn rate passar de 10×". Isso mostra que você sabe que failover e fallbacks não testados são o motivo mais comum de projetos aparentemente resilientes falharem.
+    Depois de propor mecanismos de resiliência, diga como você os **verificaria**: "eu rodaria um experimento de caos com uma hipótese de estado estável sobre os SLOs do catálogo e das reservas — injetar 3 s de latência no provedor de pagamento em um pod canary, esperar que o breaker abra em até 10 s e que a latência do catálogo fique estável, com aborto automático se o burn rate passar de 10×". Isso mostra que você sabe que failover e fallbacks não testados são o motivo mais comum de projetos aparentemente resilientes falharem.
 
 !!! success "Boas práticas"
 

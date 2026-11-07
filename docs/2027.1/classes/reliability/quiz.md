@@ -207,7 +207,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 **Q15.** The team wants to verify that the `payment` circuit breaker really protects the catalog. Which plan is a proper **chaos experiment**?
 
 - A. Kill random production pods during the next stadium on-sale and see what happens
-- B. State the steady state (catalog p99 < 300 ms, purchase success ≥ 99.9%) and the hypothesis (with 3 s of provider latency the breaker opens within 10 s and catalog latency stays flat); inject the latency with Toxiproxy under k6 load, first in staging, with an abort condition on the burn rate
+- B. State the steady state (catalog p99 < 300 ms, seat holds ≥ 99.9% successful) and the hypothesis (with 3 s of provider latency the breaker opens within 10 s and catalog latency stays flat); inject the latency with Toxiproxy under k6 load, first in staging, with an abort condition on the burn rate
 - C. Write a unit test that mocks the breaker as open
 - D. Wait for the next real provider incident and read the postmortem
 
@@ -216,3 +216,42 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
     Chaos engineering is an experiment: predict the steady state, inject one realistic fault, observe the SLIs, compare. A (random failures during an on-sale, no hypothesis, no abort) is reckless; C does not exercise timeouts, pools and real traffic; D is waiting for production to run the experiment for you, at the worst moment.
 
+---
+
+## Budgets and thresholds
+
+**Q16.** The fast-burn page of the purchase path fires only when the burn rate is above **14.4 over the last hour *and* over the last 5 minutes**. What is the 5-minute window for?
+
+- A. It makes the page fire sooner during a total outage
+- B. It makes the alert stop soon after the problem is fixed: the 1-hour average stays above 14.4 for up to an hour after recovery, the 5-minute one drops within minutes
+- C. It filters out short blips, which the 1-hour window would page on
+- D. Prometheus cannot evaluate a 1-hour window alone
+
+??? success "Answer"
+    **B — it proves the burn is *still happening*.**
+
+    The long window (1 h) proves the burn is significant: when it fires, 2% of the 28-day budget is gone. But an average over an hour remembers the incident for an hour, so on its own the page would keep firing long after the fix. The short window — 1/12 of the long one — is above the threshold only while the errors continue, so the alert resets about 5 minutes after recovery. Detection is set by the long window, not by the short one (A); blips are filtered by the long window (C).
+
+**Q17.** The gateway waits at most **5 s** for `order`. `order` calls `payment` with a **1 s read timeout** and the team raises the retry to **4 attempts** with backoff of 200 ms, 400 ms and 800 ms. The provider stops answering. What happens?
+
+- A. Nothing changes: each attempt is bounded by the 1 s timeout
+- B. In the worst case `order` needs 4 × 1 s + 0.2 + 0.4 + 0.8 s = 5.4 s: the gateway gives up at 5 s and answers `504`, while `order` keeps working — and charging — for nobody
+- C. The breaker prevents the fourth attempt, so the total is always under 5 s
+- D. The gateway waits for `order`, because downstream timeouts take precedence
+
+??? success "Answer"
+    **B — the inner budget must fit inside the outer one.**
+
+    Timeouts nest: attempts × timeout + the waits must stay below the caller's deadline. With 3 attempts (1 + 0.2 + 1 + 0.4 + 1 ≈ 3.6 s) lab 9 fits in the gateway's 5 s; a fourth attempt does not. The breaker (C) helps only once it has opened, and nothing makes a caller wait longer than its own timeout (D).
+
+**Q18.** `order` reads `payment` with a **1 s timeout** and its breaker counts calls slower than **1.5 s** as slow. The provider answers in **900 ms** instead of 200 ms. What does the breaker do?
+
+- A. It opens on the slow-call rate, since 900 ms is 4.5× the normal latency
+- B. Nothing: 900 ms is under both the timeout and the 1.5 s threshold, so every call is a success; and a call that is slower than 1 s times out — a failure — so no call can ever count as slow
+- C. It opens after 60 s, Resilience4j's default slow-call duration
+- D. It goes half-open to test the provider
+
+??? success "Answer"
+    **B — a slow-call threshold above the timeout never fires.**
+
+    A call slower than the read timeout never completes, so a slow-call threshold above the timeout can only see calls that already succeeded quickly enough. Set it **below** the timeout — lab 9 uses 800 ms against a 1 s read timeout, with a slow-call rate of 50% — so that a slow provider opens the breaker before the threads fill up waiting for timeouts.

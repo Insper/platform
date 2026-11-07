@@ -10,7 +10,7 @@ BoxOffice now has timeouts, a retry with jitter, a circuit breaker, a bulkhead, 
 
 The idea is older than the name. At Amazon in the early 2000s, Jesse Robbins ran **GameDay** exercises that deliberately caused major failures in production to expose hidden weaknesses — in the software and in the teams operating it[^3].
 
-Netflix gave the practice its name and its tools. After moving from its own data centre to AWS around 2010 — where any instance can disappear at any time — it built **Chaos Monkey**, a service that terminates random production instances **during business hours**, so that every team had to build services that survive instance loss, and engineers were at their desks to see what broke[^4]. A whole **Simian Army** followed: Latency Monkey injected delays into calls, Chaos Gorilla simulated the loss of a whole availability zone. In 2016 Netflix engineers formalized the discipline in an IEEE Software article[^2], from which the principles below come.
+Netflix gave the practice its name and its tools. After moving from its own data centre to AWS around 2010 — where any instance can disappear at any time — it built **Chaos Monkey**, a service that terminates random production instances **during business hours**, so that every team had to build services that survive instance loss, and engineers were at their desks to see what broke[^4]. A whole **Simian Army** followed: Latency Monkey injected delays into calls, Chaos Gorilla simulated the loss of a whole availability zone. Netflix engineers then wrote the practice down, as the Principles of Chaos Engineering and in an IEEE Software article in 2016[^2]; the principles below come from that work.
 
 The insight: **failure is not a special case to avoid; it is the environment production systems live in**, and the only way to know a system survives it is to test it there.
 
@@ -57,12 +57,12 @@ An experiment that **confirms** the hypothesis is evidence that a defence works.
 
     | Step | Content |
     |---|---|
-    | **Steady state** | Purchase success ≥ 99.9% and seat-hold p99 < 500 ms; catalog p99 < 300 ms (the RED — rate, errors, duration — dashboard of [Hands-on 8](../../../hands-on/8/index.md)). |
+    | **Steady state** | Seat holds: 99.9% succeed, p99 < 500 ms; catalog: p99 < 300 ms (the RED — rate, errors, duration — dashboard of [Hands-on 8](../../../hands-on/8/index.md)). Purchase success is **not** in it: the hypothesis expects purchases to fail fast while the provider is slow, and a steady state that the hypothesis itself breaks cannot be confirmed. |
     | **Hypothesis** | "If the payment provider answers in 3 s instead of 200 ms, the `payment` circuit breaker opens within 10 s, purchases fail fast with 'payment temporarily unavailable, seats held', the bulkhead caps payment calls at 10 of `order`'s 50 threads, and catalog and seat holds keep their latency." |
     | **Injection** | Toxiproxy between `payment` and the provider stub: a `latency` toxic of 3 s ± 0.5 s, under the k6 load of lab 9: 20 purchases/s and 20 order reads/s. |
     | **Scope and abort** | Compose environment first; later one canary pod. Abort if catalog p99 > 1 s or the purchase error budget burns faster than 10×. |
     | **Observe** | `resilience4j_circuitbreaker_state`, bulkhead available permits, error rate and p99 per route, `order` busy threads, traces of slow purchases. |
-    | **Possible findings** | The read timeout was never set, so slow calls are not counted until 60 s; the retry at the gateway multiplies calls; the fallback message is a raw 500; the bulkhead is shared with `inventory` calls. |
+    | **Possible findings** | The read timeout was never set and the slow-call threshold kept Resilience4j's 60 s default: each call takes 3 s and *succeeds*, so the breaker never opens while threads pile up; the retry at the gateway multiplies calls; the fallback message is a raw 500; the bulkhead is shared with `inventory` calls. |
 
 !!! example "In the BoxOffice code: the steady state as k6 thresholds (lab 9)"
 
@@ -218,7 +218,7 @@ Once an experiment passes, keep it passing:
 Chaos without observability is just breaking things. Before injecting anything you must be able to:
 
 1. **See the steady state** — SLI dashboards with baselines.
-2. **Detect the deviation** — alerts that fire within minutes (burn-rate alerts).
+2. **Detect the deviation** — dashboards that show an SLI drop within seconds, and alerts within minutes (the burn-rate alerts of [Observability — alerting](../../observability/alerting/index.md)).
 3. **Explain it** — traces that show which call got slow, metrics of breakers and pools.
 4. **Stop it** — an abort switch that works in seconds.
 
@@ -231,13 +231,13 @@ It is also the order of the labs: [lab 8](../../../hands-on/8/index.md) instrume
 | [Toxiproxy](https://github.com/Shopify/toxiproxy){target="_blank"} | Shopify (open source) | Simple TCP proxy; ideal for local and CI tests |
 | [Chaos Mesh](https://chaos-mesh.org){target="_blank"} | Cloud Native Computing Foundation (CNCF) | Kubernetes-native; network, pod, stress, time, I/O faults; workflows |
 | [LitmusChaos](https://litmuschaos.io){target="_blank"} | CNCF | Kubernetes-native; experiment hub; GitOps-friendly |
-| [AWS Fault Injection Service](https://aws.amazon.com/fis/){target="_blank"} | Amazon | Managed; AWS-level faults (AZ power, API errors); stop conditions |
+| [AWS Fault Injection Service](https://aws.amazon.com/fis/){target="_blank"} (FIS; called Fault Injection Simulator until November 2023) | Amazon | Managed; AWS-level faults (AZ power, API errors); stop conditions |
 | [Azure Chaos Studio](https://azure.microsoft.com/products/chaos-studio){target="_blank"} | Microsoft | Managed chaos for Azure resources |
 | [Gremlin](https://www.gremlin.com){target="_blank"} | Gremlin Inc. | Commercial platform; broad fault library; reliability scoring |
 | [Chaos Monkey](https://github.com/Netflix/chaosmonkey){target="_blank"} | Netflix | Random instance termination; the original |
 
 !!! tip "In the interview"
-    After proposing resilience mechanisms, add how you would **verify** them: "I'd run a chaos experiment with a steady-state hypothesis on the purchase SLO — inject 3 s of latency on the payment provider for one canary pod, expect the breaker to open within 10 s and catalog latency to stay flat, with an automatic abort if the burn rate exceeds 10×". It shows you know that untested failover and untested fallbacks are the most common reason resilient-looking designs fail.
+    After proposing resilience mechanisms, add how you would **verify** them: "I'd run a chaos experiment with a steady-state hypothesis on the catalog and seat-hold SLOs — inject 3 s of latency on the payment provider for one canary pod, expect the breaker to open within 10 s and catalog latency to stay flat, with an automatic abort if the burn rate exceeds 10×". It shows you know that untested failover and untested fallbacks are the most common reason resilient-looking designs fail.
 
 !!! success "Best practices"
 
