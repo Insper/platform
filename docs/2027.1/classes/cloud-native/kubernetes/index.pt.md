@@ -43,9 +43,9 @@ sequenceDiagram
 | **API server** | Control plane | O único ponto de entrada; valida e armazena objetos; todo o resto *observa* (watch) o API server |
 | **etcd** | Control plane | Armazenamento chave-valor fortemente consistente (consenso Raft) com o estado do cluster |
 | **Scheduler** | Control plane | Escolhe um nó para cada novo pod (recursos livres, afinidade, restrições de espalhamento) |
-| **Controller manager** | Control plane | Executa os controladores (Deployment, ReplicaSet, Job, Node, HPA…) |
+| **Controller manager** | Control plane | Executa os controladores (Deployment, ReplicaSet, Job, Node, autoescalador horizontal de pods — HPA, *Horizontal Pod Autoscaler*…) |
 | **kubelet** | Todo nó | Inicia os containers do pod via runtime de containers (containerd), executa as probes, reporta o status |
-| **kube-proxy / plugin CNI** | Todo nó | Implementa os IPs virtuais dos Services e a rede dos pods (iptables, IPVS ou eBPF, ex.: Cilium) |
+| **kube-proxy / plugin CNI (*Container Network Interface*)** | Todo nó | Implementa os IPs virtuais dos Services e a rede dos pods (iptables, IPVS ou eBPF, ex.: Cilium) |
 
 Com um serviço gerenciado (EKS, GKE, AKS), o provedor executa e atualiza o control plane; você gerencia os nós — ou, com GKE Autopilot ou EKS no Fargate, nem eles.
 
@@ -168,7 +168,7 @@ A **Gateway API** (`Gateway` + `HTTPRoute`) é a sucessora do antigo objeto `Ing
 
 !!! example "No código do BoxOffice: o `catalog` num cluster kind (lab 10)"
 
-    O [Hands-on 10 — Implantar o BoxOffice](../../../hands-on/10/deploy/index.md) usa as mesmas peças com números de notebook: 2 réplicas (o HPA assume depois), um request de 250m de CPU e 512 Mi, e um `Ingress` do Traefik (o `HTTPRoute` da Gateway API está em `catalog-route.yaml`, como alternativa). Observe três escolhas. A startup probe permite até **5 minutos**, porque a primeira partida também roda as migrações do Flyway, e o Kubernetes não tem `depends_on`: o `catalog` reinicia até o PostgreSQL responder. A liveness verifica só a JVM, então uma oscilação do banco não reinicia todos os pods. E o lab mantém um **limite de 1 CPU**, o mesmo "servidor" do Compose no lab 1, para que os números continuem comparáveis aos dos labs anteriores — ao preço do throttling descrito [abaixo](#requests-limits).
+    O [Hands-on 10 — Implantar o BoxOffice](../../../hands-on/10/deploy/index.md) usa as mesmas peças com números de notebook: 2 réplicas (o HPA assume depois), um request de 250m de CPU e 512 Mi, e um `Ingress` do Traefik (o `HTTPRoute` da Gateway API está em `catalog-route.yaml`, como alternativa). Observe três escolhas. A startup probe permite até **5 minutos**, porque a primeira partida também roda as migrações do Flyway, e o Kubernetes não tem `depends_on`: o `catalog` reinicia até o PostgreSQL responder. A liveness verifica só a máquina virtual Java (JVM, *Java virtual machine*), então uma oscilação do banco não reinicia todos os pods. E o lab mantém um **limite de 1 CPU**, o mesmo "servidor" do Compose no lab 1, para que os números continuem comparáveis aos dos labs anteriores — ao preço do throttling descrito [abaixo](#requests-limits).
 
     ``` { .yaml title="k8s/base/catalog.yaml (lab 10: resources, probes, graceful shutdown)" }
     --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog.yaml:45:70"
@@ -195,9 +195,9 @@ Mantenha a liveness **local** (a JVM está respondendo?) e faça a readiness ref
 
 | Classe de QoS | Regra | Despejado sob pressão no nó |
 |---|---|---|
-| **Guaranteed** | requests = limits para CPU e memória | Por último |
-| **Burstable** | alguns requests definidos, menores que os limits | No meio |
-| **BestEffort** | nada definido | Primeiro |
+| **Guaranteed** | requests = limits para CPU e memória | 🟢 Por último |
+| **Burstable** | alguns requests definidos, menores que os limits | 🟡 No meio |
+| **BestEffort** | nada definido | 🔴 Primeiro |
 
 !!! warning "Limites de CPU e latência"
 
@@ -208,6 +208,18 @@ Mantenha a liveness **local** (a JVM está respondendo?) e faça a readiness ref
 ## Perdendo um nó { #losing-a-node }
 
 O laço de controle substitui os pods perdidos, mas a autocura precisa de duas coisas que o laço não fornece. Os pods substitutos precisam de **espaço**: o scheduler só coloca um pod num nó cuja capacidade livre cubra seus requests, então num cluster lotado a 100% os pods de um nó morto ficam `Pending`. E quem chama precisa **parar de enviar aos pods mortos**: até o nó ser declarado `NotReady` (dezenas de segundos, por padrão) e os endpoints do Service serem atualizados, parte do tráfego ainda vai para pods que não existem mais. São as duas regras de redundância e failover da [aula de Confiabilidade](../../reliability/index.md), no nível dos nós: capacidade N + 1 e detecção rápida de falhas.
+
+A mesma falha, passo a passo, para um nó que tinha dois pods do `catalog`:
+
+``` diagram-sim
+flowchart LR
+    dead["um nó morre com<br/>2 pods do catalog"]:::problem --> miss["quem chama ainda envia aos pods dele<br/>(dezenas de segundos)"]:::problem
+    miss --> nr["nó NotReady,<br/>endpoints atualizados"]
+    nr --> evict["pods despejados quando as<br/>tolerations expiram (5 min por padrão)"]
+    evict --> room{"há espaço para os requests<br/>deles nos outros nós?"}
+    room -->|"sim: N + 1 nós"| run["substitutos agendados,<br/>a JVM sobe, prontos"]
+    room -->|"não: cluster lotado"| pend["substitutos ficam Pending,<br/>sobreviventes carregam a carga"]:::problem
+```
 
 **Experimente:** em `k8s-node-failure`, `catalog` e `pricing` rodam 6 pods cada em 3 nós × 4 pods — um cluster lotado — e em t = 60 s um nó morre.
 

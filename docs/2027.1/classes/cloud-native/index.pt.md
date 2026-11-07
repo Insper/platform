@@ -11,17 +11,17 @@ Nenhum desses é um problema da aplicação. São problemas de **plataforma**: o
     Ao final desta aula você deverá ser capaz de:
 
     - **Explicar** o que significa "cloud-native" e quais propriedades de uma aplicação (processos sem estado, configuração no ambiente, descartabilidade) a tornam portável entre plataformas.
-    - **Mapear** cada componente do BoxOffice para um modelo de serviço (IaaS, CaaS, PaaS, FaaS, DBaaS, SaaS) e **justificar** o trade-off entre controle e esforço operacional.
-    - **Construir** uma imagem de container pequena e segura para um serviço Java e **descrever** do que uma imagem OCI é feita.
-    - **Escrever** os manifests Kubernetes (Deployment, Service, probes, recursos, HPA, PodDisruptionBudget, Ingress) que executam um serviço do BoxOffice e **prever** o que o control plane faz quando um pod morre.
-    - **Projetar** um pipeline de entrega — infraestrutura como código, CI, GitOps e um rollout canary controlado por métricas — e **escolher** uma estratégia de deploy para um dado risco.
+    - **Mapear** cada componente do BoxOffice para um modelo de serviço (infraestrutura, containers, plataforma, funções, banco de dados ou software como serviço, *as a service*: IaaS, CaaS, PaaS, FaaS, DBaaS, SaaS) e **justificar** o trade-off entre controle e esforço operacional.
+    - **Construir** uma imagem de container pequena e segura para um serviço Java e **descrever** do que uma imagem OCI (*Open Container Initiative*) é feita.
+    - **Escrever** os manifests Kubernetes (Deployment, Service, probes, recursos, autoescalador horizontal de pods (HPA, *Horizontal Pod Autoscaler*), PodDisruptionBudget, Ingress) que executam um serviço do BoxOffice e **prever** o que o control plane faz quando um pod morre.
+    - **Projetar** um pipeline de entrega — infraestrutura como código, integração contínua (CI, *continuous integration*), GitOps e um rollout canary controlado por métricas — e **escolher** uma estratégia de deploy para um dado risco.
     - **Estimar** o custo mensal da arquitetura do BoxOffice, **identificar** seus custos fixos e variáveis e **propor** otimizações apoiadas em números.
 
 ## Roteiro { #roadmap }
 
 1. **Esta visão geral** — o que significa cloud-native, as propriedades twelve-factor, modelos de serviço e engenharia de plataforma.
 2. [Containers](containers/index.md) — namespaces e cgroups, imagens OCI e camadas, um Dockerfile de produção para um serviço Spring Boot, higiene da cadeia de suprimentos.
-3. [Kubernetes](kubernetes/index.md) — o laço de controle, os objetos centrais, probes, recursos, autoscaling (HPA, autoscaling de cluster, KEDA) e os manifests do BoxOffice.
+3. [Kubernetes](kubernetes/index.md) — o laço de controle, os objetos centrais, probes, recursos, autoscaling (HPA, autoscaling de cluster, o autoescalador orientado a eventos KEDA, *Kubernetes Event-Driven Autoscaler*) e os manifests do BoxOffice.
 4. [Entrega](delivery/index.md) — Terraform/OpenTofu, GitHub Actions, GitOps com Argo CD, estratégias de deploy e um canary com análise automática de métricas.
 5. [FinOps](finops/index.md) — modelos de preço da nuvem, um modelo de custo do BoxOffice, economia unitária e como reduzir a conta.
 6. [Quiz](quiz.md) — teste seu entendimento.
@@ -71,7 +71,7 @@ Uma plataforma só consegue reiniciar, mover e multiplicar um processo que permi
 
 ## Modelos de serviço: quem opera o quê { #service-models }
 
-Cada componente do BoxOffice precisa rodar *em algum lugar* e para cada um o time escolhe quanto da pilha ele mesmo opera. A definição de computação em nuvem do NIST introduziu três modelos de serviço[^3]; a prática acrescentou vários outros. Todos podem ser lidos na mesma pilha de camadas:
+Cada componente do BoxOffice precisa rodar *em algum lugar* e para cada um o time escolhe quanto da pilha ele mesmo opera. A definição de computação em nuvem do instituto de padrões dos EUA (NIST, *National Institute of Standards and Technology*) introduziu três modelos de serviço[^3]; a prática acrescentou vários outros. Todos podem ser lidos na mesma pilha de camadas:
 
 | Camada | On-premises | IaaS | CaaS | PaaS | FaaS | SaaS |
 |---|---|---|---|---|---|---|
@@ -82,14 +82,43 @@ Cada componente do BoxOffice precisa rodar *em algum lugar* e para cada um o tim
 | Sistema operacional | você | você | compartilhado (nós) ou provedor (Fargate, Autopilot) | provedor | provedor | provedor |
 | Virtualização, hardware, data center | você | provedor | provedor | provedor | provedor | provedor |
 
-- **IaaS — Infrastructure as a Service.** Máquinas virtuais, discos e redes (Amazon EC2, Google Compute Engine, Azure VMs). Controle máximo, trabalho braçal máximo: você aplica patches no SO, instala o JDK, configura o firewall.
-- **CaaS — Containers as a Service.** Você entrega imagens de container; o provedor executa o escalonador (Amazon EKS/ECS, Google GKE, Azure AKS). Com variantes serverless (AWS Fargate, GKE Autopilot) você nem enxerga os nós.
-- **PaaS — Platform as a Service.** Você entrega código ou uma imagem mais um pouco de configuração; a plataforma faz o build, executa, escala e roteia (Heroku, Google App Engine, Azure App Service, Railway, Fly.io).
-- **FaaS — Functions as a Service.** Você entrega uma função; a plataforma a executa a cada evento e cobra por invocação e por milissegundo (AWS Lambda, Google Cloud Run functions, Azure Functions). Escala até zero, mas tem **cold starts** e **limites de concorrência** (veja [Computação — serverless e autoscaling](../compute/serverless-autoscaling/index.md)).
-- **DBaaS — Database as a Service.** Bancos gerenciados (Amazon RDS/Aurora, Cloud SQL, Azure Database for PostgreSQL): backups, failover, patches e réplicas viram botões, não projetos.
+- **IaaS — Infrastructure as a Service.** Máquinas virtuais, discos e redes. Controle máximo, trabalho braçal máximo: você aplica patches no SO, instala o JDK, configura o firewall.
+- **CaaS — Containers as a Service.** Você entrega imagens de container; o provedor executa o escalonador e o control plane. Com variantes serverless (AWS Fargate, GKE Autopilot) você nem enxerga os nós.
+- **PaaS — Platform as a Service.** Você entrega código ou uma imagem mais um pouco de configuração; a plataforma faz o build, executa, escala e roteia.
+- **FaaS — Functions as a Service.** Você entrega uma função; a plataforma a executa a cada evento e cobra por invocação e por milissegundo. Escala até zero, mas tem **cold starts** e **limites de concorrência** (veja [Computação — serverless e autoscaling](../compute/serverless-autoscaling/index.md)).
+- **DBaaS — Database as a Service.** Bancos gerenciados (e caches e Kafka): backups, failover, patches e réplicas viram botões, não projetos.
 - **SaaS — Software as a Service.** Um produto pronto, usado por uma API ou pelo navegador: o provedor de pagamento, o provedor de e-mail, o fornecedor de observabilidade.
 
 A regra que nunca muda, em qualquer coluna: **seus dados, suas identidades e regras de acesso e sua configuração continuam sendo responsabilidade sua**[^4]. Um bucket S3 público é um erro do cliente, não uma falha do provedor.
+
+<div class="csim" data-sim="responsibility-stack" data-model="caas"></div>
+
+!!! tip "Experimente"
+    Escolha cada modelo sem evento: as camadas que seu time opera caem de **6** no on-premises para **5** no IaaS, **3** no CaaS (mais o sistema operacional dos nós, compartilhado), **2** no PaaS e no FaaS e **1** no SaaS. PaaS e FaaS têm a mesma coluna: o que muda é a unidade que você entrega (uma aplicação ou uma função) e a conta.
+
+    1. Escolha **Falha no JDK** e vá do IaaS ao PaaS: seu time age no IaaS e no CaaS (no CaaS o JDK está dentro da sua imagem); do PaaS em diante, quem age é o provedor.
+    2. Escolha **Abertura 20×**: ela atinge a camada de orquestração e escala. No IaaS seu time adiciona as VMs; do CaaS em diante a plataforma adiciona as instâncias, mas só dentro dos limites que seu time definiu (`maxReplicas`, o pré-escalonamento às 09:45). No on-premises a capacidade precisou ser comprada meses antes — o CapEx de [FinOps](finops/index.md#capex-opex).
+    3. Escolha **Falha no kernel** no CaaS: a única célula compartilhada — o provedor publica a imagem de nó corrigida e seu time troca os nós por ela (a não ser que os nós sejam Fargate ou Autopilot).
+    4. Escolha **Bucket público** e teste os seis modelos: quem age é sempre seu time.
+
+### Quem oferece cada modelo { #providers }
+
+As grandes nuvens oferecem quase todos os modelos; provedores menores costumam se especializar em um degrau da pilha. Leia a tabela por colunas: a AWS aparece em todas as linhas, porque **um modelo descreve um serviço, não uma empresa**.
+
+<div class="compact-table" markdown>
+
+| Modelo | AWS | Google Cloud | Microsoft Azure | Outros provedores |
+|---|---|---|---|---|
+| **IaaS** | EC2 | Compute Engine | Azure Virtual Machines | DigitalOcean Droplets, Oracle Cloud Compute, Magalu Cloud |
+| **CaaS** | EKS, ECS on Fargate | GKE (Standard, Autopilot), Cloud Run | AKS, Azure Container Apps | DigitalOcean Kubernetes, OVHcloud Managed Kubernetes |
+| **PaaS** | Elastic Beanstalk | App Engine | Azure App Service | Heroku, Railway, Render, Fly.io |
+| **FaaS** | Lambda | Cloud Run functions | Azure Functions | Cloudflare Workers, Vercel Functions |
+| **DBaaS** | RDS, Aurora, ElastiCache, MSK | Cloud SQL, AlloyDB, Memorystore | Azure Database for PostgreSQL, Azure Managed Redis | Neon, Supabase, Aiven, Confluent Cloud |
+| **SaaS** | Amazon SES (e-mail) | Google Workspace | Microsoft 365, Dynamics 365 | Stripe, Mercado Pago, Datadog, GitHub, TOTVS, RD Station |
+
+</div>
+
+Na AWS, o BoxOffice da próxima tabela é uma coluna só: EKS para os serviços, RDS e ElastiCache para os dados, MSK para o Kafka, S3 para os ingressos e Lambda para as miniaturas. Mas nada obriga a uma empresa por sistema: os pagamentos com cartão vão para um provedor de pagamento como Stripe ou Mercado Pago, o código e o CI ficam no GitHub e um componente pode mudar de provedor sem mudar o modelo dos outros. O que decide é o requisito de cada componente.
 
 ### BoxOffice, componente por componente { #boxoffice-component-by-component }
 
@@ -98,12 +127,12 @@ Não existe um único modelo "certo" para um sistema inteiro. Cada componente re
 | Componente | Paleta | Modelo escolhido | Por quê | Alternativa |
 |---|---|---|---|---|
 | Serviços `gateway`, `catalog`, `inventory`, `order`, `search` | [App Server](../../reference/components/compute/index.md#app) | **CaaS** (Kubernetes gerenciado) | Muitos serviços, ferramentas compartilhadas, controle fino de escala e rollout | PaaS enquanto o time é pequeno |
-| Inventário de assentos e pedidos | [SQL Database](../../reference/components/storage/index.md#sql) | **DBaaS** (PostgreSQL gerenciado, Multi-AZ) | Backups e failover são difíceis de acertar; os dados são o negócio | Autogerenciado no Kubernetes com um operator — só com um time forte de DBA |
+| Inventário de assentos e pedidos | [SQL Database](../../reference/components/storage/index.md#sql) | **DBaaS** (PostgreSQL gerenciado, Multi-AZ: um standby em uma segunda zona de disponibilidade) | Backups e failover são difíceis de acertar; os dados são o negócio | Autogerenciado no Kubernetes com um operator — só com um time forte de DBA |
 | Reservas, sessões, páginas quentes do catálogo | [Cache](../../reference/components/storage/index.md#cache) | **DBaaS** (compatível com Redis, gerenciado) | Mesmos motivos; o cache está no caminho crítico | Redis em um pod (só em dev) |
 | Eventos (pedidos, notificações) | [Kafka](../../reference/components/messaging/index.md#kafka) | **Kafka gerenciado** (Amazon MSK, Confluent Cloud) | Operar Kafka bem é uma especialidade | Operator Strimzi no Kubernetes |
 | PDFs de ingressos, imagens de eventos | [Object Store](../../reference/components/storage/index.md#objstore) | **Serviço de armazenamento nível IaaS** (S3, GCS, Blob) | Praticamente ilimitado, barato, durável | — |
 | Miniaturas de imagens, receptores de webhook | [Serverless](../../reference/components/compute/index.md#serverless) | **FaaS** | Em rajadas, orientado a eventos, ocioso na maior parte do tempo | Um deployment de workers |
-| Pagamentos com cartão | [Payment](../../reference/components/external/index.md#payment) | **SaaS** (provedor de pagamento) | Conformidade com dados de cartão (PCI DSS) não é o negócio central do BoxOffice | — |
+| Pagamentos com cartão | [Payment](../../reference/components/external/index.md#payment) | **SaaS** (provedor de pagamento) | Conformidade com dados de cartão (o padrão de segurança da indústria de cartões, PCI DSS, *Payment Card Industry Data Security Standard*) não é o negócio central do BoxOffice | — |
 | E-mail transacional | [Email](../../reference/components/external/index.md#email) | **SaaS** | Entregabilidade e reputação são um negócio à parte | — |
 
 ??? question "Pense primeiro: por que não rodar *tudo* em FaaS e nunca mais pensar em servidores?"
@@ -127,13 +156,13 @@ flowchart LR
     dev["Time de produto<br/>(order, inventory…)"] -->|"usa"| portal["Portal do desenvolvedor<br/>(ex.: Backstage)"]
     portal --> tmpl["Template de serviço<br/>Dockerfile · manifests · pipeline"]
     portal --> env["Ambientes self-service<br/>(namespace, banco, fila)"]
-    portal --> obs["Observabilidade embutida<br/>dashboards · alertas de SLO"]
+    portal --> obs["Observabilidade embutida<br/>dashboards · alertas"]
     tmpl --> plat["Plataforma: Kubernetes · Argo CD · módulos Terraform · políticas"]
     env --> plat
     obs --> plat
 ```
 
-Um bom caminho dourado é **opcional, mas atraente**: um novo serviço do BoxOffice criado a partir do template ganha uma imagem endurecida, manifests Kubernetes com probes e limites de recursos, um pipeline de CI com testes e varredura de imagem, um rollout canary, um dashboard RED e um alerta de SLO — no primeiro dia. O time pode sair do caminho quando tiver um motivo; a maioria nunca precisa.
+Um bom caminho dourado é **opcional, mas atraente**: um novo serviço do BoxOffice criado a partir do template ganha uma imagem endurecida, manifests Kubernetes com probes e limites de recursos, um pipeline de CI com testes e varredura de imagem, um rollout canary, um dashboard RED (taxa, erros, duração; *rate, errors, duration*) e um alerta sobre seu objetivo de nível de serviço (SLO, *service level objective*) — no primeiro dia. O time pode sair do caminho quando tiver um motivo; a maioria nunca precisa.
 
 | Abordagem | Ponto forte | Risco |
 |---|---|---|
@@ -159,8 +188,6 @@ flowchart LR
     c3 --> c6
     c5 -.- d1["SLIs, SLOs, error budgets<br/>(aulas 9 e 10)"]
     c2 -.- d2["serviços stateless,<br/>autoscaling (aula 5)"]
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |

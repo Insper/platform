@@ -82,7 +82,7 @@ $$
 
     - To keep up at peak: 100 × 0.8 = **80 workers** busy all the time.
     - With only 40 workers (capacity 50/s), the backlog grows by 50 jobs/s: after 10 minutes, **30,000 jobs** are waiting. The last fan waits about 30,000 / 50 = 600 s = **10 minutes** for the tickets, and after the peak the backlog drains at 50 − 10 = 40 jobs/s, taking another **12.5 minutes**.
-    - Is that acceptable? Only the SLO can say. If the promise is "tickets in your inbox within 5 minutes", 40 workers are not enough.
+    - Is that acceptable? Only the service level objective (SLO) can say. If the promise is "tickets in your inbox within 5 minutes", 40 workers are not enough.
 
 ```python exec="1" html="1"
 from io import StringIO
@@ -121,7 +121,7 @@ plt.close()
 
 Two lessons from the plot. First, a queue **converts a capacity problem into a delay**: nothing failed with 40 workers, fans just waited. Second, the **downstream sets the real limit**: if the e-mail provider accepts at most, say, 100 messages per second on your plan, 500 notification workers do not send faster — they only collect `429 Too Many Requests`. Size the worker pool for the slowest dependency and let the queue hold the rest.
 
-Scale workers on **queue depth or consumer lag**, not CPU: a worker waiting on a slow provider uses no CPU but is not free. [Serverless & autoscaling](../serverless-autoscaling/index.md#scaling-workers-on-queue-depth) shows how (KEDA).
+Scale workers on **queue depth or consumer lag**, not CPU: a worker waiting on a slow provider uses no CPU but is not free. [Serverless & autoscaling](../serverless-autoscaling/index.md#scaling-workers-on-queue-depth) shows how (Kubernetes Event-Driven Autoscaling, KEDA). To play with Little's law, utilization and the backlog of a spike, use the worker-pool simulator of [Messaging — queues and pub/sub](../../messaging/queues-pubsub/index.md).
 
 ### Try it in the playground
 
@@ -149,6 +149,23 @@ A queue is not magic: workers crash in the middle of jobs, brokers redeliver, pr
 | **Separate queues by priority** | a bulk job must not delay urgent ones | `tickets` (urgent) and `marketing-emails` (bulk) on different queues and pools |
 | **Record job status** | users and support need to see progress | `ticket_status = PENDING / ISSUED / FAILED` on the order |
 | **Respect downstream limits** | more parallelism than the provider allows = errors | a rate limiter in the notification worker |
+
+One ticket job's life under those rules (the retry schedule of the listener below):
+
+``` diagram-sim
+stateDiagram-v2
+    [*] --> Queued : OrderConfirmed published
+    Queued --> Running : a worker takes it
+    Running --> Done : PDF stored, then ack
+    Running --> Queued : worker crashed before the ack → redelivered
+    Running --> Backoff : failed, attempts 1 to 3
+    Backoff --> Queued : wait 1 s, 2 s, 4 s
+    Running --> DLQ : 4th attempt failed (poison)
+    DLQ --> Queued : code fixed, a human replays it
+    Done --> [*]
+```
+
+Two arrows go back to *Queued* without a human: that is why the job runs twice sometimes, and why it must be idempotent.
 
 A **poison message** is one that fails every time (a malformed payload, a bug). Without a retry limit it is retried forever and, on ordered partitions, blocks every message behind it. The DLQ parks it for a human (or a fixed version of the code) and lets the queue move on. Monitor the DLQ size: a growing DLQ is an incident.
 
@@ -185,11 +202,11 @@ class TicketJobListener {
 
 | Option | Durable? | Good for | Watch out |
 |---|---|---|---|
-| In-process (`@Async`, a thread pool) | **no** — lost on crash or deploy | fire-and-forget work you can afford to lose | not a queue; no retries, no visibility |
-| Redis-based queues (Sidekiq, Celery, BullMQ) | mostly (depends on persistence settings) | simple job queues with retries and schedules | Redis memory and persistence configuration |
-| Broker queues (SQS, RabbitMQ, Cloud Tasks) | yes | one job → one worker, per-message ack, delays, DLQ | ordering is weak or per group |
-| Event log (Kafka, Pub/Sub, Kinesis) | yes, replayable | many consumers of the same facts, high throughput, ordering per key | parallelism capped by partitions; offset-based acks |
-| Workflow engines (Temporal, AWS Step Functions) | yes, with state | multi-step processes that last minutes to days, with compensations | a new platform to learn and operate |
+| In-process (`@Async`, a thread pool) | ❌ **no** — lost on crash or deploy | fire-and-forget work you can afford to lose | not a queue; no retries, no visibility |
+| Redis-based queues (Sidekiq, Celery, BullMQ) | ⚠️ mostly (depends on persistence settings) | simple job queues with retries and schedules | Redis memory and persistence configuration |
+| Broker queues (SQS, RabbitMQ, Cloud Tasks) | ✅ yes | one job → one worker, per-message ack, delays, DLQ | ordering is weak or per group |
+| Event log (Kafka, Pub/Sub, Kinesis) | ✅ yes, replayable | many consumers of the same facts, high throughput, ordering per key | parallelism capped by partitions; offset-based acks |
+| Workflow engines (Temporal, AWS Step Functions) | ✅ yes, with state | multi-step processes that last minutes to days, with compensations | a new platform to learn and operate |
 
 **Durable execution** engines deserve a mention: when a process has many steps and waits — "event cancelled → refund 60,000 orders → e-mail each fan → wait 7 days → close the accounting" — writing it as a workflow, whose progress the engine persists after every step, is simpler and safer than chaining queues by hand[^4].
 
@@ -206,7 +223,7 @@ Some work is triggered by **time**, not by a request or an event:
 
 ### The duplicate-cron problem { #the-duplicate-cron-problem }
 
-The obvious implementation is a `@Scheduled` method in the service. It works on one replica. With 10 replicas, **the job runs 10 times**: 10 reminder e-mails per fan, 10 concurrent sweeps fighting over the same rows. The same happens with a cron entry copied to every VM. There are four standard fixes:
+The obvious implementation is a `@Scheduled` method in the service. It works on one replica. With 10 replicas, **the job runs 10 times**: 10 reminder e-mails per fan, 10 concurrent sweeps fighting over the same rows. The same happens with a cron entry copied to every virtual machine (VM). There are four standard fixes:
 
 === "Kubernetes CronJob"
 
@@ -316,7 +333,7 @@ BoxOffice's rule: **correctness never waits for the scheduler**. A hold whose `e
     ```
 
 !!! example "Opening the sale at 10:00"
-    Do not make "the sale opens" depend on a cron firing exactly at 10:00:00 — schedulers are late by seconds, and a missed run would mean no sale. Store `onSaleAt = 10:00:00` with the event; `inventory` simply rejects holds before that instant (a check against the clock, with clocks synchronized by NTP — [distributed](../../distributed/index.md)). The scheduler only does the *preparation*: at 09:45 it scales the fleet up and warms the caches ([serverless & autoscaling](../serverless-autoscaling/index.md#scheduled-and-predictive-scaling)).
+    Do not make "the sale opens" depend on a cron firing exactly at 10:00:00 — schedulers are late by seconds, and a missed run would mean no sale. Store `onSaleAt = 10:00:00` with the event; `inventory` simply rejects holds before that instant (a check against the clock, with clocks synchronized by the Network Time Protocol (NTP) — [distributed](../../distributed/index.md)). The scheduler only does the *preparation*: at 09:45 it scales the fleet up and warms the caches ([serverless & autoscaling](../serverless-autoscaling/index.md#scheduled-and-predictive-scaling)).
 
 The `notification-system` scenario combines a scheduler, a queue and the e-mail/push providers. Try raising the scheduler's job count to simulate the 24-hour reminder burst, and watch where the backlog builds up.
 

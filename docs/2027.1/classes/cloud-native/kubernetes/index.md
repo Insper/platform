@@ -43,9 +43,9 @@ This is why Kubernetes **self-heals**: a crashed process, a deleted pod or a dea
 | **API server** | Control plane | The only entry point; validates and stores objects; everything else *watches* it |
 | **etcd** | Control plane | Strongly consistent key-value store (Raft consensus) holding the cluster state |
 | **Scheduler** | Control plane | Chooses a node for each new pod (free resources, affinity, spread constraints) |
-| **Controller manager** | Control plane | Runs the controllers (Deployment, ReplicaSet, Job, Node, HPA…) |
+| **Controller manager** | Control plane | Runs the controllers (Deployment, ReplicaSet, Job, Node, Horizontal Pod Autoscaler (HPA)…) |
 | **kubelet** | Every node | Starts the pod's containers through the container runtime (containerd), runs probes, reports status |
-| **kube-proxy / CNI plugin** | Every node | Implements Service virtual IPs and pod networking (iptables, IPVS or eBPF, e.g. Cilium) |
+| **kube-proxy / CNI (Container Network Interface) plugin** | Every node | Implements Service virtual IPs and pod networking (iptables, IPVS or eBPF, e.g. Cilium) |
 
 With a managed service (EKS, GKE, AKS) the provider runs and upgrades the control plane; you manage the nodes — or, with GKE Autopilot or EKS on Fargate, not even those.
 
@@ -168,7 +168,7 @@ The **Gateway API** (`Gateway` + `HTTPRoute`) is the successor of the older `Ing
 
 !!! example "In the BoxOffice code: `catalog` on a kind cluster (lab 10)"
 
-    [Hands-on 10 — Deploy BoxOffice](../../../hands-on/10/deploy/index.md) runs the same pieces with laptop-sized numbers: 2 replicas (the HPA takes over), a request of 250m CPU and 512 Mi, and a Traefik `Ingress` (the Gateway API `HTTPRoute` is in `catalog-route.yaml`, as an alternative). Look at three choices. The startup probe allows up to **5 minutes**, because the first start also runs the Flyway migrations, and Kubernetes has no `depends_on`: `catalog` restarts until PostgreSQL answers. Liveness checks only the JVM, so a database blip does not restart every pod. And the lab keeps a **1-CPU limit**, the same "server" as Compose in lab 1, so the numbers stay comparable with the earlier labs — at the price of the throttling described [below](#requests-limits).
+    [Hands-on 10 — Deploy BoxOffice](../../../hands-on/10/deploy/index.md) runs the same pieces with laptop-sized numbers: 2 replicas (the HPA takes over), a request of 250m CPU and 512 Mi, and a Traefik `Ingress` (the Gateway API `HTTPRoute` is in `catalog-route.yaml`, as an alternative). Look at three choices. The startup probe allows up to **5 minutes**, because the first start also runs the Flyway migrations, and Kubernetes has no `depends_on`: `catalog` restarts until PostgreSQL answers. Liveness checks only the Java virtual machine (JVM), so a database blip does not restart every pod. And the lab keeps a **1-CPU limit**, the same "server" as Compose in lab 1, so the numbers stay comparable with the earlier labs — at the price of the throttling described [below](#requests-limits).
 
     ``` { .yaml title="k8s/base/catalog.yaml (lab 10: resources, probes, graceful shutdown)" }
     --8<-- "docs/2027.1/hands-on/10/code/k8s/base/catalog.yaml:45:70"
@@ -195,9 +195,9 @@ Keep liveness **local** (is the JVM responsive?) and make readiness reflect only
 
 | QoS class | Rule | Evicted under node pressure |
 |---|---|---|
-| **Guaranteed** | requests = limits for CPU and memory | Last |
-| **Burstable** | some requests set, lower than limits | Middle |
-| **BestEffort** | nothing set | First |
+| **Guaranteed** | requests = limits for CPU and memory | 🟢 Last |
+| **Burstable** | some requests set, lower than limits | 🟡 Middle |
+| **BestEffort** | nothing set | 🔴 First |
 
 !!! warning "CPU limits and latency"
 
@@ -208,6 +208,18 @@ Keep liveness **local** (is the JVM responsive?) and make readiness reflect only
 ## Losing a node { #losing-a-node }
 
 The control loop replaces lost pods, but self-healing needs two things the loop does not provide. The replacement pods need **room**: the scheduler places a pod only on a node whose free capacity covers its requests, so in a cluster packed to 100% the pods of a dead node stay `Pending`. And callers must **stop sending to the dead pods**: until the node is declared `NotReady` (tens of seconds by default) and the Service endpoints are updated, part of the traffic still goes to pods that no longer exist. These are the two rules of redundancy and failover from the [Reliability class](../../reliability/index.md), at the level of nodes: N + 1 capacity, and fast failure detection.
+
+The same failure, step by step, for a node that held two `catalog` pods:
+
+``` diagram-sim
+flowchart LR
+    dead["a node dies with<br/>2 catalog pods"]:::problem --> miss["callers still send to its pods<br/>(tens of seconds)"]:::problem
+    miss --> nr["node NotReady,<br/>endpoints updated"]
+    nr --> evict["pods evicted when the<br/>tolerations expire (5 min by default)"]
+    evict --> room{"room for their requests<br/>on the other nodes?"}
+    room -->|"yes: N + 1 nodes"| run["replacements scheduled,<br/>JVM starts, ready"]
+    room -->|"no: cluster packed full"| pend["replacements stay Pending,<br/>survivors carry the load"]:::problem
+```
 
 **Try it:** in `k8s-node-failure`, `catalog` and `pricing` run 6 pods each on 3 nodes × 4 pods — a full cluster — and at t = 60 s one node dies.
 

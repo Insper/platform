@@ -1,6 +1,18 @@
 Chega a primeira fatura real do ambiente de produção do BoxOffice e ela é três vezes a estimativa. Ninguém sabe explicar por quê: os custos estão espalhados em quarenta itens, metade deles com nomes como `USE1-NatGateway-Bytes` e `DataTransfer-Regional-Bytes`, e nenhum recurso tem uma tag com o serviço que o criou. Na nuvem, **toda decisão de arquitetura é também uma decisão de compra** — e a fatura é a única métrica que todo executivo lê.
 
-**FinOps** (operações financeiras de nuvem) é a prática de trazer responsabilidade financeira ao modelo de gastos variáveis da nuvem, para que engenharia, finanças e negócio façam juntos os trade-offs entre velocidade, custo e qualidade[^1]. Para quem projeta sistemas, isso se resume a três habilidades: **estimar** quanto uma arquitetura vai custar, **atribuir** quanto ela de fato custa e **otimizar** sem quebrar os SLOs[^2].
+**FinOps** (operações financeiras de nuvem) é a prática de trazer responsabilidade financeira ao modelo de gastos variáveis da nuvem, para que engenharia, finanças e negócio façam juntos os trade-offs entre velocidade, custo e qualidade[^1]. Para quem projeta sistemas, isso se resume a três habilidades: **estimar** quanto uma arquitetura vai custar, **atribuir** quanto ela de fato custa e **otimizar** sem quebrar os objetivos de nível de serviço (SLOs, *service level objectives*)[^2].
+
+---
+
+## De CapEx para OpEx { #capex-opex }
+
+Antes da nuvem, o BoxOffice teria comprado seus servidores. Isso é **despesa de capital (CapEx, *capital expenditure*)**: um pagamento grande adiantado por hardware dimensionado para o pico que você *espera*, usado por anos. A nuvem transforma isso em **despesa operacional (OpEx, *operational expenditure*)**: uma conta mensal pelo que você *usa*.
+
+--8<-- "docs/2027.1/classes/cloud-native/finops/capex-opex.pt.svg"
+
+Com CapEx, a capacidade cresce em degraus comprados com meses de antecedência, então nunca acompanha a demanda: depois de cada compra você paga por capacidade **ociosa** e antes de a próxima chegar a demanda passa dela e é **perdida**. Com OpEx, a capacidade acompanha a demanda com uma pequena margem. Para o BoxOffice a diferença é a abertura de vendas: hardware próprio precisa manter os 30 nós do pico o mês inteiro, enquanto na nuvem 6 nós rodam o mês todo e outros 24 existem só nas 8 horas das quatro aberturas (o [modelo de custo](#cost-model) abaixo dá um preço aos dois).
+
+OpEx elimina a aposta adiantada, mas não é automaticamente mais barato: uma carga em uso total 24/7 durante anos pode custar menos em capacidade própria ou comprometida, que é o que os compromissos dos [modelos de preço](#pricing-models) vendem. E uma conta que segue o uso também segue cada erro — um request superdimensionado, um cluster esquecido, um log falante — dentro do mês. Manter essa conta variável sob controle é o trabalho de FinOps.
 
 ---
 
@@ -15,7 +27,7 @@ flowchart LR
     operate --> inform
 ```
 
-- **Informar** — não dá para otimizar o que não se vê. Todo recurso leva tags (`project`, `env`, `service`, `team`); os custos do Kubernetes são divididos por namespace e label a partir dos **requests de recursos** dos pods (ferramentas como o projeto da CNCF OpenCost[^4], ou o Kubecost). O resultado é o **showback** (os times veem seus custos) ou o **chargeback** (os times são cobrados internamente).
+- **Informar** — não dá para otimizar o que não se vê. Todo recurso leva tags (`project`, `env`, `service`, `team`); os custos do Kubernetes são divididos por namespace e label a partir dos **requests de recursos** dos pods (ferramentas como o projeto OpenCost da CNCF (*Cloud Native Computing Foundation*)[^4], ou o Kubecost). O resultado é o **showback** (os times veem seus custos) ou o **chargeback** (os times são cobrados internamente).
 - **Otimizar** — reduzir desperdício (recursos ociosos e superdimensionados) e pagar menos por unidade (compromissos, spot, arquiteturas mais baratas).
 - **Operar** — orçamentos com alertas, detecção de anomalias no gasto diário, políticas (nenhum recurso sem tag, nada de instâncias com GPU em dev) e uma revisão mensal de custos ao lado da revisão de SLOs.
 
@@ -26,9 +38,9 @@ flowchart LR
 | Tipo de custo | Cobrado por | Exemplos no BoxOffice | Atenção a |
 |---|---|---|---|
 | **Computação** | vCPU-hora e GB-hora (VMs, containers), ou requisição + GB-segundo (FaaS) | Nós do Kubernetes, miniaturas no Lambda | Réplicas ociosas, requests superdimensionados |
-| **Serviços gerenciados** | Hora de instância + armazenamento + I/O | PostgreSQL, Redis, Kafka | Multi-AZ dobra a instância; réplicas se somam |
+| **Serviços gerenciados** | Hora de instância + armazenamento + I/O | PostgreSQL, Redis, Kafka | Multi-AZ (um standby em uma segunda zona de disponibilidade, AZ) dobra a instância; réplicas se somam |
 | **Armazenamento** | GB-mês, mais requisições | PDFs de ingressos no S3, volumes de banco, snapshots | Snapshots e logs guardados para sempre |
-| **Transferência de dados** | GB movido | Saída da CDN para os fãs, tráfego entre AZs entre serviços, processamento no NAT | Saída para a internet e tráfego **entre AZs** são cobrados; a entrada geralmente não |
+| **Transferência de dados** | GB movido | Saída da rede de distribuição de conteúdo (CDN, *content delivery network*) para os fãs, tráfego entre AZs entre serviços, processamento no NAT (tradução de endereços de rede, *network address translation*) | Saída para a internet e tráfego **entre AZs** são cobrados; a entrada geralmente não |
 | **Itens fixos por hora** | Hora, com ou sem uso | Control plane do Kubernetes, load balancers, NAT gateways, endereços IPv4 públicos | Dominam ambientes pequenos e de não produção |
 | **Observabilidade** | GB ingerido, retido, consultado; séries ativas | Logs, métricas, traces | Métricas de alta cardinalidade e logs de debug em produção |
 | **SaaS de terceiros** | Por transação ou por assento | Taxas de pagamento (uma porcentagem do preço do ingresso), e-mail por milhar | Frequentemente maior que toda a infraestrutura — mas é um custo do negócio |

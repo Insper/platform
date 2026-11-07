@@ -13,15 +13,15 @@ The edge ([class 4](../edge/index.md)) decides *where* each request goes. This c
     - **Explain** why application servers should be stateless and **move** each kind of state (sessions, files, caches, schedules) to the right place.
     - **Estimate** how many replicas a service needs for a given peak, using per-instance capacity and a target utilization.
     - **Compare** a monolith, a modular monolith and microservices, and **justify** service boundaries with bounded contexts and Conway's law.
-    - **Choose** an API style (REST, gRPC, GraphQL, asynchronous) for an interaction and **evolve** a contract without breaking its consumers.
+    - **Choose** an API style for an interaction — representational state transfer (REST), gRPC, GraphQL or asynchronous — and **evolve** a contract without breaking its consumers.
     - **Design** background work with queues, workers and schedulers that are safe under retries and multiple replicas.
-    - **Decide** between containers and serverless, and **configure** autoscaling (target tracking, HPA, queue-based, scheduled) for a spiky workload.
+    - **Decide** between containers and serverless, and **configure** autoscaling for a spiky workload: target tracking, the Horizontal Pod Autoscaler (HPA), queue-based and scheduled.
     - **Integrate** an external provider safely: idempotency keys, verified webhooks, retries with backoff, reconciliation and a plan for provider outages.
 
 ## Roadmap
 
 1. **This overview** — the compute palette, stateless app servers, horizontal scaling and how many replicas you need.
-2. [Services](services/index.md) — monolith, modular monolith and microservices; DDD bounded contexts; Conway's law; the architecture *inside* a service; auth, search, notifications and analytics as services.
+2. [Services](services/index.md) — monolith, modular monolith and microservices; Domain-Driven Design (DDD) bounded contexts; Conway's law; the architecture *inside* a service; auth, search, notifications and analytics as services.
 3. [API styles](api-styles/index.md) — REST, gRPC, GraphQL and asynchronous APIs for the same BoxOffice resource; contracts, OpenAPI and versioning.
 4. [Async work](async-work/index.md) — workers and background jobs, job design, schedulers, distributed locks and leader election.
 5. [Serverless & autoscaling](serverless-autoscaling/index.md) — functions as a service, cold starts and concurrency; autoscaling policies, HPA and why reactive scaling lags a flash sale.
@@ -48,7 +48,7 @@ In the [System Design Playground](../../../playground/index.md), the **COMPUTE**
 | [App Server](../../reference/components/compute/index.md#app) | Request/response handlers behind a load balancer | `catalog`, `inventory`, `order` | requests per second, CPU |
 | [Worker](../../reference/components/compute/index.md#worker) | Jobs pulled from a queue, outside any user request | ticket PDF generation, e-mail sending | queue depth, consumer lag |
 | [Serverless](../../reference/components/compute/index.md#serverless) | Short functions started per event by the platform | resize an artist image on upload; receive webhooks | concurrent invocations |
-| [Auth Service](../../reference/components/compute/index.md#auth) | Login, tokens, sessions, identity | `auth` issues JWTs for fans and staff | logins per second (spikes at on-sale) |
+| [Auth Service](../../reference/components/compute/index.md#auth) | Login, tokens, sessions, identity | `auth` issues JSON Web Tokens (JWTs) for fans and staff | logins per second (spikes at on-sale) |
 | [Search](../../reference/components/compute/index.md#search) | Full-text and faceted queries over an index | "coldplay são paulo" → events | queries per second, index size |
 | [Scheduler](../../reference/components/compute/index.md#scheduler) | Time-triggered work (cron, delayed jobs) | open the sale at 10:00; release expired holds | number of jobs, precision |
 | [Notifications](../../reference/components/compute/index.md#notifications) | Fan-out to e-mail, push and SMS providers | "your tickets are here" | messages per second, provider limits |
@@ -83,7 +83,7 @@ The replicas are interchangeable boxes; the state is in the shared stores on the
 |---|---|---|
 | HTTP session in memory (cart, login) | The next request may hit another replica → "you were logged out" | A signed token on the client (JWT) or a session store (Redis) |
 | Uploaded files on local disk | Other replicas cannot see them; lost when the pod dies | Object store (S3, GCS, MinIO) |
-| In-process cache | Each replica has a different, stale copy | A distributed cache (Redis) — or accept short TTLs per replica |
+| In-process cache | Each replica has a different, stale copy | A distributed cache (Redis) — or accept short times to live (TTLs) per replica |
 | Scheduled jobs inside the app (`@Scheduled`) | With 10 replicas the job runs 10 times | A [scheduler with a lock or a leader](async-work/index.md#schedulers) |
 | Counters and rate limits in memory | Each replica counts only its share | Redis (`INCR`) or the API gateway |
 | WebSocket connections | A connection *is* state, pinned to one replica | Keep it, but publish messages through pub/sub so any replica can reach any user |
@@ -99,7 +99,7 @@ This is factor VI of the *Twelve-Factor App*: "execute the app as one or more st
 
 !!! example "In the BoxOffice code: no session in any replica (lab 4)"
 
-    [Hands-on 4 — Gateway](../../hands-on/4/gateway/index.md) keeps no login session anywhere. The fan's JWT travels on every request, and the gateway checks its signature with the public key of `auth`, fetched once from its JWKS endpoint: no replica remembers the fan, so the gateway can send each request to any of the three `catalog` replicas (`lb://catalog`), and losing one loses nothing. The price is revocation: a token stays valid until it expires (one hour here, `jwt.ttl`), as [Identity](../edge/identity/index.md#gateway-validation) explains.
+    [Hands-on 4 — Gateway](../../hands-on/4/gateway/index.md) keeps no login session anywhere. The fan's JWT travels on every request, and the gateway checks its signature with the public key of `auth`, fetched once from its JSON Web Key Set (JWKS) endpoint: no replica remembers the fan, so the gateway can send each request to any of the three `catalog` replicas (`lb://catalog`), and losing one loses nothing. The price is revocation: a token stays valid until it expires (one hour here, `jwt.ttl`), as [Identity](../edge/identity/index.md#gateway-validation) explains.
 
     ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (stateless security)" }
     --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:22:41"
@@ -113,10 +113,10 @@ There are two ways to give a service more capacity:
 
 | | **Vertical scaling** (scale up) | **Horizontal scaling** (scale out) |
 |---|---|---|
-| How | A bigger machine: more vCPUs, more memory | More machines (replicas) behind a load balancer |
+| How | A bigger machine: more virtual CPUs (vCPUs), more memory | More machines (replicas) behind a load balancer |
 | Limit | The biggest instance type; price grows faster than size | The shared stores behind the replicas |
-| Availability | One box: its failure is your outage | Replicas cover for each other |
-| Downtime to change | Usually a restart | None — add and remove replicas live |
+| Availability | ❌ One box: its failure is your outage | ✅ Replicas cover for each other |
+| Downtime to change | ⚠️ Usually a restart | ✅ None — add and remove replicas live |
 | Requires | Nothing from the code | **Stateless** app servers |
 | Good for | Databases, quick fixes, small systems | App servers, workers, anything stateless |
 
@@ -124,7 +124,7 @@ App servers are scaled **out** almost by default, because statelessness makes it
 
 ### How many replicas?
 
-The question every design has to answer with a number. Start from one replica's capacity, measured with a load test ([hands-on 2](../../hands-on/2/index.md)), and the peak load from your estimate ([class 2](../estimation/index.md)):
+The question every design has to answer with a number. Start from one replica's capacity in requests per second (RPS), measured with a load test ([hands-on 2](../../hands-on/2/index.md)), and the peak load from your estimate ([class 2](../estimation/index.md)):
 
 $$
 N = \left\lceil \frac{\text{peak RPS}}{\text{RPS per replica} \times \text{target utilization}} \right\rceil + \text{spare}
@@ -235,10 +235,10 @@ The same stateless service can run on very different substrates. The choice chan
 
 | Shape | Unit you deploy | Scaling speed | You manage | Pay for | Typical use |
 |---|---|---|---|---|---|
-| **Virtual machine** | VM image | minutes | OS, runtime, app | provisioned hours | legacy, special hardware, databases |
+| **Virtual machine (VM)** | VM image | minutes | operating system (OS), runtime, app | provisioned hours | legacy, special hardware, databases |
 | **Containers on Kubernetes** | container image | seconds (pod) to minutes (node) | the cluster (or a managed one), the app | nodes, even when idle | the default for services |
 | **Serverless containers** (Cloud Run, Fargate, Container Apps) | container image | seconds, to zero | the app | per request or per vCPU-second | APIs with idle periods |
-| **Functions (FaaS)** (Lambda, Cloud Functions) | a function | sub-second to seconds, to zero | a function | per invocation and duration | event glue, webhooks, bursty work |
+| **Functions as a Service (FaaS)** (Lambda, Cloud Functions) | a function | sub-second to seconds, to zero | a function | per invocation and duration | event glue, webhooks, bursty work |
 
 Class 11 ([cloud-native](../cloud-native/index.md)) covers containers and Kubernetes in depth; this class covers the decisions that depend on the *workload*: [serverless and autoscaling](serverless-autoscaling/index.md).
 
@@ -260,21 +260,19 @@ flowchart LR
     shared -.- c6["bounded contexts,<br/>event-fed, own their data"]:::tech
     app --> ext["payment · email ·<br/>thirdparty"]:::comp
     ext -.- c7["idempotency keys, webhooks,<br/>reconciliation"]:::tech
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Palette component | Question it answers | Concepts | Taught in | Scenarios |
 |---|---|---|---|---|
 | [`app`](../../reference/components/compute/index.md#app) | Where does request/response logic run, and how does it scale? | stateless replicas, sizing at 50–70%, life cycle, API contracts | [this overview](#stateless-app-servers), [API Styles](api-styles/index.md) | `monolith`, `scale-out` |
-| [`worker`](../../reference/components/compute/index.md#worker) | What runs outside the user's request? | jobs on a queue, workers = rate × time per job, at least once, DLQ | [Async Work](async-work/index.md) | `async-queue` |
+| [`worker`](../../reference/components/compute/index.md#worker) | What runs outside the user's request? | jobs on a queue, workers = rate × time per job, at least once, dead-letter queue (DLQ) | [Async Work](async-work/index.md) | `async-queue` |
 | [`scheduler`](../../reference/components/compute/index.md#scheduler) | What runs at a given time — once, not once per replica? | CronJob, distributed lock, leader election, fencing tokens, lazy expiry | [Async Work — schedulers](async-work/index.md#schedulers) | `notification-system` |
 | [`serverless`](../../reference/components/compute/index.md#serverless) | What should scale per request, and down to zero? | FaaS, cold starts, concurrency = rate × duration, cost per use | [Serverless & Autoscaling](serverless-autoscaling/index.md) | `serverless-burst` |
 | [`auth`](../../reference/components/compute/index.md#auth) | Who is the caller? | identities and tokens, buy before build, validation at the gateway | [Services](services/index.md) | `flash-sale` (login bursts) |
 | [`search`](../../reference/components/compute/index.md#search) · [`analytics`](../../reference/components/compute/index.md#analytics) | How do derived views stay off the request path? | derived data, fed by events, rebuildable from the source of truth | [Services](services/index.md) | `search-autocomplete`, `event-fanout` |
 | [`notifications`](../../reference/components/compute/index.md#notifications) · [`email`](../../reference/components/external/index.md#email) | How do messages reach fans despite provider limits? | queue-driven workers, provider rate limits, bounces, a secondary provider | [Services](services/index.md), [Integrations — provider outages](integrations/index.md#provider-outages) | `notification-system` |
 | [`payment`](../../reference/components/external/index.md#payment) · [`thirdparty`](../../reference/components/external/index.md#thirdparty) | How do we depend on systems we do not control? | adapters, idempotency keys, UNKNOWN outcomes, webhooks, reconciliation | [Integrations](integrations/index.md) | `payment-system`, `cascading-failure`, `retry-storm` |
-| *(the whole tier)* | How many replicas, and when? | HPA, KEDA, queue-depth scaling, scheduled scaling, autoscaling lag | [Serverless & Autoscaling — lag](serverless-autoscaling/index.md#autoscaling-lag) | `scale-out`, `flash-sale` |
+| *(the whole tier)* | How many replicas, and when? | HPA, Kubernetes Event-Driven Autoscaling (KEDA), queue-depth scaling, scheduled scaling, autoscaling lag | [Serverless & Autoscaling — lag](serverless-autoscaling/index.md#autoscaling-lag) | `scale-out`, `flash-sale` |
 
 !!! tip "In the interview"
 

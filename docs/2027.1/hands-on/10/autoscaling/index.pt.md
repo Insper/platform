@@ -17,7 +17,7 @@ $$
 \text{réplicas desejadas} = \left\lceil \text{réplicas atuais} \times \frac{\text{utilização atual}}{\text{utilização alvo}} \right\rceil
 $$
 
-Com 2 pods a 150% do seu request de CPU e um alvo de 60%: ⌈2 × 150 / 60⌉ = 5 pods. A utilização é uma
+Com 2 pods a 150% do seu request de unidade central de processamento (CPU, *central processing unit*) e um alvo de 60%: ⌈2 × 150 / 60⌉ = 5 pods. A utilização é uma
 porcentagem do **request** (250m), não do nó: um pod usando 150m está a 60%.
 
 | Campo do `behavior` | Por que existe |
@@ -26,6 +26,23 @@ porcentagem do **request** (250m), não do nó: um pod usando 150m está a 60%.
 | `scaleUp.policies` (100% ou +2 pods a cada 15 s) | crescimento limitado: no máximo dobra por período, então uma leitura ruidosa não explode o deployment |
 | `scaleDown.stabilizationWindowSeconds: 120` | usa a recomendação *mais alta* dos últimos 2 min — sem oscilação quando a carga oscila |
 | `scaleDown.policies` (1 pod a cada 30 s) | libera capacidade devagar; escalar para baixo rápido demais dispara o scale-up de novo |
+
+Uma volta desse laço, como ele roda neste lab:
+
+``` diagram-sim
+flowchart LR
+    ms["metrics-server<br/>CPU de cada pod"]:::tech --> hpa["HPA, a cada 15 s<br/>desejado = ceil(atual × CPU / 60%)"]:::comp
+    hpa --> pol["behavior<br/>no máximo dobra ou +2 pods a cada 15 s"]:::tech
+    pol --> dep["Deployment catalog<br/>replicas: de 2 a 8"]:::comp
+    dep --> pod["pod novo<br/>partida da JVM e probes: dezenas de segundos"]:::problem
+    pod --> ready["pronto: recebe a sua parte do tráfego<br/>e a CPU média cai"]:::comp
+    ready --> ms
+```
+
+A caixa lenta é o pod novo: o HPA decide em segundos, mas a capacidade só chega quando uma JVM está
+pronta. A [página de Kubernetes](../../../classes/cloud-native/kubernetes/index.md#autoscaling) da aula
+simula este HPA com os números do `catalog-hpa.yaml`: rode o pico das 10:00 lá antes de carregar o seu
+cluster.
 
 ??? question "Por que CPU e quando ela é o sinal errado?"
 
@@ -53,7 +70,7 @@ volta. O observador registra o que o HPA vê e decide a cada 5 segundos.
     --8<-- "docs/2027.1/hands-on/10/code/scripts/watch-hpa.sh"
     ```
 
-Comece com pods **aquecidos**. Uma JVM que acabou de iniciar queima CPU compilando código e o HPA
+Comece com pods **aquecidos**. Uma máquina virtual Java (JVM, *Java virtual machine*) que acabou de iniciar queima CPU compilando código e o HPA
 escala com essa CPU também: numa execução de teste iniciada logo depois de um rollout, `PEAK=250` levou
 o `catalog` a 8 réplicas, as liveness probes estouraram o timeout com as CPUs ocupadas, pods
 reiniciaram e o k6 viu 26% de erros. A mesma execução com pods aquecidos nunca saiu de 2 réplicas.
@@ -95,7 +112,7 @@ aquecidos ficaram em cerca de 40% com 250 req/s e passaram de 60% por volta de 6
 
 - **Sem requests, sem HPA.** A utilização é relativa a `resources.requests.cpu`; sem requests o HPA
   reporta `<unknown>` e não faz nada.
-- **O aquecimento da JVM parece carga.** Uma JVM iniciando queima CPU (carregamento de classes, JIT):
+- **O aquecimento da JVM parece carga.** Uma JVM iniciando queima CPU (carregamento de classes, compilação *just-in-time*, JIT):
   pods novos podem empurrar a média para cima e disparar *mais* scale-up. A startup probe mantém os
   pods não prontos fora do tráfego, mas a CPU deles ainda conta; a janela de estabilização e a
   política de scale-up limitam o estrago.

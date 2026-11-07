@@ -31,7 +31,7 @@ Dois recursos do kernel fazem o trabalho[^4]:
 
 | | Máquina virtual | Container |
 |---|---|---|
-| Fronteira de isolamento | Hardware (hipervisor) — forte | Kernel (namespaces) — mais fraca; um bug no kernel afeta todos |
+| Fronteira de isolamento | ✅ Hardware (hipervisor) — forte | ⚠️ Kernel (namespaces) — mais fraca; um bug no kernel afeta todos |
 | Tempo de inicialização | Dezenas de segundos a minutos (boot de um SO) | Milissegundos a segundos (iniciar um processo) |
 | Tamanho | Gigabytes (um SO completo) | Megabytes a algumas centenas de MB |
 | Densidade por host | Dezenas | Centenas |
@@ -39,7 +39,7 @@ Dois recursos do kernel fazem o trabalho[^4]:
 
 Como o isolamento é mais fraco, provedores de nuvem que executam containers de *outros clientes* em hosts compartilhados os envolvem em VMs leves (AWS Firecracker sob o Lambda e o Fargate, gVisor sob o Google Cloud Run). Para os seus serviços nos seus nós, containers comuns são a norma.
 
-!!! warning "A JVM precisa saber que está em um container"
+!!! warning "A máquina virtual Java (JVM, *Java virtual machine*) precisa saber que está em um container"
 
     Uma JVM que dimensiona o heap pela memória do *host* (64 GB) dentro de um container limitado a 1 GiB será morta pelo kernel na primeira vez que crescer. JVMs modernas (Java 10+) leem os limites do cgroup; dimensione o heap como porcentagem do limite do container com `-XX:MaxRAMPercentage=75` e deixe espaço para metaspace, pilhas de threads e buffers diretos.
 
@@ -104,9 +104,9 @@ Cada linha tem um motivo:
 
 | Escolha | Efeito |
 |---|---|
-| Copiar o `pom.xml` e resolver as dependências **antes** de copiar `src` | Uma mudança de código reconstrói só as últimas camadas; os builds de CI caem de minutos para segundos |
+| Copiar o `pom.xml` e resolver as dependências **antes** de copiar `src` | Uma mudança de código reconstrói só as últimas camadas; os builds de integração contínua (CI, *continuous integration*) caem de minutos para segundos |
 | Extração do **jar em camadas** do Spring Boot | Os ~60 MB de dependências viram uma camada que muda raramente[^3]; um deploy envia apenas a camada da aplicação, de algumas centenas de KB |
-| Imagem base **distroless** | Sem shell, sem gerenciador de pacotes: menor superfície de ataque e menos CVEs para corrigir (Alpine ou `eclipse-temurin:21-jre` são alternativas comuns) |
+| Imagem base **distroless** | Sem shell, sem gerenciador de pacotes: menor superfície de ataque e menos vulnerabilidades conhecidas (CVEs, *Common Vulnerabilities and Exposures*) para corrigir (Alpine ou `eclipse-temurin:21-jre` são alternativas comuns) |
 | `USER nonroot` | Um processo comprometido não é root dentro do container |
 | `MaxRAMPercentage=75` | O heap acompanha o limite de memória do container |
 | `ExitOnOutOfMemoryError` | Uma JVM em mau estado morre rápido e é substituída, em vez de continuar mancando |
@@ -123,7 +123,7 @@ docker run --rm -p 8080:8080 --memory=512m --cpus=1 \
 
 !!! example "BoxOffice: o que o multi-stage nos deu"
 
-    Com a imagem ingênua de um único estágio (JDK + Maven + fontes) o time mediu uma imagem de cerca de 800 MB; a imagem distroless multi-stage ficou abaixo de 250 MB e uma mudança típica de código enviava uma única camada pequena. Seus números serão diferentes — meça com `docker image ls` e `docker history` —, mas a ordem de grandeza é típica. Imagens menores importam para a **velocidade de escala**: quando o HPA adiciona 20 pods durante a venda, cada nó novo precisa baixar a imagem antes que o pod possa iniciar.
+    Com a imagem ingênua de um único estágio (JDK + Maven + fontes) o time mediu uma imagem de cerca de 800 MB; a imagem distroless multi-stage ficou abaixo de 250 MB e uma mudança típica de código enviava uma única camada pequena. Seus números serão diferentes — meça com `docker image ls` e `docker history` —, mas a ordem de grandeza é típica. Imagens menores importam para a **velocidade de escala**: quando o autoescalador horizontal de pods (HPA, *Horizontal Pod Autoscaler*) adiciona 20 pods durante a venda, cada nó novo precisa baixar a imagem antes que o pod possa iniciar.
 
 !!! example "No código do BoxOffice: a imagem do `catalog` (lab 1)"
 
@@ -145,6 +145,22 @@ spring:
     timeout-per-shutdown-phase: 20s
 ```
 
+A sequência inteira, quando um rolling update ou uma redução de escala remove um pod do `catalog`. A remoção dos endpoints e o `SIGTERM` começam no mesmo instante, então uma pausa curta no `preStop` (5 s nos [manifests do Kubernetes](../kubernetes/index.md#boxoffices-catalog-on-kubernetes)) deixa cada proxy parar de rotear para o pod antes de a JVM parar de aceitar:
+
+``` diagram-sim
+sequenceDiagram
+    participant K as Kubernetes (API, kubelet)
+    participant E as Endpoints do Service, Traefik
+    participant P as pod do catalog (JVM)
+    K->>E: pod Terminating, remove dos endpoints
+    K->>P: roda o hook preStop, dorme 5 s
+    Note over E,P: os proxies se atualizam em segundos, requisições atrasadas ainda chegam e são atendidas
+    K->>P: SIGTERM
+    P->>P: para de aceitar, termina as requisições em andamento (até 20 s)
+    P-->>K: exit 0, bem dentro do período de graça de 30 s
+    Note over K,P: se ainda roda após 30 s, o kubelet envia SIGKILL
+```
+
 ---
 
 ## Registries e a cadeia de suprimentos { #supply-chain }
@@ -156,7 +172,7 @@ As imagens ficam guardadas em um **registry** (Docker Hub, GitHub Container Regi
 | **Varrer** imagens em busca de vulnerabilidades conhecidas (CVEs) e falhar nas críticas | Trivy, Grype, varredura do registry | Publicar uma imagem base com um exploit conhecido |
 | Gerar um **SBOM** (Software Bill of Materials: a lista de todos os pacotes da imagem) | Syft, `docker buildx --sbom`, CycloneDX, SPDX | Não saber se você é afetado pelo próximo Log4Shell |
 | **Assinar** imagens e verificar a assinatura no deploy | Sigstore Cosign, Kyverno / políticas de admissão | Uma imagem adulterada enviada ao seu registry |
-| Registrar a **proveniência** (quem construiu o quê, a partir de qual commit) | Atestados de proveniência SLSA, GitHub artifact attestations | Uma imagem construída fora do pipeline |
+| Registrar a **proveniência** (quem construiu o quê, a partir de qual commit) | Atestados de proveniência SLSA (*Supply-chain Levels for Software Artifacts*), GitHub artifact attestations | Uma imagem construída fora do pipeline |
 | Fixar imagens base e dependências; reconstruir regularmente | Renovate, Dependabot | Deriva silenciosa e patches desatualizados |
 
 A [aula de Rede e segurança](../../network-security/zero-trust/index.md) discute a segurança da cadeia de suprimentos em profundidade; a página de [Entrega](../delivery/index.md) conecta esses passos ao pipeline de CI.
@@ -218,13 +234,13 @@ Os serviços se encontram pelo **nome do serviço** (`db`, `redis`) por meio do 
     - **Dimensione o heap como fração do limite do container, deixando cerca de 25% para o resto da JVM** — metaspace, pilhas de threads e buffers vivem fora do heap. No BoxOffice: `MaxRAMPercentage=75` sob um limite de 768 MB ([lab 1](../../../hands-on/1/container/index.md)).
     - **Exponha na imagem endpoints separados de liveness e readiness** — os mesmos endpoints servem ao health check do Compose e às probes do Kubernetes. No BoxOffice: `/actuator/health/readiness` no [lab 1](../../../hands-on/1/container/index.md) e no [lab 10](../../../hands-on/10/deploy/index.md).
     - **Termine as requisições em andamento no `SIGTERM` em menos tempo que o período de graça** — 20 s de fase de encerramento contra os 30 s do Kubernetes deixam margem antes do `SIGKILL`. No BoxOffice: `SERVER_SHUTDOWN=graceful` no [lab 10](../../../hands-on/10/deploy/index.md).
-    - **Deixe um bot propor atualizações da imagem base e das bibliotecas toda semana e escaneie toda imagem na CI** — correções chegam como pull requests pequenos e revisados, e uma CVE crítica com correção bloqueia a publicação. No BoxOffice: `dependabot.yml` e o gate do Trivy no [lab 11 — cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md).
+    - **Deixe um bot propor atualizações da imagem base e das bibliotecas toda semana e escaneie toda imagem na CI** — correções chegam como pull requests pequenos e revisados e uma CVE crítica com correção bloqueia a publicação. No BoxOffice: `dependabot.yml` e o gate do Trivy no [lab 11 — cadeia de suprimentos](../../../hands-on/11/supply-chain/index.md).
 
 !!! warning "Armadilhas"
 
     - **`latest` em produção**: você não sabe o que está rodando e o rollback fica ambíguo.
     - **Segredos gravados nas camadas**: um `COPY .env` ou `ARG PASSWORD` fica no histórico da imagem para sempre — mesmo que uma camada posterior apague o arquivo.
-    - **Rodar como root** e com shell completo: uma RCE vira uma porta de entrada.
+    - **Rodar como root** e com shell completo: uma execução remota de código (RCE, *remote code execution*) vira uma porta de entrada.
     - **Sem limite de memória, ou com heap maior que o limite**: reinícios `OOMKilled` aleatórios sob carga.
     - **`ENTRYPOINT` em forma shell** (`ENTRYPOINT java -jar app.jar`): o `sh` vira PID 1, engole o `SIGTERM` e cada deploy mata requisições no meio.
     - **Gravar estado no sistema de arquivos do container**: ele some no próximo reinício.

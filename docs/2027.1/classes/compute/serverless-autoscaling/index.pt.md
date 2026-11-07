@@ -8,8 +8,8 @@ Há duas opções ruins: dimensionar a frota para o pico e pagar por máquinas o
 
 **Serverless** significa que você faz o deploy do código e a plataforma provisiona, escala e cobra pelas máquinas por baixo, inclusive **escalando até zero** quando não há tráfego. Dois formatos dominam:
 
-- **Functions as a Service (FaaS)** — AWS Lambda, Google Cloud Run functions, Azure Functions: você faz o deploy de uma *função* e a plataforma a chama uma vez por evento (uma requisição HTTP, uma mensagem de fila, o upload de um arquivo, um agendamento).
-- **Containers serverless** — Google Cloud Run, AWS Fargate (com ECS), Azure Container Apps: você faz o deploy de uma *imagem de container* que atende HTTP; a plataforma executa quantas instâncias o tráfego exigir, até zero.
+- **Funções como serviço (FaaS, *Functions as a Service*)** — AWS Lambda, Google Cloud Run functions, Azure Functions: você faz o deploy de uma *função* e a plataforma a chama uma vez por evento (uma requisição HTTP, uma mensagem de fila, o upload de um arquivo, um agendamento).
+- **Containers serverless** — Google Cloud Run, AWS Fargate (com o serviço de containers ECS, *Elastic Container Service*), Azure Container Apps: você faz o deploy de uma *imagem de container* que atende HTTP; a plataforma executa quantas instâncias o tráfego exigir, até zero.
 
 A ideia já foi descrita como "programação em nuvem simplificada"[^1]: nenhum servidor para atualizar, nenhuma capacidade para planejar, pague apenas pelo que executa. As restrições são o preço.
 
@@ -32,7 +32,7 @@ sequenceDiagram
     Note over X: ocioso por um tempo → congelado, depois destruído
 ```
 
-Cada **ambiente de execução** (uma VM leve ou sandbox) atende **uma requisição por vez** no Lambda; uma rajada de 300 requisições simultâneas precisa de 300 ambientes. Os ambientes são reutilizados enquanto o tráfego continua e destruídos depois de algum tempo ociosos[^2]. Tudo decorre desse modelo:
+Cada **ambiente de execução** (uma máquina virtual leve, VM, *virtual machine*, ou sandbox) atende **uma requisição por vez** no Lambda; uma rajada de 300 requisições simultâneas precisa de 300 ambientes. Os ambientes são reutilizados enquanto o tráfego continua e destruídos depois de algum tempo ociosos[^2]. Tudo decorre desse modelo:
 
 - **Cold start**: a primeira requisição em um ambiente novo paga pela sua criação. Para uma função pequena em Python ou Node.js, isso costuma levar algumas centenas de milissegundos; para uma aplicação Spring Boot em uma JVM comum, pode levar vários segundos (faixas ilustrativas — meça as suas).
 - **Concorrência = taxa × duração** (a lei de Little de novo): 2.000 requisições/s × 0,2 s = **400 ambientes concorrentes**. Reduzir a duração pela metade reduz a concorrência pela metade — e a conta também.
@@ -43,10 +43,10 @@ Cada **ambiente de execução** (uma VM leve ou sandbox) atende **uma requisiç�
 | Técnica | O que faz | Custo |
 |---|---|---|
 | **Init barato** | menos dependências, carregamento sob demanda, pacote menor | tempo de engenharia |
-| **Inicializar fora do handler** | clientes de banco e SDKs criados uma vez por ambiente, reutilizados por todas as requisições | nenhum — faça sempre |
+| **Inicializar fora do handler** | clientes de banco e kits de desenvolvimento (SDKs, *software development kits*) criados uma vez por ambiente, reutilizados por todas as requisições | nenhum — faça sempre |
 | **Provisioned concurrency / instâncias mínimas** | a plataforma mantém N ambientes quentes | você paga por eles mesmo ociosos — desfazendo em parte o "pague pelo uso" |
 | **Restauração de snapshot** (Lambda SnapStart) | parte de um snapshot de um runtime já inicializado (Java, Python, .NET) | restrições a estado único no init (sementes aleatórias, conexões) |
-| **Compilação nativa** (GraalVM native image, Spring AOT) | um serviço Java sobe em dezenas de milissegundos | builds mais longos; alguns limites de reflexão |
+| **Compilação nativa** (GraalVM native image, compilação antecipada do Spring, AOT, *ahead-of-time*) | um serviço Java sobe em dezenas de milissegundos | builds mais longos; alguns limites de reflexão |
 | **Escolher o runtime** | Go, Node.js e Python sobem mais rápido que uma JVM completa | pode não combinar com a stack do time |
 
 Cold starts importam em caminhos **sensíveis à latência e voltados ao usuário**, com tráfego em picos. Não importam para um consumidor de fila que gera PDFs de ingressos, onde um segundo a mais é invisível.
@@ -109,7 +109,7 @@ Com essas premissas, cada invocação custa cerca de US$ 1 por milhão; assim, f
 === "AWS"
 
     - **Lambda** (funções; gatilhos a partir de API Gateway, SQS, S3, EventBridge, Kinesis/Kafka).
-    - **Fargate** (containers serverless sob ECS ou EKS).
+    - **Fargate** (containers serverless sob ECS ou o Kubernetes gerenciado EKS, *Elastic Kubernetes Service*).
     - **App Runner** (serviços web em container). Na borda: **CloudFront Functions**, **Lambda@Edge**.
 
 === "Google Cloud"
@@ -120,7 +120,7 @@ Com essas premissas, cada invocação custa cerca de US$ 1 por milhão; assim, f
 === "Azure"
 
     - **Azure Functions** (planos de consumo e premium, com instâncias pré-aquecidas).
-    - **Azure Container Apps** (containers serverless, escalonamento baseado em KEDA).
+    - **Azure Container Apps** (containers serverless, escalonamento baseado no autoscaling orientado a eventos do Kubernetes, KEDA, *Kubernetes Event-driven Autoscaling*).
 
 === "Código aberto / Kubernetes"
 
@@ -277,6 +277,26 @@ O autoscaling reativo tem um atraso embutido: a carga precisa chegar, ser medida
 | Readiness probe passa, load balancer adiciona o pod | 5–10 s |
 | **Total** | **~1 a 4 minutos** |
 
+A mesma cadeia, passo a passo, para um pod novo às 10:00 quando nenhum nó tem espaço:
+
+``` diagram-sim
+sequenceDiagram
+    participant F as Fãs
+    participant M as metrics-server
+    participant H as HPA
+    participant N as autoscaler de nós
+    participant P as pod novo
+    participant S as Service
+    F->>S: 10:00, o tráfego salta 20×
+    M->>H: média de CPU, 15 a 60 s depois
+    H->>H: próximo ciclo (≤ 15 s): desejado 10 → 20
+    H->>N: pods novos Pending, nenhum nó tem espaço
+    N->>P: nó pronto após 30 a 120 s, imagem baixada em 5 a 60 s
+    Note over P: JVM, contexto Spring, pools, aquecimento do cache: 10 a 60 s
+    P->>S: readiness passa, entra nos endpoints
+    S->>P: primeiro fã atendido, 1 a 4 minutos depois das 10:00
+```
+
 Uma flash sale vai de 1× a 20× em segundos (aqui, de 1.000 a 20.000 req/s em 20 s). A simulação abaixo compara um autoscaler reativo (alvo de 60%, no máximo dobrando a cada 15 s, novas réplicas prontas após 90 s) com o mesmo autoscaler mais um pré-escalonamento **agendado** às 09:45 para a previsão, 20.000 / (500 × 0,6) ≈ 67 réplicas:
 
 ```python exec="1" html="1"
@@ -338,7 +358,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-A área vermelha é a demanda acima da capacidade: requisições que ficam na fila, estouram o timeout ou são rejeitadas — nos primeiros minutos da venda, exatamente quando mais importa. O escalonamento reativo acaba alcançando a demanda, mas só **depois** que os fãs já tiveram uma experiência ruim.
+A área vermelha é a demanda acima da capacidade: requisições que ficam na fila, estouram o timeout ou são rejeitadas — nos primeiros minutos da venda, exatamente quando mais importa. O escalonamento reativo acaba alcançando a demanda, mas só **depois** que os fãs já tiveram uma experiência ruim. O [simulador de HPA da página de Kubernetes](../../cloud-native/kubernetes/index.md#autoscaling) joga a mesma corrida com a configuração real do HPA do lab 10: mude o tempo de início do pod ou o mínimo e veja a perda.
 
 ### Escalonamento agendado e preditivo { #scheduled-and-predictive-scaling }
 
@@ -368,13 +388,13 @@ Reduzir a escala também causa incidentes:
 | | Containers + HPA (Kubernetes) | Containers serverless (Cloud Run, Fargate) | Funções (Lambda) |
 |---|---|---|---|
 | Velocidade para escalar | pods: segundos; nós: minutos | segundos | de frações de segundo a segundos por ambiente |
-| Escala até zero | com KEDA/Knative | sim | sim |
+| Escala até zero | ⚠️ com KEDA/Knative | ✅ sim | ✅ sim |
 | Cold start | a cada pod novo (JVM: segundos) | a cada instância | a cada ambiente, com mais frequência |
 | Concorrência por instância | muitas requisições | muitas requisições (configurável) | uma requisição (Lambda) |
-| Conexões longas, WebSockets | sim | limitadas | só via um gateway gerenciado |
+| Conexões longas, WebSockets | ✅ sim | ⚠️ limitadas | ❌ só via um gateway gerenciado |
 | Duração máxima da requisição | ilimitada | minutos (limite da plataforma) | 15 min (Lambda) |
 | Formato do custo | paga pelos nós provisionados | paga pelo uso (CPU-segundos), instâncias mínimas opcionais | paga por invocação + GB-segundos |
-| Esforço operacional | o maior (cluster) | baixo | o menor |
+| Esforço operacional | 🔴 o maior (cluster) | 🟢 baixo | 🟢 o menor |
 | Melhor para | serviços centrais estáveis e ocupados | APIs com períodos ociosos, times pequenos | cola entre eventos, webhooks, jobs em rajadas |
 
 !!! tip "Na entrevista"

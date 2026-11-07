@@ -11,17 +11,17 @@ None of these is an application problem. They are **platform** problems: where t
     By the end of this class you should be able to:
 
     - **Explain** what "cloud-native" means and which properties of an application (stateless processes, configuration in the environment, disposability) make it portable across platforms.
-    - **Map** each BoxOffice component to a service model (IaaS, CaaS, PaaS, FaaS, DBaaS, SaaS) and **justify** the trade-off between control and operational effort.
-    - **Build** a small, secure container image for a Java service and **describe** what an OCI image is made of.
-    - **Write** the Kubernetes manifests (Deployment, Service, probes, resources, HPA, PodDisruptionBudget, Ingress) that run a BoxOffice service, and **predict** what the control plane does when a pod dies.
-    - **Design** a delivery pipeline — infrastructure as code, CI, GitOps and a canary rollout gated by metrics — and **choose** a deployment strategy for a given risk.
+    - **Map** each BoxOffice component to a service model (infrastructure, containers, platform, functions, database or software as a service: IaaS, CaaS, PaaS, FaaS, DBaaS, SaaS) and **justify** the trade-off between control and operational effort.
+    - **Build** a small, secure container image for a Java service and **describe** what an Open Container Initiative (OCI) image is made of.
+    - **Write** the Kubernetes manifests (Deployment, Service, probes, resources, Horizontal Pod Autoscaler (HPA), PodDisruptionBudget, Ingress) that run a BoxOffice service, and **predict** what the control plane does when a pod dies.
+    - **Design** a delivery pipeline — infrastructure as code, continuous integration (CI), GitOps and a canary rollout gated by metrics — and **choose** a deployment strategy for a given risk.
     - **Estimate** the monthly cost of the BoxOffice architecture, **identify** its fixed and variable costs, and **propose** optimizations backed by numbers.
 
 ## Roadmap
 
 1. **This overview** — what cloud-native means, the twelve-factor properties, service models and platform engineering.
 2. [Containers](containers/index.md) — namespaces and cgroups, OCI images and layers, a production Dockerfile for a Spring Boot service, supply-chain hygiene.
-3. [Kubernetes](kubernetes/index.md) — the control loop, the core objects, probes, resources, autoscaling (HPA, cluster autoscaling, KEDA) and BoxOffice's manifests.
+3. [Kubernetes](kubernetes/index.md) — the control loop, the core objects, probes, resources, autoscaling (HPA, cluster autoscaling, the Kubernetes Event-Driven Autoscaler, KEDA) and BoxOffice's manifests.
 4. [Delivery](delivery/index.md) — Terraform/OpenTofu, GitHub Actions, GitOps with Argo CD, deployment strategies and a canary with automated metrics analysis.
 5. [FinOps](finops/index.md) — cloud pricing models, a cost model of BoxOffice, unit economics and how to cut the bill.
 6. [Quiz](quiz.md) — check your understanding.
@@ -71,7 +71,7 @@ A platform can only restart, move and multiply a process that allows it. The **T
 
 ## Service models: who operates what { #service-models }
 
-Every component of BoxOffice has to run *somewhere*, and for each one the team chooses how much of the stack it operates itself. The NIST definition of cloud computing introduced three service models[^3]; practice has added several more. All of them can be read on the same stack of layers:
+Every component of BoxOffice has to run *somewhere*, and for each one the team chooses how much of the stack it operates itself. The definition of cloud computing by the US National Institute of Standards and Technology (NIST) introduced three service models[^3]; practice has added several more. All of them can be read on the same stack of layers:
 
 | Layer | On-premises | IaaS | CaaS | PaaS | FaaS | SaaS |
 |---|---|---|---|---|---|---|
@@ -82,14 +82,43 @@ Every component of BoxOffice has to run *somewhere*, and for each one the team c
 | Operating system | you | you | shared (nodes) or provider (Fargate, Autopilot) | provider | provider | provider |
 | Virtualization, hardware, data centre | you | provider | provider | provider | provider | provider |
 
-- **IaaS — Infrastructure as a Service.** Virtual machines, disks and networks (Amazon EC2, Google Compute Engine, Azure VMs). Maximum control, maximum toil: you patch the OS, install the JDK, configure the firewall.
-- **CaaS — Containers as a Service.** You hand over container images; the provider runs the scheduler (Amazon EKS/ECS, Google GKE, Azure AKS). With serverless variants (AWS Fargate, GKE Autopilot) you do not see nodes at all.
-- **PaaS — Platform as a Service.** You hand over code or an image plus a little configuration; the platform builds, runs, scales and routes (Heroku, Google App Engine, Azure App Service, Railway, Fly.io).
-- **FaaS — Functions as a Service.** You hand over a function; the platform runs it per event and bills per invocation and millisecond (AWS Lambda, Google Cloud Run functions, Azure Functions). Scales to zero, but has **cold starts** and **concurrency limits** (see [Compute — serverless and autoscaling](../compute/serverless-autoscaling/index.md)).
-- **DBaaS — Database as a Service.** Managed databases (Amazon RDS/Aurora, Cloud SQL, Azure Database for PostgreSQL): backups, failover, patching and replicas are buttons, not projects.
+- **IaaS — Infrastructure as a Service.** Virtual machines, disks and networks. Maximum control, maximum toil: you patch the OS, install the JDK, configure the firewall.
+- **CaaS — Containers as a Service.** You hand over container images; the provider runs the scheduler and the control plane. With serverless variants (AWS Fargate, GKE Autopilot) you do not see nodes at all.
+- **PaaS — Platform as a Service.** You hand over code or an image plus a little configuration; the platform builds, runs, scales and routes.
+- **FaaS — Functions as a Service.** You hand over a function; the platform runs it per event and bills per invocation and millisecond. Scales to zero, but has **cold starts** and **concurrency limits** (see [Compute — serverless and autoscaling](../compute/serverless-autoscaling/index.md)).
+- **DBaaS — Database as a Service.** Managed databases (and caches, and Kafka): backups, failover, patching and replicas are buttons, not projects.
 - **SaaS — Software as a Service.** A finished product used through an API or a browser: the payment provider, the e-mail provider, the observability vendor.
 
 The rule that never changes, in any column: **your data, your identities and access rules, and your configuration remain your responsibility**[^4]. A public S3 bucket is a customer mistake, not a provider failure.
+
+<div class="csim" data-sim="responsibility-stack" data-model="caas"></div>
+
+!!! tip "Try it"
+    Pick each model with no event: the layers your team operates drop from **6** on-premises to **5** on IaaS, **3** on CaaS (plus the operating system of the nodes, shared), **2** on PaaS and FaaS and **1** on SaaS. PaaS and FaaS have the same column: what changes is the unit you hand over (an application or a function) and the bill.
+
+    1. Choose **JDK flaw** and step from IaaS to PaaS: your team acts on IaaS and CaaS (on CaaS the JDK is inside your image); the provider acts from PaaS on.
+    2. Choose **On-sale 20×**: it hits the orchestration and scaling layer. On IaaS your team adds the VMs; from CaaS on the platform adds the instances, but only within the limits your team set (`maxReplicas`, the pre-scale at 09:45). On-premises the capacity had to be bought months before — the CapEx of [FinOps](finops/index.md#capex-opex).
+    3. Choose **Kernel flaw** on CaaS: the only shared cell — the provider publishes the patched node image, your team rolls the nodes onto it (unless the nodes are Fargate or Autopilot).
+    4. Choose **Public bucket** and try all six models: the actor is always your team.
+
+### Who offers each model { #providers }
+
+The big clouds offer almost every model; smaller providers usually specialize in one step of the stack. Read the table by columns: AWS appears on every row, because **a model describes a service, not a company**.
+
+<div class="compact-table" markdown>
+
+| Model | AWS | Google Cloud | Microsoft Azure | Other providers |
+|---|---|---|---|---|
+| **IaaS** | EC2 | Compute Engine | Azure Virtual Machines | DigitalOcean Droplets, Oracle Cloud Compute, Magalu Cloud |
+| **CaaS** | EKS, ECS on Fargate | GKE (Standard, Autopilot), Cloud Run | AKS, Azure Container Apps | DigitalOcean Kubernetes, OVHcloud Managed Kubernetes |
+| **PaaS** | Elastic Beanstalk | App Engine | Azure App Service | Heroku, Railway, Render, Fly.io |
+| **FaaS** | Lambda | Cloud Run functions | Azure Functions | Cloudflare Workers, Vercel Functions |
+| **DBaaS** | RDS, Aurora, ElastiCache, MSK | Cloud SQL, AlloyDB, Memorystore | Azure Database for PostgreSQL, Azure Managed Redis | Neon, Supabase, Aiven, Confluent Cloud |
+| **SaaS** | Amazon SES (e-mail) | Google Workspace | Microsoft 365, Dynamics 365 | Stripe, Mercado Pago, Datadog, GitHub, TOTVS, RD Station |
+
+</div>
+
+On AWS, the BoxOffice of the next table is one column: EKS for the services, RDS and ElastiCache for the data, MSK for Kafka, S3 for the tickets and Lambda for the thumbnails. Nothing forces one company per system, though: the card payments go to a payment provider such as Stripe or Mercado Pago, the code and CI live on GitHub, and a component can move to another provider without changing the others' model. What decides is the requirement of each component.
 
 ### BoxOffice, component by component
 
@@ -98,12 +127,12 @@ There is no single "right" model for a whole system. Each component gets the mod
 | Component | Palette | Chosen model | Why | Alternative |
 |---|---|---|---|---|
 | `gateway`, `catalog`, `inventory`, `order`, `search` services | [App Server](../../reference/components/compute/index.md#app) | **CaaS** (managed Kubernetes) | Many services, shared tooling, fine control of scaling and rollout | PaaS while the team is small |
-| Seat inventory and orders | [SQL Database](../../reference/components/storage/index.md#sql) | **DBaaS** (managed PostgreSQL, Multi-AZ) | Backups and failover are hard to get right; the data is the business | Self-managed on Kubernetes with an operator — only with a strong DBA team |
+| Seat inventory and orders | [SQL Database](../../reference/components/storage/index.md#sql) | **DBaaS** (managed PostgreSQL, Multi-AZ: a standby in a second availability zone) | Backups and failover are hard to get right; the data is the business | Self-managed on Kubernetes with an operator — only with a strong DBA team |
 | Holds, sessions, hot catalog pages | [Cache](../../reference/components/storage/index.md#cache) | **DBaaS** (managed Redis-compatible) | Same reasons; the cache is on the critical path | Redis in a pod (dev only) |
 | Events (orders, notifications) | [Kafka](../../reference/components/messaging/index.md#kafka) | **Managed Kafka** (Amazon MSK, Confluent Cloud) | Running Kafka well is a specialty | Strimzi operator on Kubernetes |
 | Ticket PDFs, event images | [Object Store](../../reference/components/storage/index.md#objstore) | **IaaS-level storage service** (S3, GCS, Blob) | Practically unlimited, cheap, durable | — |
 | Image thumbnails, webhook receivers | [Serverless](../../reference/components/compute/index.md#serverless) | **FaaS** | Bursty, event-driven, idle most of the time | A worker deployment |
-| Card payments | [Payment](../../reference/components/external/index.md#payment) | **SaaS** (payment provider) | Card data compliance (PCI DSS) is not BoxOffice's core business | — |
+| Card payments | [Payment](../../reference/components/external/index.md#payment) | **SaaS** (payment provider) | Card data compliance (the Payment Card Industry Data Security Standard, PCI DSS) is not BoxOffice's core business | — |
 | Transactional e-mail | [Email](../../reference/components/external/index.md#email) | **SaaS** | Deliverability and reputation are a business of their own | — |
 
 ??? question "Think first: why not run *everything* on FaaS and never think about servers again?"
@@ -127,13 +156,13 @@ flowchart LR
     dev["Product team<br/>(order, inventory…)"] -->|"uses"| portal["Developer portal<br/>(e.g. Backstage)"]
     portal --> tmpl["Service template<br/>Dockerfile · manifests · pipeline"]
     portal --> env["Self-service environments<br/>(namespace, database, queue)"]
-    portal --> obs["Built-in observability<br/>dashboards · SLO alerts"]
+    portal --> obs["Built-in observability<br/>dashboards · alerts"]
     tmpl --> plat["Platform: Kubernetes · Argo CD · Terraform modules · policies"]
     env --> plat
     obs --> plat
 ```
 
-A good golden path is **optional but attractive**: a new BoxOffice service created from the template gets a hardened image, Kubernetes manifests with probes and resource limits, a CI pipeline with tests and image scanning, a canary rollout, a RED dashboard and an SLO alert — on day one. The team can leave the path when it has a reason; most never need to.
+A good golden path is **optional but attractive**: a new BoxOffice service created from the template gets a hardened image, Kubernetes manifests with probes and resource limits, a CI pipeline with tests and image scanning, a canary rollout, a RED dashboard (rate, errors, duration) and an alert on its service level objective (SLO) — on day one. The team can leave the path when it has a reason; most never need to.
 
 | Approach | Strength | Risk |
 |---|---|---|
@@ -159,8 +188,6 @@ flowchart LR
     c3 --> c6
     c5 -.- d1["SLIs, SLOs, error budgets<br/>(classes 9 and 10)"]
     c2 -.- d2["stateless services,<br/>autoscaling (class 5)"]
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Palette component | Question it answers | Concepts | Taught in | Scenarios |

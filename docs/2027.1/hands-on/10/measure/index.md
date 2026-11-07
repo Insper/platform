@@ -1,6 +1,6 @@
 # 5. Measure It
 
-Kubernetes promises elasticity and self-healing. Put numbers on both. As always, run each experiment
+Kubernetes promises elasticity, through the Horizontal Pod Autoscaler (HPA), and self-healing. Put numbers on both. As always, run each experiment
 twice and report the second run; numbers in "expected shape" boxes are **illustrative** (they come
 from one run on a laptop, and yours will differ).
 
@@ -8,7 +8,7 @@ from one run on a laptop, and yours will differ).
 |---|---|---|---|
 | A | fixed replicas vs HPA | HPA deleted vs applied | p95, p99, errors, max replicas, time to scale |
 | B | rolling update under load | with vs without readiness probe + `preStop` | failed requests during the rollout |
-| C | self-healing | delete a pod / stop a node | time until capacity is back (MTTR) |
+| C | self-healing | delete a pod / stop a node | time until capacity is back (mean time to repair, MTTR) |
 
 ## A. Fixed replicas vs HPA
 
@@ -26,7 +26,7 @@ kubectl -n boxoffice get hpa catalog -w  # until REPLICAS is 2 again (minutes af
 kill %1                                  # stop the watcher
 ```
 
-From `results/lab10-hpa.csv` read: the time the CPU first crossed 60%, the time `desired` first
+From `results/lab10-hpa.csv` read: the time the central processing unit (CPU) use first crossed 60%, the time `desired` first
 increased (reaction time), the time `ready` reached the maximum (time to capacity), and the maximum
 number of replicas, and the time `desired` was back at 2 (scale-down). Plot `cpu`, `desired` and `ready` over time — a spreadsheet is enough — and add
 the chart to your results.
@@ -34,7 +34,7 @@ the chart to your results.
 !!! example "Expected shape (illustrative)"
 
     One run with `PEAK=1000` on a laptop (kind, 3 nodes sharing 8 CPUs), starting from warm pods,
-    sampled from the CSV:
+    sampled from the comma-separated values (CSV) file:
 
     | t (min:s) | CPU (% of request) | desired | current | ready |
     |---|---|---|---|---|
@@ -51,7 +51,7 @@ the chart to your results.
 
     The two warm pods crossed 60% 1:48 into the ramp (about 600 req/s); the HPA asked for a third pod
     15 s later and for eight at 3:33, but the eighth pod was ready only at 7:31, when the hold was
-    already over. On a laptop the new JVMs start on the same CPUs that serve the load and run k6: each
+    already over. On a laptop the new Java virtual machines (JVMs) start on the same CPUs that serve the load and run k6: each
     took more than a minute to start and, still cold, failed its readiness probe on and off for a
     while (`ready` goes down as well as up). k6 reported p95 of 5–7 s, p99 ≈ 19 s, 0.3% errors and
     dropped over 40% of the arrivals. The same ramp with two fixed replicas gave p95 ≈ 34 ms, p99 ≈
@@ -89,6 +89,17 @@ The startup probe still keeps a new pod out of the Service until the JVM answers
 other end: without the `preStop` pause, old pods stop accepting connections while they are still in
 Traefik's endpoint lists. Count the failed requests (`http_req_failed`) in both runs. In a test run:
 0 failed requests with the probes, about 140 of 11,900 (1.2%, Traefik `502` and `504`) without.
+
+| Run | Readiness probe + `preStop` | Failed requests (test run) |
+|---|---|---|
+| with | ✅ | 0 |
+| without | ❌ | about 140 of 11,900 (1.2%) |
+
+<div class="csim" data-sim="kind-lab" data-script="rollout"></div>
+
+!!! tip "Try it"
+
+    Experiment B before the cluster on your laptop: the same cluster in the browser, opening on this experiment; play or → runs the page's commands, and the buttons work at any time. In **apply -k**, `catalog` fails twice before `db-0` accepts connections (RESTARTS 2, as on [Deploy](../deploy/index.md)) and everything is 1/1 at 3m31s. In **self-healing**, deleting both pods leaves `catalog` with no endpoint: `curl` gets 503 until the two new JVMs are ready, 30 s later — the MTTR of a pod crash. In **losing a node**, boxoffice-worker2 is NotReady after 50 s; k6 at 100 req/s loses 2,550 of 12,000 requests (21.25%) before Traefik stops sending to its pod, and the replacement is ready on boxoffice-worker only 379 s after the stop. In **rollout (B)**, this experiment: 0 failed requests with the readiness probe and the `preStop` pause, 200 of 12,000 (1.67%) without them. In **free** mode, set Traefik's delay to 6 s: even with the 5 s pause, 100 requests fail — the pause must outlast the endpoint propagation.
 
 ## C. Self-healing
 

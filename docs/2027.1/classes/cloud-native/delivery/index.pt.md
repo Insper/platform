@@ -1,4 +1,4 @@
-São 09:40 do dia da venda. Um bug no `inventory` faz uma reserva de assento expirar dois minutos antes da hora e a correção é uma mudança de uma linha. Em um time sem pipeline de entrega, a correção espera: alguém precisa fazer o build, alguém precisa copiar o jar, alguém precisa reiniciar servidores um a um e ninguém quer fazer isso vinte minutos antes do maior pico de tráfego do ano. Em um time com um bom pipeline, a correção é aceita, construída, varrida, publicada para 5 % do tráfego, **verificada automaticamente contra os SLOs** e promovida — ou revertida — sem que ninguém toque em um servidor.
+São 09:40 do dia da venda. Um bug no `inventory` faz uma reserva de assento expirar dois minutos antes da hora e a correção é uma mudança de uma linha. Em um time sem pipeline de entrega, a correção espera: alguém precisa fazer o build, alguém precisa copiar o jar, alguém precisa reiniciar servidores um a um e ninguém quer fazer isso vinte minutos antes do maior pico de tráfego do ano. Em um time com um bom pipeline, a correção é aceita, construída, varrida, publicada para 5 % do tráfego, **verificada automaticamente contra os objetivos de nível de serviço (SLOs, *service level objectives*)** e promovida — ou revertida — sem que ninguém toque em um servidor.
 
 Esta página constrói esse pipeline em quatro camadas: a infraestrutura é **código**, cada mudança é **integrada e testada continuamente**, o cluster **puxa** seu estado desejado do Git e cada release é **exposta gradualmente** e julgada por métricas.
 
@@ -17,7 +17,7 @@ flowchart LR
 
 ## Infraestrutura como código { #iac }
 
-O ambiente de produção do BoxOffice tem uma VPC, sub-redes, um cluster Kubernetes, um PostgreSQL gerenciado, um Redis gerenciado, um cluster Kafka, buckets, registros DNS e papéis IAM — algumas centenas de recursos. Criados com cliques em um console, eles não podem ser revisados, reproduzidos ou reconstruídos após um desastre e o staging se afasta silenciosamente da produção. **Infraestrutura como código (IaC)** descreve esses recursos em arquivos versionados que uma ferramenta aplica.
+O ambiente de produção do BoxOffice tem uma nuvem privada virtual (VPC, *virtual private cloud*), sub-redes, um cluster Kubernetes, um PostgreSQL gerenciado, um Redis gerenciado, um cluster Kafka, buckets, registros DNS e papéis IAM — algumas centenas de recursos. Criados com cliques em um console, eles não podem ser revisados, reproduzidos ou reconstruídos após um desastre e o staging se afasta silenciosamente da produção. **Infraestrutura como código (IaC)** descreve esses recursos em arquivos versionados que uma ferramenta aplica.
 
 | Propriedade | Por que importa para o BoxOffice |
 |---|---|
@@ -26,7 +26,7 @@ O ambiente de produção do BoxOffice tem uma VPC, sub-redes, um cluster Kuberne
 | **Reproduzível** | Staging e um ambiente de teste de carga são os mesmos módulos com variáveis diferentes — paridade para [testes de desempenho](../../performance/methodology/index.md) |
 | **Recuperável** | Depois da perda de uma região, o ambiente é recriado a partir do código (os dados vêm dos backups — veja [Recuperação de desastres](../../reliability/disaster-recovery/index.md)) |
 
-O **Terraform** (HashiCorp) é a ferramenta de IaC mais usada. Em 2023 a HashiCorp mudou sua licença para a Business Source License; o fork comunitário **OpenTofu**, hospedado pela Linux Foundation, mantém a licença de código aberto MPL 2.0 e a mesma linguagem (HCL) e o mesmo fluxo de CLI[^1]. O trecho abaixo funciona em ambos:
+O **Terraform** (HashiCorp) é a ferramenta de IaC mais usada. Em 2023 a HashiCorp mudou sua licença para a Business Source License; o fork comunitário **OpenTofu**, hospedado pela Linux Foundation, mantém a licença de código aberto MPL 2.0 (*Mozilla Public License*), a mesma linguagem (HCL, *HashiCorp Configuration Language*) e o mesmo fluxo de linha de comando[^1]. O trecho abaixo funciona em ambos:
 
 ```hcl title="infra/modules/data/main.tf"
 variable "env"            { type = string }                 # "staging" | "prod"
@@ -177,7 +177,7 @@ Repare no que o pipeline **não** faz: ele nunca executa `kubectl apply` contra 
 
 !!! tip "Mantenha a CI rápida"
 
-    Um pipeline que leva 40 minutos é um pipeline que as pessoas contornam. Faça cache das dependências (`cache: maven`), rode os testes unitários antes dos testes de integração lentos, construa imagens com cache de camadas e execute jobs independentes em paralelo. A pesquisa DORA associa lead times curtos a *mais* estabilidade, não menos[^3].
+    Um pipeline que leva 40 minutos é um pipeline que as pessoas contornam. Faça cache das dependências (`cache: maven`), rode os testes unitários antes dos testes de integração lentos, construa imagens com cache de camadas e execute jobs independentes em paralelo. A pesquisa DORA (*DevOps Research and Assessment*, abaixo) associa lead times curtos a *mais* estabilidade, não menos[^3].
 
 ---
 
@@ -223,8 +223,8 @@ spec:
 
 | | CD por push (a CI roda `kubectl apply`) | **GitOps por pull** (Argo CD, Flux) |
 |---|---|---|
-| Credenciais | A CI tem credenciais de cluster-admin — um alvo valioso | Só o agente dentro do cluster pode mudar o cluster |
-| Deriva | Não detectada até o próximo deploy | Detectada e, opcionalmente, revertida continuamente |
+| Credenciais | ❌ A CI tem credenciais de cluster-admin — um alvo valioso | ✅ Só o agente dentro do cluster pode mudar o cluster |
+| Deriva | ❌ Não detectada até o próximo deploy | ✅ Detectada e, opcionalmente, revertida continuamente |
 | Trilha de auditoria | Espalhada pelos logs da CI | `git log` do repo de configuração |
 | Rollback | Rodar de novo um pipeline antigo | `git revert` |
 | Vários clusters | Um passo de pipeline por cluster | Cada cluster puxa o próprio caminho |
@@ -248,11 +248,11 @@ Fazer o deploy (colocar código novo nos servidores) e **liberar** (expô-lo aos
 
 | Estratégia | Como | Indisponibilidade | Capacidade extra | Rollback | Raio de impacto |
 |---|---|---|---|---|---|
-| **Recreate** | Para todas as antigas, inicia todas as novas | Sim | Nenhuma | Novo deploy da antiga (lento) | 100 % |
+| **Recreate** | Para todas as antigas, inicia todas as novas | 🔴 Sim | Nenhuma | Novo deploy da antiga (lento) | 100 % |
 | **Rolling update** | Substitui alguns pods por vez (`maxSurge`, `maxUnavailable`) | Não | Pequena (surge) | Avançar/voltar gradualmente | Cresce com o rollout |
 | **Blue/green** | Roda a nova versão completa ao lado da antiga; troca o roteador de uma vez | Não | 2× durante a troca | Trocar de volta — segundos | 100 % na troca, mas desfazer é instantâneo |
 | **Canary** | Envia uma pequena % do tráfego à nova versão e aumenta enquanto as métricas estão saudáveis | Não | Pequena | Peso em 0 — segundos | 1–5 % no início |
-| **Shadow (espelhamento)** | Copia o tráfego real para a nova versão; descarta suas respostas | Não | Até 2× | Nada a reverter | 0 % (cuidado com efeitos colaterais: pagamentos!) |
+| **Shadow (espelhamento)** | Copia o tráfego real para a nova versão; descarta suas respostas | Não | Até 2× | Nada a reverter | 0 % (⚠️ cuidado com efeitos colaterais: pagamentos!) |
 | **Feature flags** | Faz deploy do código desligado; ativa por usuário/segmento em tempo de execução | Não | Nenhuma | Desligar a flag | O segmento escolhido |
 
 Rolling updates são o padrão do Kubernetes e bastam para a maioria das mudanças. Para mudanças arriscadas no caminho de compra — `inventory`, `order`, `payment` — o BoxOffice usa **canaries** e, para funcionalidades de produto, **feature flags** (com uma API neutra de fornecedor como a OpenFeature), que desacoplam totalmente *deploy* de *release*: o código vai para produção na terça e a funcionalidade é ativada para 1 % dos fãs na quinta.
@@ -260,6 +260,18 @@ Rolling updates são o padrão do Kubernetes e bastam para a maioria das mudanç
 !!! warning "O banco de dados não faz rollback"
 
     Duas versões de `order` rodam lado a lado durante qualquer rolling update ou canary, então toda mudança de esquema precisa ser **compatível com versões anteriores**. Use **expand/contract** (mudança paralela): (1) *expand* — adicione a nova coluna, anulável; (2) faça deploy de código que escreve nas duas e lê a nova com fallback; (3) faça o backfill; (4) *contract* — remova a coluna antiga em uma release posterior. Nunca renomeie nem apague uma coluna na mesma release que deixa de usá-la.
+
+Passo a passo, para uma coluna nova `buyer_email` que substitui `email` na tabela `orders`. Cada caixa é uma release separada; pods antigos e novos convivem em cada seta:
+
+``` diagram-sim
+flowchart LR
+    v1["v1 lê e escreve<br/>email"] --> ex["1 expand: adiciona buyer_email,<br/>anulável (a v1 a ignora)"]
+    ex --> v2["2 deploy da v2: escreve nas duas,<br/>lê buyer_email, cai para email"]
+    v2 --> bf["3 backfill: copia email<br/>nas linhas antigas"]
+    bf --> v3["deploy da v3: usa<br/>só buyer_email"]
+    v3 --> ct["4 contract: remove email<br/>(na release seguinte)"]
+    v1 -.->|"renomear em uma release"| bad["pods da v1 ainda rodando<br/>consultam uma coluna que sumiu"]:::problem
+```
 
 ---
 
@@ -307,7 +319,7 @@ spec:
   metrics:
     - name: error-rate
       interval: 1m
-      failureLimit: 2                       # two bad minutes → abort and roll back
+      failureLimit: 1                       # a second bad minute → abort and roll back
       successCondition: result[0] < 0.005   # < 0.5 % of requests fail
       provider:
         prometheus:
@@ -318,7 +330,7 @@ spec:
             sum(rate(http_server_requests_seconds_count{service="inventory-canary"}[2m]))
     - name: p99-latency
       interval: 1m
-      failureLimit: 2
+      failureLimit: 1
       successCondition: result[0] < 0.300   # p99 below 300 ms (the hold SLO)
       provider:
         prometheus:

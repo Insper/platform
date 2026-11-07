@@ -8,7 +8,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. O `kubectl`, que recria automaticamente os pods apagados
 - B. O ReplicaSet do Deployment `catalog`: o controller dele viu 1 de 2 pods desejados e criou outro
-- C. O HPA
+- C. O Horizontal Pod Autoscaler (HPA)
 - D. O kubelet do nó onde o pod rodava
 
 ??? success "Resposta"
@@ -51,7 +51,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 **Q4.** Um time coloca uma verificação do banco de dados na **liveness** probe do `catalog`. Durante uma oscilação de 20 segundos do banco, o que acontece?
 
 - A. Nada; a liveness só importa na inicialização
-- B. Todo pod do `catalog` falha na liveness e o Kubernetes reinicia todos eles, transformando uma oscilação de 20 segundos em minutos de queda enquanto as JVMs reiniciam
+- B. Todo pod do `catalog` falha na liveness e o Kubernetes reinicia todos eles, transformando uma oscilação de 20 segundos em minutos de queda enquanto as máquinas virtuais Java (JVMs, *Java virtual machines*) reiniciam
 - C. Os pods são removidos do Service até o banco voltar e depois adicionados de novo
 - D. O HPA adiciona pods
 
@@ -139,7 +139,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - A. O HPA também escala o PostgreSQL para baixo
 - B. Cada pod tem o seu próprio pool de conexões (por exemplo, 10 conexões): 8 pods abrem até 80 conexões, mais do que uma instância do banco permite ou aguenta bem — escalar a camada stateless levou o gargalo para a stateful
 - C. O Traefik limita as conexões
-- D. O PVC está cheio
+- D. O PersistentVolumeClaim (PVC) está cheio
 
 ??? success "Resposta"
     **B — fan-in de conexões.**

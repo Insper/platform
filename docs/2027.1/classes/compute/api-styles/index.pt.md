@@ -5,7 +5,7 @@ Quatro clientes diferentes precisam da mesma informação do BoxOffice — "quai
 - um **parceiro revendedor**, que integra uma vez e depois espera que a API nunca quebre;
 - o **serviço `order`** interno, que pede ao `inventory` para confirmar holds milhares de vezes por segundo durante a abertura das vendas.
 
-Um único estilo de API não serve aos quatro. Esta página compara as quatro famílias que você vai encontrar na prática — **REST, gRPC, GraphQL e APIs assíncronas** — sobre o *mesmo* recurso do BoxOffice e, depois, trata do que importa mais do que o estilo: projetar bem o contrato e evoluí-lo sem quebrar ninguém.
+Um único estilo de API não serve aos quatro. Esta página compara as quatro famílias que você vai encontrar na prática — **REST (transferência de estado representacional, *representational state transfer*), gRPC, GraphQL e APIs assíncronas** — sobre o *mesmo* recurso do BoxOffice e, depois, trata do que importa mais do que o estilo: projetar bem o contrato e evoluí-lo sem quebrar ninguém.
 
 ---
 
@@ -15,7 +15,7 @@ Uma **API** (Application Programming Interface) é o contrato entre um **provedo
 
 Três consequências orientam tudo o que vem a seguir:
 
-- **Exponha DTOs, não entidades.** Um DTO (Data Transfer Object) é uma classe cuja única função é atravessar a fronteira. Devolver a entidade JPA amarra o contrato ao schema do banco e vaza campos internos.
+- **Exponha DTOs, não entidades.** Um DTO (objeto de transferência de dados, *Data Transfer Object*) é uma classe cuja única função é atravessar a fronteira. Devolver a entidade da API de persistência Java (JPA, *Java Persistence API*) amarra o contrato ao schema do banco e vaza campos internos.
 - **O contrato é um documento, não só código.** OpenAPI (REST), arquivos `.proto` (gRPC), o schema GraphQL e AsyncAPI (eventos) o descrevem de forma legível por máquina, e a partir deles se geram clientes, servidores, mocks e testes.
 - **Mudar o contrato é uma negociação.** Tudo o que um consumidor consegue observar — o nome de um campo, um status code, a ordem de uma lista — faz parte dele.
 
@@ -71,7 +71,7 @@ O recurso: um **evento** com sua **disponibilidade** (lugares restantes por seto
                   priceCents: { type: integer, example: 45000 }
     ```
 
-    Qualquer cliente HTTP consegue chamá-la — um navegador, o `curl`, o script de um parceiro — e as respostas de `GET` podem ser cacheadas por navegadores e CDNs.
+    Qualquer cliente HTTP consegue chamá-la — um navegador, o `curl`, o script de um parceiro — e as respostas de `GET` podem ser cacheadas por navegadores e redes de distribuição de conteúdo (CDNs, *content delivery networks*).
 
 === "gRPC + Protocol Buffers"
 
@@ -211,7 +211,7 @@ REST (Representational State Transfer) foi definido por Roy Fielding como um est
 | `429 Too Many Requests` | rate limit atingido (bots na abertura das vendas) | esperar o `Retry-After` e então repetir |
 | `503 Service Unavailable` | sobrecarregado ou dependência fora do ar | repetir com backoff + jitter |
 
-Erros merecem um **corpo uniforme**. A RFC 9457, *Problem Details for HTTP APIs*, define um (`application/problem+json`) que o Spring Boot (3 em diante) suporta nativamente via `ProblemDetail`[^4]:
+Erros merecem um **corpo uniforme**. A RFC 9457 (*Request for Comments*, um documento de padrão da internet), *Problem Details for HTTP APIs*, define um (`application/problem+json`) que o Spring Boot (3 em diante) suporta nativamente via `ProblemDetail`[^4]:
 
 ```json title="409 Conflict — application/problem+json"
 {
@@ -283,7 +283,7 @@ O [hands-on 1](../../../hands-on/1/index.md) constrói uma versão mais simples 
 
 ## gRPC na prática { #grpc-in-practice }
 
-gRPC é um framework de RPC criado pelo Google, construído sobre **HTTP/2** e **Protocol Buffers**[^5]. O que você ganha:
+gRPC é um framework de chamada de procedimento remoto (RPC, *remote procedure call*) criado pelo Google, construído sobre **HTTP/2** e **Protocol Buffers**[^5]. O que você ganha:
 
 - **Clientes gerados e tipados** em uma dúzia de linguagens a partir de um único `.proto` — chamar `inventory.getAvailability(req)` parece uma chamada de método local.
 - **Mensagens binárias compactas** e parsing barato: payloads protobuf costumam ser várias vezes menores que o JSON equivalente, o que importa para tráfego interno intenso.
@@ -316,7 +316,7 @@ Os problemas para os quais é preciso se planejar:
 - **Queries abusivas**: uma query profundamente aninhada pode ser muito cara. Limite a profundidade e calcule um orçamento de **custo de query** por cliente.
 - **Autorização por campo**, não por endpoint.
 
-**Uso típico**: um **BFF** (Backend for Frontend) — uma camada GraphQL por front-end, que compõe `catalog`, `inventory` e `search` para as telas. Organizações grandes usam **federation** para que cada time seja dono de uma parte de um único grafo.
+**Uso típico**: um **BFF** (backend para o front-end, *Backend for Frontend*) — uma camada GraphQL por front-end, que compõe `catalog`, `inventory` e `search` para as telas. Organizações grandes usam **federation** para que cada time seja dono de uma parte de um único grafo.
 
 ---
 
@@ -329,7 +329,7 @@ Nem toda interação é uma pergunta que precisa de resposta imediata. Os estilo
 | **Eventos num broker** (Kafka, Pub/Sub) | o provedor publica, muitos consumidores | `OrderConfirmed` → notification, analytics, search | [mensageria](../../messaging/index.md) |
 | **Comandos numa fila** | um produtor, um entre N workers | "gerar o PDF do ingresso do pedido 9" | [trabalho assíncrono](../async-work/index.md) |
 | **Webhooks** | o provedor chama a *sua* URL quando algo acontece | o provedor de pagamentos avisa o `payment` que uma cobrança foi aprovada | [integrações](../integrations/index.md#webhooks) |
-| **WebSocket / SSE** | o servidor envia para um cliente conectado | mapa de assentos ao vivo, "sua posição na fila: 18.204" | [edge — protocolos](../../edge/protocols/index.md#real-time) |
+| **WebSocket / eventos enviados pelo servidor (SSE, *server-sent events*)** | o servidor envia para um cliente conectado | mapa de assentos ao vivo, "sua posição na fila: 18.204" | [edge — protocolos](../../edge/protocols/index.md#real-time) |
 
 O contrato continua importando: schemas de eventos precisam da mesma disciplina que payloads REST — documentados (AsyncAPI), versionados e evoluídos de forma compatível (schema registry, [mensageria](../../messaging/index.md)).
 
@@ -339,14 +339,14 @@ O contrato continua importando: schemas de eventos precisam da mesma disciplina 
 
 | | REST | gRPC | GraphQL | Assíncrono (eventos/filas) |
 |---|---|---|---|---|
-| Transporte | HTTP/1.1, 2, 3 | HTTP/2 | HTTP | protocolo do broker (Kafka, AMQP), HTTP para webhooks |
+| Transporte | HTTP/1.1, 2, 3 | HTTP/2 | HTTP | protocolo do broker (Kafka, AMQP — *Advanced Message Queuing Protocol*), HTTP para webhooks |
 | Payload | JSON (texto) | protobuf (binário) | JSON | JSON, Avro, protobuf |
 | Contrato | OpenAPI (opcional!) | `.proto` (obrigatório) | schema (obrigatório) | AsyncAPI, schema registry |
-| Nativo no navegador | sim | não (gRPC-Web/Connect) | sim | WebSocket/SSE para push |
-| Cache HTTP | excelente (`GET`, ETag, CDN) | nenhum | difícil (persisted queries) | não se aplica |
+| Nativo no navegador | ✅ sim | ❌ não (gRPC-Web/Connect) | ✅ sim | WebSocket/SSE para push |
+| Cache HTTP | ✅ excelente (`GET`, ETag, CDN) | ❌ nenhum | ⚠️ difícil (persisted queries) | não se aplica |
 | Streaming | SSE, chunked | embutido (4 tipos) | subscriptions | inerente |
 | Acoplamento | requisição/resposta, temporal | requisição/resposta, temporal, geração de código | requisição/resposta, temporal | **nenhum no tempo**: consumidores podem estar fora do ar |
-| Melhor para | APIs públicas e de parceiros, CRUD, leituras cacheáveis | chamadas internas de alto QPS, serviços poliglotas, streaming | front-ends que compõem muitos serviços (BFF) | efeitos colaterais, fan-out, trabalho que pode esperar |
+| Melhor para | APIs públicas e de parceiros, CRUD (criar, ler, atualizar, apagar), leituras cacheáveis | chamadas internas com muitas consultas por segundo (QPS, *queries per second*), serviços poliglotas, streaming | front-ends que compõem muitos serviços (BFF) | efeitos colaterais, fan-out, trabalho que pode esperar |
 
 ``` diagram
 flowchart TD
@@ -367,7 +367,7 @@ Sistemas reais misturam todos eles. No BoxOffice: **REST** na borda pública e p
 
 APIs mudam. A primeira pergunta diante de qualquer mudança é se ela é **incompatível** (*breaking*) — se um consumidor existente, sem alteração, deixaria de funcionar:
 
-| Compatível (sem nova versão) | Incompatível (exige nova versão ou migração) |
+| ✅ Compatível (sem nova versão) | ❌ Incompatível (exige nova versão ou migração) |
 |---|---|
 | adicionar um endpoint, RPC ou campo de query | remover ou renomear um endpoint, RPC ou campo |
 | adicionar um campo **opcional** na requisição | adicionar um campo **obrigatório** na requisição |
@@ -386,11 +386,22 @@ Quando uma mudança incompatível é inevitável, versione e migre:
 
 | Estratégia | Exemplo | Observações |
 |---|---|---|
-| Caminho da URI | `/v1/orders` → `/v2/orders` | a mais visível; mais fácil de rotear e testar — a escolha comum |
+| Caminho do identificador do recurso (URI, *Uniform Resource Identifier*) | `/v1/orders` → `/v2/orders` | a mais visível; mais fácil de rotear e testar — a escolha comum |
 | Header / media type | `Accept: application/vnd.boxoffice.v2+json` | URLs mais limpas; mais difícil de testar à mão |
 | Pacote (gRPC) | `boxoffice.inventory.v1` → `.v2` | as duas versões do serviço podem rodar lado a lado |
 
 Depois, **expanda e contraia** (*parallel change*): publique a v2 ao lado da v1, migre os consumidores, acompanhe o tráfego da v1 cair a zero, anuncie a data com o header `Sunset` (RFC 8594)[^7] e só então remova a v1.
+
+``` diagram-sim
+flowchart LR
+    e1["expandir: publicar a v2<br/>ao lado da v1"]:::comp --> e2["migrar os consumidores<br/>um a um"]
+    e2 --> e3["header Sunset na v1<br/>anuncia a data"]
+    e3 --> e4{"chamadas à v1 por dia<br/>em zero?"}
+    e4 -->|"não: achar quem ainda chama"| e2
+    e4 -->|sim| e5["contrair: remover a v1"]:::comp
+```
+
+O laço é o que importa: a v1 sai quando o tráfego dela diz, contado por consumidor, e não só na data anunciada.
 
 !!! info "Testes de contrato orientados ao consumidor"
     Como saber que uma mudança é compatível antes do deploy? Cada consumidor publica as interações de que depende ("o `order` chama `GET /v1/holds/{id}` e lê `status` e `expiresAt`"); o CI do provedor as executa contra a nova versão e quebra o build se alguma falhar. Ferramentas: **Pact**, **Spring Cloud Contract**. Isso transforma "será que quebramos alguém?" de um incidente em produção num build vermelho.

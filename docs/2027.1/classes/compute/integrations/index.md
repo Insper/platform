@@ -9,7 +9,7 @@ BoxOffice deliberately buys its **generic subdomains** ([services](../services/i
 | Property | Internal service | External provider |
 |---|---|---|
 | Latency | low, predictable, measured by you | higher, heavy tail, on the public internet |
-| Availability | your SLO, your on-call | their SLA (credits, not your lost sales) |
+| Availability | your service level objective (SLO), your on-call | their service level agreement (SLA): credits, not your lost sales |
 | Limits | you set them | **rate limits and quotas** per API key |
 | Changes | coordinated, contract-tested | versioned by them, deprecated on their calendar |
 | Outcome of a call | known when the call returns | may be **decided later** (3-D Secure, bank review) |
@@ -29,7 +29,7 @@ Each row maps to a design rule:
 
 ## Anatomy of a payment
 
-Card payments are the hardest integration BoxOffice has, so we use them as the guide. The card number never touches BoxOffice: the app collects it with the provider's hosted fields and receives a **token**, which keeps BoxOffice out of most of the PCI DSS scope[^7]. The `payment` service then creates a payment with that token.
+Card payments are the hardest integration BoxOffice has, so we use them as the guide. The card number never touches BoxOffice: the app collects it with the provider's hosted fields and receives a **token**, which keeps BoxOffice out of most of the scope of the Payment Card Industry Data Security Standard (PCI DSS)[^7]. The `payment` service then creates a payment with that token.
 
 ``` diagram-sim
 sequenceDiagram
@@ -174,7 +174,7 @@ The decisions hidden in those lines are the ones an interviewer will probe:
 | Same key, **different** request | `422` | a client bug; executing it would be surprising |
 | Operation failed before committing | delete the key | nothing happened; a retry should run again |
 | Process crashed while `IN_PROGRESS` | after a timeout (`locked_at` older than, e.g., 1 min), allow a new attempt to take over | otherwise the key is stuck forever |
-| Old keys | purge after 24 h (or the retry window you document) | storage; the IETF draft and providers use similar windows |
+| Old keys | purge after 24 h (or the retry window you document) | storage; the Internet Engineering Task Force (IETF) draft and providers use similar windows |
 
 When the operation **also calls the provider**, step 3 is not purely local: the provider call cannot be rolled back with the transaction. That is why the outbound call carries its own idempotency key derived from the order id — if BoxOffice's transaction fails after the provider charged, the retry asks the provider again with the same key and gets the same payment back. For longer multi-step operations, Brandur Leach's "atomic phases and recovery points" design generalizes this[^3].
 
@@ -208,6 +208,19 @@ Not all failures are equal. What you may do next depends on **whether the reques
 | `400`, `401`, `402` card declined, `422` | no, and it will not succeed | do not retry; surface the error |
 
 Retries follow the rules from [reliability](../../reliability/index.md): exponential backoff with full jitter, a small maximum number of attempts, at **one** layer only, and inside the caller's time budget. For a user-facing checkout that budget is short — a few seconds; after that, the payment becomes `UNKNOWN`/`PENDING` and the fan sees "we are confirming your payment", while a background job resolves it.
+
+The simulator below replays 1,000 checkouts against a provider with a heavy latency tail, so you can see what a timeout plus a retry does with and without a key.
+
+<div class="csim" data-sim="idempotent-retry" data-key="none" data-provider="normal"></div>
+
+!!! tip "Try it"
+    The simulator starts with lab 9's client settings for the payment call (a 1 s read timeout, 3 attempts, a 200 ms backoff that doubles, ±50% jitter) and no idempotency key.
+
+    1. With the **normal** provider, 6.2% of the calls are slower than 1 s. The caller gives up on them, but the provider finishes them: each retry charges again, so 63 fans pay twice or more (71 extra charges, R$ 31,950 to refund).
+    2. Choose **new per attempt**: nothing changes. A key that is new on every attempt identifies no operation.
+    3. Choose **one per order** (lab 9's order-<orderId>): 0 duplicates. The repeats still cost calls: 1,076 for 1,000 checkouts.
+    4. Switch to **slow day**: 40.2% of the calls time out. Without a key 392 fans pay twice or more; with one key per order nobody does, but 133 checkouts end UNKNOWN, each charged once, and the webhook or the reconciliation must settle them.
+    5. Back on the normal day with no key, set **attempts** to 1: no duplicates, but 66 fans are left UNKNOWN, all of them charged. At 3 attempts a 5 s timeout also removes the duplicates on a normal day, but on the slow day 19 fans still pay twice and the slowest checkout takes 11.1 s: no timeout replaces the key.
 
 ---
 
@@ -245,7 +258,7 @@ sequenceDiagram
 
 ### Verifying signatures
 
-Providers sign each delivery with a secret shared only with you, usually an **HMAC-SHA256** over the raw body plus a timestamp and a message id. The *Standard Webhooks* specification, adopted by several providers, defines the headers `webhook-id`, `webhook-timestamp` and `webhook-signature`, and signs the string `id.timestamp.body`[^4]; other providers use the same idea with their own header names (Stripe's `Stripe-Signature`, for instance[^5]). A receiver in Python with FastAPI:
+Providers sign each delivery with a secret shared only with you, usually an **HMAC-SHA256** (a hash-based message authentication code, HMAC, with the SHA-256 hash) over the raw body plus a timestamp and a message id. The *Standard Webhooks* specification, adopted by several providers, defines the headers `webhook-id`, `webhook-timestamp` and `webhook-signature`, and signs the string `id.timestamp.body`[^4]; other providers use the same idea with their own header names (Stripe's `Stripe-Signature`, for instance[^5]). A receiver in Python with FastAPI:
 
 ```python title="payment-webhooks/main.py"
 import base64
@@ -398,7 +411,7 @@ The BoxOffice decisions:
 - **Venue-map API down** → the event page renders without the interactive map (cached image fallback).
 
 !!! example "E-mail is an integration with its own rules"
-    Sending e-mail reliably is more than an API call. Providers enforce **rate limits** per account; they report **bounces** (address does not exist) and **complaints** (marked as spam) by webhook, and BoxOffice must stop sending to those addresses (a **suppression list**) or the provider will suspend the account. Domain authentication with **SPF, DKIM and DMARC** decides whether messages reach the inbox at all. And **transactional** mail (tickets, password resets) should use a separate stream or subdomain from **marketing** mail, so that a bad campaign does not hurt ticket delivery.
+    Sending e-mail reliably is more than an API call. Providers enforce **rate limits** per account; they report **bounces** (address does not exist) and **complaints** (marked as spam) by webhook, and BoxOffice must stop sending to those addresses (a **suppression list**) or the provider will suspend the account. Domain authentication with **SPF, DKIM and DMARC** (Sender Policy Framework, DomainKeys Identified Mail and Domain-based Message Authentication, Reporting and Conformance) decides whether messages reach the inbox at all. And **transactional** mail (tickets, password resets) should use a separate stream or subdomain from **marketing** mail, so that a bad campaign does not hurt ticket delivery.
 
 ### Try it in the playground
 
@@ -418,7 +431,7 @@ Open the `payment-system` scenario: checkout calls a payment service that calls 
 
 - **Secrets** (API keys, webhook secrets) live in a secret manager, never in the repository; rotate them, and use **restricted keys** with only the permissions a service needs ([network & security](../../network-security/index.md)).
 - **Minimize PCI DSS scope**: tokenize with the provider's hosted fields or payment page so that card numbers never cross BoxOffice's network.
-- **Egress control**: calls to providers leave through a NAT gateway with fixed IPs (some providers allowlist them); deny other outbound traffic.
+- **Egress control**: calls to providers leave through a network address translation (NAT) gateway with fixed IP addresses (some providers allowlist them); deny other outbound traffic.
 - **Treat provider responses as input**: validate them; a compromised or buggy provider must not be able to inject data into your system unchecked.
 
 ---
@@ -427,7 +440,7 @@ Open the `payment-system` scenario: checkout calls a payment service that calls 
 
 | Decision | Option A | Option B |
 |---|---|---|
-| Confirming a payment | synchronous answer: simple UX, but checkout depends on the provider's latency and fails on timeouts | `202` + webhook: robust and honest about uncertainty, but needs states, push/poll in the UI and reconciliation |
+| Confirming a payment | synchronous answer: simple user experience (UX), but checkout depends on the provider's latency and fails on timeouts | `202` + webhook: robust and honest about uncertainty, but needs states, push/poll in the UI and reconciliation |
 | Learning outcomes | webhooks: fast, efficient, can be lost | polling: simple, complete, slow and wasteful |
 | Provider redundancy | one provider: simpler, cheaper | two providers: survives outages, doubles integration and reconciliation work |
 | Webhook processing | inline: simpler | inbox + queue: fast acks, retries under your control |

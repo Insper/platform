@@ -5,13 +5,13 @@
     Run BoxOffice on a real Kubernetes cluster on your laptop. Create a three-node **kind** cluster,
     install an **Ingress controller** (Traefik) and **metrics-server**, deploy `db`, `redis` and
     `catalog` with **Kustomize** — probes, resource requests and limits, graceful shutdown — and let a
-    **Horizontal Pod Autoscaler** scale `catalog` under a k6 ramp. Measure how fast capacity follows
+    **Horizontal Pod Autoscaler** (HPA) scale `catalog` under a k6 ramp. Measure how fast capacity follows
     load, how many requests a rolling update loses, and how long self-healing takes.
 
 In lab 3 you scaled `catalog` by editing `docker-compose.yaml` and restarting; in lab 9 you watched a
 service fall over and had to restart it by hand. At 10:00 on sale day nobody should be editing YAML
 or restarting containers. Kubernetes turns both into **control loops**: you declare the desired
-state — "at least two ready replicas, more when CPU passes 60%" — and controllers keep reality there,
+state — "at least two ready replicas, more when their central processing unit (CPU) use passes 60%" — and controllers keep reality there,
 every few seconds, forever. This lab is the hands-on side of the
 [cloud-native class](../../classes/cloud-native/index.md) and builds chapter 11 of the
 [story of the course](../../index.md#story): it implements the class's decisions on
@@ -67,7 +67,7 @@ flowchart LR
         svc --> c2[catalog pod]
         svc -.-> cN["catalog pod ... (HPA: 2..8)"]
         c1 --> redis[(redis)]
-        c1 --> db[("db-0 (StatefulSet + PVC)")]
+        c1 --> db[("db-0 (StatefulSet + volume)")]
         ms[metrics-server] -.->|CPU| hpa[HPA]
         hpa -.->|replicas| svc
     end
@@ -108,6 +108,11 @@ flowchart LR
 4. [Ingress](ingress/index.md) — the path of a request into the cluster; Ingress and Gateway API.
 5. [Measure it](measure/index.md) — fixed vs autoscaled, rollouts with and without probes, recovery times.
 
+No cluster yet, or a laptop that cannot hold one? The lab's cluster also runs in the browser, as a
+simulator on [Deploy](deploy/index.md) (convergence, self-healing, a lost node) and on
+[Measure it](measure/index.md) (the rollout of experiment B). It replays the lab's commands with its
+manifests; the numbers you report still come from your own cluster.
+
 ## Try it in the playground
 
 **Try it:** run `scale-out` with the `stress` profile and a fixed number of replicas until p99
@@ -139,7 +144,7 @@ The [Measure it](measure/index.md) step has the commands and the results table t
 
 !!! success "Best practices in this lab"
 
-    - **One probe per question**: startup sized for the slowest start (5 min, with migrations), liveness local to the JVM, readiness for traffic — `k8s/base/catalog.yaml`; why: [Kubernetes — probes](../../classes/cloud-native/kubernetes/index.md#probes).
+    - **One probe per question**: startup sized for the slowest start (5 min, with migrations), liveness local to the Java virtual machine (JVM), readiness for traffic — `k8s/base/catalog.yaml`; why: [Kubernetes — probes](../../classes/cloud-native/kubernetes/index.md#probes).
     - **Requests set on purpose, because they are the base of the HPA percentage** (60% of 250m) — `catalog.yaml` and `catalog-hpa.yaml`; why: [requests and limits](../../classes/cloud-native/kubernetes/index.md#requests-limits).
     - **No request lost in a rollout**: `maxUnavailable: 0`, a 5 s `preStop` pause and graceful shutdown — `catalog.yaml`; why: [graceful shutdown](../../classes/cloud-native/containers/index.md#graceful-shutdown-the-other-half-of-disposability).
     - **Scale up fast, down slowly**: double or +2 pods every 15 s, one pod every 30 s after a 2-minute window — `catalog-hpa.yaml`; why: [autoscaling](../../classes/cloud-native/kubernetes/index.md#autoscaling).
@@ -176,7 +181,7 @@ Commit and tag: `git add -A && git commit -m "lab 10: kubernetes" && git tag lab
 - [ ] `k8s/kind.yaml`, `k8s/base/` and `k8s/overlays/local/` in your repository; `kubectl apply -k k8s/overlays/local` deploys everything into the `boxoffice` namespace
 - [ ] `curl localhost/catalog/events/1` answers through Traefik
 - [ ] `catalog` has startup, liveness and readiness probes, requests and limits, graceful shutdown and a `preStop` pause
-- [ ] the HPA scaled `catalog` up during the k6 ramp and back down afterwards; the CSV log is committed
+- [ ] the HPA scaled `catalog` up during the k6 ramp and back down afterwards; the comma-separated values (CSV) log is committed
 - [ ] the rolling-update experiment shows the effect of readiness + `preStop` in failed requests
 - [ ] results table filled in and explained; `git tag lab10`
 

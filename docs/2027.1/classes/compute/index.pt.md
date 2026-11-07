@@ -13,15 +13,15 @@ A borda ([aula 4](../edge/index.md)) decide *para onde* vai cada requisição. E
     - **Explicar** por que servidores de aplicação devem ser stateless e **mover** cada tipo de estado (sessões, arquivos, caches, agendamentos) para o lugar certo.
     - **Estimar** quantas réplicas um serviço precisa para um dado pico, usando a capacidade por instância e uma utilização-alvo.
     - **Comparar** um monólito, um monólito modular e microsserviços, e **justificar** fronteiras de serviço com bounded contexts e a lei de Conway.
-    - **Escolher** um estilo de API (REST, gRPC, GraphQL, assíncrono) para uma interação e **evoluir** um contrato sem quebrar seus consumidores.
+    - **Escolher** um estilo de API para uma interação — transferência de estado representacional (REST, *representational state transfer*), gRPC, GraphQL ou assíncrono — e **evoluir** um contrato sem quebrar seus consumidores.
     - **Projetar** trabalho em segundo plano com filas, workers e schedulers que sejam seguros diante de retries e de múltiplas réplicas.
-    - **Decidir** entre containers e serverless e **configurar** autoscaling (target tracking, HPA, baseado em fila, agendado) para uma carga com picos.
+    - **Decidir** entre containers e serverless e **configurar** autoscaling para uma carga com picos: target tracking, o escalonador horizontal de pods (HPA, *Horizontal Pod Autoscaler*), baseado em fila e agendado.
     - **Integrar** um provedor externo com segurança: idempotency keys, webhooks verificados, retries com backoff, reconciliação e um plano para quedas do provedor.
 
 ## Roteiro { #roadmap }
 
 1. **Esta visão geral** — a paleta de computação, servidores de aplicação stateless, escalabilidade horizontal e quantas réplicas você precisa.
-2. [Serviços](services/index.md) — monólito, monólito modular e microsserviços; bounded contexts de DDD; lei de Conway; a arquitetura *dentro* de um serviço; auth, busca, notificações e analytics como serviços.
+2. [Serviços](services/index.md) — monólito, monólito modular e microsserviços; bounded contexts do design orientado ao domínio (DDD, *Domain-Driven Design*); lei de Conway; a arquitetura *dentro* de um serviço; auth, busca, notificações e analytics como serviços.
 3. [Estilos de API](api-styles/index.md) — REST, gRPC, GraphQL e APIs assíncronas para o mesmo recurso da BoxOffice; contratos, OpenAPI e versionamento.
 4. [Trabalho assíncrono](async-work/index.md) — workers e jobs em segundo plano, design de jobs, schedulers, locks distribuídos e eleição de líder.
 5. [Serverless e autoscaling](serverless-autoscaling/index.md) — functions as a service, cold starts e concorrência; políticas de autoscaling, HPA e por que o escalonamento reativo fica atrás de uma venda relâmpago.
@@ -48,7 +48,7 @@ No [System Design Playground](../../../playground/index.md), a categoria **COMPU
 | [App Server](../../reference/components/compute/index.md#app) | Handlers de requisição/resposta atrás de um load balancer | `catalog`, `inventory`, `order` | requisições por segundo, CPU |
 | [Worker](../../reference/components/compute/index.md#worker) | Jobs retirados de uma fila, fora de qualquer requisição de usuário | geração do PDF do ingresso, envio de e-mail | profundidade da fila, consumer lag |
 | [Serverless](../../reference/components/compute/index.md#serverless) | Funções curtas iniciadas pela plataforma a cada evento | redimensionar a imagem de um artista no upload; receber webhooks | invocações simultâneas |
-| [Auth Service](../../reference/components/compute/index.md#auth) | Login, tokens, sessões, identidade | `auth` emite JWTs para fãs e equipe | logins por segundo (picos na abertura das vendas) |
+| [Auth Service](../../reference/components/compute/index.md#auth) | Login, tokens, sessões, identidade | `auth` emite tokens web JSON (JWTs, *JSON Web Tokens*) para fãs e equipe | logins por segundo (picos na abertura das vendas) |
 | [Search](../../reference/components/compute/index.md#search) | Consultas full-text e por facetas sobre um índice | "coldplay são paulo" → eventos | consultas por segundo, tamanho do índice |
 | [Scheduler](../../reference/components/compute/index.md#scheduler) | Trabalho disparado por tempo (cron, jobs atrasados) | abrir a venda às 10:00; liberar reservas expiradas | número de jobs, precisão |
 | [Notifications](../../reference/components/compute/index.md#notifications) | Fan-out para provedores de e-mail, push e SMS | "seus ingressos chegaram" | mensagens por segundo, limites do provedor |
@@ -83,7 +83,7 @@ As réplicas são caixas intercambiáveis; o estado fica nos armazenamentos comp
 |---|---|---|
 | Sessão HTTP em memória (carrinho, login) | A próxima requisição pode cair em outra réplica → "você foi deslogado" | Um token assinado no cliente (JWT) ou um session store (Redis) |
 | Arquivos enviados no disco local | Outras réplicas não os enxergam; somem quando o pod morre | Object store (S3, GCS, MinIO) |
-| Cache dentro do processo | Cada réplica tem uma cópia diferente e desatualizada | Um cache distribuído (Redis) — ou aceitar TTLs curtos por réplica |
+| Cache dentro do processo | Cada réplica tem uma cópia diferente e desatualizada | Um cache distribuído (Redis) — ou aceitar tempos de vida (TTLs, *times to live*) curtos por réplica |
 | Jobs agendados dentro da aplicação (`@Scheduled`) | Com 10 réplicas o job roda 10 vezes | Um [scheduler com lock ou líder](async-work/index.md#schedulers) |
 | Contadores e rate limits em memória | Cada réplica conta só a sua parte | Redis (`INCR`) ou o API gateway |
 | Conexões WebSocket | Uma conexão *é* estado, presa a uma réplica | Mantenha-a, mas publique as mensagens via pub/sub para que qualquer réplica alcance qualquer usuário |
@@ -99,7 +99,7 @@ Este é o fator VI do *Twelve-Factor App*: "execute a aplicação como um ou mai
 
 !!! example "No código do BoxOffice: nenhuma sessão em nenhuma réplica (lab 4)"
 
-    O [Hands-on 4 — Gateway](../../hands-on/4/gateway/index.md) não guarda sessão de login em lugar nenhum. O JWT do fã viaja em toda requisição e o gateway confere a assinatura com a chave pública do `auth`, buscada uma vez no seu endpoint JWKS: nenhuma réplica se lembra do fã, então o gateway pode mandar cada requisição para qualquer uma das três réplicas do `catalog` (`lb://catalog`) e perder uma não perde nada. O preço é a revogação: um token continua válido até expirar (uma hora aqui, `jwt.ttl`), como explica [Identidade](../edge/identity/index.md#gateway-validation).
+    O [Hands-on 4 — Gateway](../../hands-on/4/gateway/index.md) não guarda sessão de login em lugar nenhum. O JWT do fã viaja em toda requisição e o gateway confere a assinatura com a chave pública do `auth`, buscada uma vez no seu endpoint de conjunto de chaves (JWKS, *JSON Web Key Set*): nenhuma réplica se lembra do fã, então o gateway pode mandar cada requisição para qualquer uma das três réplicas do `catalog` (`lb://catalog`) e perder uma não perde nada. O preço é a revogação: um token continua válido até expirar (uma hora aqui, `jwt.ttl`), como explica [Identidade](../edge/identity/index.md#gateway-validation).
 
     ``` { .java title="services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java (stateless security)" }
     --8<-- "docs/2027.1/hands-on/4/code/services/gateway/src/main/java/boxoffice/gateway/SecurityConfig.java:22:41"
@@ -113,10 +113,10 @@ Há duas formas de dar mais capacidade a um serviço:
 
 | | **Escala vertical** (scale up) | **Escala horizontal** (scale out) |
 |---|---|---|
-| Como | Uma máquina maior: mais vCPUs, mais memória | Mais máquinas (réplicas) atrás de um load balancer |
+| Como | Uma máquina maior: mais CPUs virtuais (vCPUs), mais memória | Mais máquinas (réplicas) atrás de um load balancer |
 | Limite | O maior tipo de instância; o preço cresce mais rápido que o tamanho | Os armazenamentos compartilhados atrás das réplicas |
-| Disponibilidade | Uma caixa só: a falha dela é a sua indisponibilidade | As réplicas cobrem umas às outras |
-| Downtime para mudar | Normalmente um restart | Nenhum — adiciona e remove réplicas em funcionamento |
+| Disponibilidade | ❌ Uma caixa só: a falha dela é a sua indisponibilidade | ✅ As réplicas cobrem umas às outras |
+| Downtime para mudar | ⚠️ Normalmente um restart | ✅ Nenhum — adiciona e remove réplicas em funcionamento |
 | Exige | Nada do código | App servers **stateless** |
 | Bom para | Bancos de dados, correções rápidas, sistemas pequenos | App servers, workers, qualquer coisa stateless |
 
@@ -124,7 +124,7 @@ App servers são escalados **para fora** quase por padrão, porque ser stateless
 
 ### Quantas réplicas? { #how-many-replicas }
 
-A pergunta que todo design precisa responder com um número. Parta da capacidade de uma réplica, medida com um teste de carga ([hands-on 2](../../hands-on/2/index.md)) e da carga de pico da sua estimativa ([aula 2](../estimation/index.md)):
+A pergunta que todo design precisa responder com um número. Parta da capacidade de uma réplica em requisições por segundo (RPS), medida com um teste de carga ([hands-on 2](../../hands-on/2/index.md)) e da carga de pico da sua estimativa ([aula 2](../estimation/index.md)):
 
 $$
 N = \left\lceil \frac{\text{RPS de pico}}{\text{RPS por réplica} \times \text{utilização-alvo}} \right\rceil + \text{folga}
@@ -235,10 +235,10 @@ O mesmo serviço stateless pode rodar sobre substratos muito diferentes. A escol
 
 | Formato | Unidade que você implanta | Velocidade de escala | Você gerencia | Paga por | Uso típico |
 |---|---|---|---|---|---|
-| **Máquina virtual** | imagem de VM | minutos | SO, runtime, aplicação | horas provisionadas | legado, hardware especial, bancos de dados |
+| **Máquina virtual (VM, *virtual machine*)** | imagem de VM | minutos | sistema operacional (SO), runtime, aplicação | horas provisionadas | legado, hardware especial, bancos de dados |
 | **Containers no Kubernetes** | imagem de container | segundos (pod) a minutos (nó) | o cluster (ou um gerenciado), a aplicação | nós, mesmo ociosos | o padrão para serviços |
 | **Containers serverless** (Cloud Run, Fargate, Container Apps) | imagem de container | segundos, até zero | a aplicação | por requisição ou por vCPU-segundo | APIs com períodos ociosos |
-| **Funções (FaaS)** (Lambda, Cloud Functions) | uma função | de menos de um segundo a segundos, até zero | uma função | por invocação e duração | cola entre eventos, webhooks, trabalho em rajadas |
+| **Funções como serviço (FaaS, *Functions as a Service*)** (Lambda, Cloud Functions) | uma função | de menos de um segundo a segundos, até zero | uma função | por invocação e duração | cola entre eventos, webhooks, trabalho em rajadas |
 
 A aula 11 ([cloud-native](../cloud-native/index.md)) cobre containers e Kubernetes em profundidade; esta aula cobre as decisões que dependem da *carga de trabalho*: [serverless e autoscaling](serverless-autoscaling/index.md).
 
@@ -260,21 +260,19 @@ flowchart LR
     shared -.- c6["bounded contexts,<br/>alimentados por eventos, donos dos dados"]:::tech
     app --> ext["payment · email ·<br/>thirdparty"]:::comp
     ext -.- c7["idempotency keys, webhooks,<br/>reconciliação"]:::tech
-    classDef comp fill:#1e9e5a22,stroke:#1e9e5a
-    classDef tech fill:#2f6fed22,stroke:#2f6fed
 ```
 
 | Componente da paleta | Pergunta que responde | Conceitos | Ensinado em | Cenários |
 |---|---|---|---|---|
 | [`app`](../../reference/components/compute/index.md#app) | Onde roda a lógica de requisição/resposta e como ela escala? | réplicas stateless, dimensionamento a 50–70%, ciclo de vida, contratos de API | [esta visão geral](#stateless-app-servers), [Estilos de API](api-styles/index.md) | `monolith`, `scale-out` |
-| [`worker`](../../reference/components/compute/index.md#worker) | O que roda fora da requisição do usuário? | jobs numa fila, workers = taxa × tempo por job, pelo menos uma vez, DLQ | [Trabalho assíncrono](async-work/index.md) | `async-queue` |
+| [`worker`](../../reference/components/compute/index.md#worker) | O que roda fora da requisição do usuário? | jobs numa fila, workers = taxa × tempo por job, pelo menos uma vez, fila de mensagens mortas (DLQ, *dead-letter queue*) | [Trabalho assíncrono](async-work/index.md) | `async-queue` |
 | [`scheduler`](../../reference/components/compute/index.md#scheduler) | O que roda num horário — uma vez e não uma vez por réplica? | CronJob, lock distribuído, eleição de líder, fencing tokens, expiração preguiçosa | [Trabalho assíncrono — schedulers](async-work/index.md#schedulers) | `notification-system` |
 | [`serverless`](../../reference/components/compute/index.md#serverless) | O que deve escalar por requisição e até zero? | FaaS, cold starts, concorrência = taxa × duração, custo por uso | [Serverless e autoscaling](serverless-autoscaling/index.md) | `serverless-burst` |
 | [`auth`](../../reference/components/compute/index.md#auth) | Quem está chamando? | identidades e tokens, comprar antes de construir, validação no gateway | [Serviços](services/index.md) | `flash-sale` (rajadas de login) |
 | [`search`](../../reference/components/compute/index.md#search) · [`analytics`](../../reference/components/compute/index.md#analytics) | Como manter visões derivadas fora do caminho da requisição? | dados derivados, alimentados por eventos, reconstruíveis a partir da fonte da verdade | [Serviços](services/index.md) | `search-autocomplete`, `event-fanout` |
 | [`notifications`](../../reference/components/compute/index.md#notifications) · [`email`](../../reference/components/external/index.md#email) | Como as mensagens chegam aos fãs apesar dos limites do provedor? | workers guiados por fila, rate limits do provedor, bounces, um provedor secundário | [Serviços](services/index.md), [Integrações — quedas do provedor](integrations/index.md#provider-outages) | `notification-system` |
 | [`payment`](../../reference/components/external/index.md#payment) · [`thirdparty`](../../reference/components/external/index.md#thirdparty) | Como depender de sistemas que não controlamos? | adapters, idempotency keys, resultados UNKNOWN, webhooks, reconciliação | [Integrações](integrations/index.md) | `payment-system`, `cascading-failure`, `retry-storm` |
-| *(a camada inteira)* | Quantas réplicas e quando? | HPA, KEDA, escala pela profundidade da fila, escala agendada, atraso do autoscaling | [Serverless e autoscaling — atraso](serverless-autoscaling/index.md#autoscaling-lag) | `scale-out`, `flash-sale` |
+| *(a camada inteira)* | Quantas réplicas e quando? | HPA, autoscaling orientado a eventos do Kubernetes (KEDA, *Kubernetes Event-driven Autoscaling*), escala pela profundidade da fila, escala agendada, atraso do autoscaling | [Serverless e autoscaling — atraso](serverless-autoscaling/index.md#autoscaling-lag) | `scale-out`, `flash-sale` |
 
 !!! tip "Na entrevista"
 

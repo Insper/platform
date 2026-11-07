@@ -82,7 +82,7 @@ $$
 
     - Para acompanhar o pico: 100 × 0,8 = **80 workers** ocupados o tempo todo.
     - Com apenas 40 workers (capacidade de 50/s), o backlog cresce 50 jobs/s: depois de 10 minutos, há **30.000 jobs** esperando. O último fã espera cerca de 30.000 / 50 = 600 s = **10 minutos** pelos ingressos e, depois do pico, o backlog é drenado a 50 − 10 = 40 jobs/s, levando mais **12,5 minutos**.
-    - Isso é aceitável? Só o SLO pode dizer. Se a promessa é "ingressos na sua caixa de entrada em até 5 minutos", 40 workers não bastam.
+    - Isso é aceitável? Só o objetivo de nível de serviço (SLO, *service level objective*) pode dizer. Se a promessa é "ingressos na sua caixa de entrada em até 5 minutos", 40 workers não bastam.
 
 ```python exec="1" html="1"
 from io import StringIO
@@ -121,7 +121,7 @@ plt.close()
 
 O gráfico traz duas lições. Primeiro, uma fila **converte um problema de capacidade em atraso**: nada falhou com 40 workers, os fãs só esperaram. Segundo, **quem está a jusante define o limite real**: se o provedor de e-mail aceita no máximo, digamos, 100 mensagens por segundo no seu plano, 500 workers de notificação não enviam mais rápido — só colecionam `429 Too Many Requests`. Dimensione o pool de workers pela dependência mais lenta e deixe a fila guardar o resto.
 
-Escale workers pela **profundidade da fila ou pelo consumer lag**, não pela CPU: um worker esperando um provedor lento não usa CPU, mas também não está livre. [Serverless e autoscaling](../serverless-autoscaling/index.md#scaling-workers-on-queue-depth) mostra como (KEDA).
+Escale workers pela **profundidade da fila ou pelo consumer lag**, não pela CPU: um worker esperando um provedor lento não usa CPU, mas também não está livre. [Serverless e autoscaling](../serverless-autoscaling/index.md#scaling-workers-on-queue-depth) mostra como (autoscaling orientado a eventos do Kubernetes, KEDA, *Kubernetes Event-driven Autoscaling*). Para brincar com a lei de Little, a utilização e o backlog de um pico, use o simulador de pool de workers de [Mensageria — filas e pub/sub](../../messaging/queues-pubsub/index.md).
 
 ### Experimente no playground { #try-it-in-the-playground }
 
@@ -144,11 +144,31 @@ Uma fila não é mágica: workers caem no meio de jobs, brokers reentregam, prov
 | **Torne os jobs idempotentes** | o mesmo job *vai* rodar duas vezes | antes de gerar, verifique se `ord_9` já tem ingressos; envie o e-mail com uma chave de deduplicação `ord_9:tickets` |
 | **Dê o ack depois do trabalho, não antes** | dar o ack primeiro transforma uma queda num job perdido | fazer commit do offset do Kafka depois que o PDF foi armazenado |
 | **Coloque ids na mensagem, não dados** | as mensagens ficam pequenas; o worker lê o estado atual | `{"orderId": "ord_9"}`, não o pedido inteiro |
-| **Faça retry com backoff e depois estacione** | erros transitórios se resolvem; os permanentes não podem travar a fila | 4 tentativas com 1 s, 2 s, 4 s, depois a **dead letter queue** (DLQ) |
+| **Faça retry com backoff e depois estacione** | erros transitórios se resolvem; os permanentes não podem travar a fila | 4 tentativas com 1 s, 2 s, 4 s, depois a **fila de mensagens mortas** (DLQ, *dead-letter queue*) |
 | **Defina um timeout por job** | um job travado prende um worker para sempre | a geração do PDF é abortada após 10 s |
 | **Separe filas por prioridade** | um job em massa não pode atrasar os urgentes | `tickets` (urgente) e `marketing-emails` (em massa) em filas e pools diferentes |
 | **Registre o status do job** | usuários e suporte precisam ver o progresso | `ticket_status = PENDING / ISSUED / FAILED` no pedido |
 | **Respeite os limites a jusante** | mais paralelismo do que o provedor permite = erros | um rate limiter no worker de notificação |
+
+A vida de um job de ingresso sob essas regras (o cronograma de retries do listener abaixo):
+
+``` diagram-sim
+stateDiagram-v2
+    state "Na fila" as Queued
+    state "Rodando" as Running
+    state "Feito" as Done
+    [*] --> Queued : OrderConfirmed publicado
+    Queued --> Running : um worker o pega
+    Running --> Done : PDF salvo, depois o ack
+    Running --> Queued : worker caiu antes do ack → reentregue
+    Running --> Backoff : falhou, tentativas 1 a 3
+    Backoff --> Queued : espera 1 s, 2 s, 4 s
+    Running --> DLQ : 4ª tentativa falhou (envenenada)
+    DLQ --> Queued : código corrigido, um humano reprocessa
+    Done --> [*]
+```
+
+Duas setas voltam para *Na fila* sem nenhum humano: é por isso que o job às vezes roda duas vezes e precisa ser idempotente.
 
 Uma **mensagem envenenada** (*poison message*) é aquela que falha sempre (um payload malformado, um bug). Sem limite de retries, ela é reprocessada para sempre e, em partições ordenadas, bloqueia todas as mensagens atrás dela. A DLQ a estaciona para um humano (ou para uma versão corrigida do código) e deixa a fila seguir. Monitore o tamanho da DLQ: uma DLQ crescendo é um incidente.
 
@@ -185,11 +205,11 @@ class TicketJobListener {
 
 | Opção | Durável? | Bom para | Cuidado com |
 |---|---|---|---|
-| No próprio processo (`@Async`, um pool de threads) | **não** — perdido numa queda ou num deploy | trabalho fire-and-forget que você pode se dar ao luxo de perder | não é uma fila; sem retries, sem visibilidade |
-| Filas baseadas em Redis (Sidekiq, Celery, BullMQ) | em geral (depende da configuração de persistência) | filas de jobs simples, com retries e agendamentos | memória do Redis e configuração de persistência |
-| Filas de broker (SQS, RabbitMQ, Cloud Tasks) | sim | um job → um worker, ack por mensagem, atrasos, DLQ | ordenação fraca ou só por grupo |
-| Log de eventos (Kafka, Pub/Sub, Kinesis) | sim, com replay | muitos consumidores dos mesmos fatos, alto throughput, ordenação por chave | paralelismo limitado pelas partições; acks por offset |
-| Motores de workflow (Temporal, AWS Step Functions) | sim, com estado | processos de várias etapas que duram de minutos a dias, com compensações | uma nova plataforma para aprender e operar |
+| No próprio processo (`@Async`, um pool de threads) | ❌ **não** — perdido numa queda ou num deploy | trabalho fire-and-forget que você pode se dar ao luxo de perder | não é uma fila; sem retries, sem visibilidade |
+| Filas baseadas em Redis (Sidekiq, Celery, BullMQ) | ⚠️ em geral (depende da configuração de persistência) | filas de jobs simples, com retries e agendamentos | memória do Redis e configuração de persistência |
+| Filas de broker (SQS, RabbitMQ, Cloud Tasks) | ✅ sim | um job → um worker, ack por mensagem, atrasos, DLQ | ordenação fraca ou só por grupo |
+| Log de eventos (Kafka, Pub/Sub, Kinesis) | ✅ sim, com replay | muitos consumidores dos mesmos fatos, alto throughput, ordenação por chave | paralelismo limitado pelas partições; acks por offset |
+| Motores de workflow (Temporal, AWS Step Functions) | ✅ sim, com estado | processos de várias etapas que duram de minutos a dias, com compensações | uma nova plataforma para aprender e operar |
 
 Os motores de **execução durável** (*durable execution*) merecem menção: quando um processo tem muitas etapas e esperas — "evento cancelado → reembolsar 60.000 pedidos → enviar e-mail a cada fã → esperar 7 dias → fechar a contabilidade" — escrevê-lo como um workflow, cujo progresso o motor persiste após cada etapa, é mais simples e mais seguro do que encadear filas à mão[^4].
 
@@ -206,7 +226,7 @@ Parte do trabalho é disparada pelo **tempo**, não por uma requisição ou um e
 
 ### O problema do cron duplicado { #the-duplicate-cron-problem }
 
-A implementação óbvia é um método `@Scheduled` no serviço. Funciona com uma réplica. Com 10 réplicas, **o job roda 10 vezes**: 10 e-mails de lembrete por fã, 10 varreduras concorrentes brigando pelas mesmas linhas. O mesmo acontece com uma entrada de cron copiada em cada VM. Há quatro soluções padrão:
+A implementação óbvia é um método `@Scheduled` no serviço. Funciona com uma réplica. Com 10 réplicas, **o job roda 10 vezes**: 10 e-mails de lembrete por fã, 10 varreduras concorrentes brigando pelas mesmas linhas. O mesmo acontece com uma entrada de cron copiada em cada máquina virtual (VM, *virtual machine*). Há quatro soluções padrão:
 
 === "CronJob do Kubernetes"
 
@@ -316,7 +336,7 @@ A regra da BoxOffice: **a correção nunca espera pelo scheduler**. Um hold cujo
     ```
 
 !!! example "Abrindo as vendas às 10:00"
-    Não faça "as vendas abrem" depender de um cron disparando exatamente às 10:00:00 — schedulers atrasam segundos e uma execução perdida significaria nenhuma venda. Guarde `onSaleAt = 10:00:00` junto com o evento; o `inventory` simplesmente rejeita holds antes desse instante (uma verificação contra o relógio, com relógios sincronizados por NTP — [sistemas distribuídos](../../distributed/index.md)). O scheduler faz apenas a *preparação*: às 09:45 ele escala a frota e aquece os caches ([serverless e autoscaling](../serverless-autoscaling/index.md#scheduled-and-predictive-scaling)).
+    Não faça "as vendas abrem" depender de um cron disparando exatamente às 10:00:00 — schedulers atrasam segundos e uma execução perdida significaria nenhuma venda. Guarde `onSaleAt = 10:00:00` junto com o evento; o `inventory` simplesmente rejeita holds antes desse instante (uma verificação contra o relógio, com relógios sincronizados pelo protocolo de tempo de rede (NTP, *Network Time Protocol*) — [sistemas distribuídos](../../distributed/index.md)). O scheduler faz apenas a *preparação*: às 09:45 ele escala a frota e aquece os caches ([serverless e autoscaling](../serverless-autoscaling/index.md#scheduled-and-predictive-scaling)).
 
 O cenário `notification-system` combina um scheduler, uma fila e os provedores de e-mail/push. Experimente aumentar o número de jobs do scheduler para simular a rajada de lembretes de 24 horas e observe onde o backlog se acumula.
 

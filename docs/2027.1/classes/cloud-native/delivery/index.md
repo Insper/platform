@@ -1,4 +1,4 @@
-It is 09:40 on on-sale day. A bug in `inventory` lets a seat hold expire two minutes early, and the fix is a one-line change. In a team without a delivery pipeline, the fix waits: someone must build it, someone must copy the jar, someone must restart servers one by one, and nobody wants to do that twenty minutes before the biggest traffic peak of the year. In a team with a good pipeline, the fix is merged, built, scanned, rolled out to 5 % of the traffic, **checked automatically against the SLOs**, and promoted — or rolled back — without a human touching a server.
+It is 09:40 on on-sale day. A bug in `inventory` lets a seat hold expire two minutes early, and the fix is a one-line change. In a team without a delivery pipeline, the fix waits: someone must build it, someone must copy the jar, someone must restart servers one by one, and nobody wants to do that twenty minutes before the biggest traffic peak of the year. In a team with a good pipeline, the fix is merged, built, scanned, rolled out to 5 % of the traffic, **checked automatically against the service level objectives (SLOs)**, and promoted — or rolled back — without a human touching a server.
 
 This page builds that pipeline in four layers: the infrastructure is **code**, every change is **integrated and tested continuously**, the cluster **pulls** its desired state from Git, and each release is **exposed gradually** and judged by metrics.
 
@@ -17,7 +17,7 @@ flowchart LR
 
 ## Infrastructure as code { #iac }
 
-The BoxOffice production environment has a VPC, subnets, a Kubernetes cluster, a managed PostgreSQL, a managed Redis, a Kafka cluster, buckets, DNS records and IAM roles — a few hundred resources. Created by clicking in a console, they cannot be reviewed, reproduced or rebuilt after a disaster, and staging silently drifts away from production. **Infrastructure as code (IaC)** describes those resources in versioned files that a tool applies.
+The BoxOffice production environment has a virtual private cloud (VPC), subnets, a Kubernetes cluster, a managed PostgreSQL, a managed Redis, a Kafka cluster, buckets, DNS records and IAM roles — a few hundred resources. Created by clicking in a console, they cannot be reviewed, reproduced or rebuilt after a disaster, and staging silently drifts away from production. **Infrastructure as code (IaC)** describes those resources in versioned files that a tool applies.
 
 | Property | Why it matters for BoxOffice |
 |---|---|
@@ -26,7 +26,7 @@ The BoxOffice production environment has a VPC, subnets, a Kubernetes cluster, a
 | **Reproducible** | Staging and a load-test environment are the same modules with different variables — parity for [performance tests](../../performance/methodology/index.md) |
 | **Recoverable** | After a region loss, the environment is re-created from code (data comes from backups — see [Disaster recovery](../../reliability/disaster-recovery/index.md)) |
 
-**Terraform** (HashiCorp) is the most widely used IaC tool. In 2023 HashiCorp changed its license to the Business Source License; the community fork **OpenTofu**, hosted by the Linux Foundation, keeps the open-source MPL 2.0 license and the same language (HCL) and CLI workflow[^1]. The snippet below works in both:
+**Terraform** (HashiCorp) is the most widely used IaC tool. In 2023 HashiCorp changed its license to the Business Source License; the community fork **OpenTofu**, hosted by the Linux Foundation, keeps the open-source Mozilla Public License (MPL) 2.0, the same language (the HashiCorp Configuration Language, HCL) and the same command-line workflow[^1]. The snippet below works in both:
 
 ```hcl title="infra/modules/data/main.tf"
 variable "env"            { type = string }                 # "staging" | "prod"
@@ -177,7 +177,7 @@ Notice what the pipeline does **not** do: it never runs `kubectl apply` against 
 
 !!! tip "Keep CI fast"
 
-    A pipeline that takes 40 minutes is a pipeline people bypass. Cache dependencies (`cache: maven`), run unit tests before slow integration tests, build images with layer caching, and run independent jobs in parallel. The DORA research associates short lead times with *better* stability, not worse[^3].
+    A pipeline that takes 40 minutes is a pipeline people bypass. Cache dependencies (`cache: maven`), run unit tests before slow integration tests, build images with layer caching, and run independent jobs in parallel. The DORA research (DevOps Research and Assessment, below) associates short lead times with *better* stability, not worse[^3].
 
 ---
 
@@ -223,8 +223,8 @@ spec:
 
 | | Push-based CD (CI runs `kubectl apply`) | **Pull-based GitOps** (Argo CD, Flux) |
 |---|---|---|
-| Credentials | CI holds cluster-admin credentials — a juicy target | Only the in-cluster agent can change the cluster |
-| Drift | Undetected until the next deploy | Detected and optionally reverted continuously |
+| Credentials | ❌ CI holds cluster-admin credentials — a juicy target | ✅ Only the in-cluster agent can change the cluster |
+| Drift | ❌ Undetected until the next deploy | ✅ Detected and optionally reverted continuously |
 | Audit trail | Spread across CI logs | `git log` of the config repo |
 | Rollback | Re-run an old pipeline | `git revert` |
 | Multi-cluster | One pipeline step per cluster | Each cluster pulls its own path |
@@ -248,11 +248,11 @@ Deploying (putting new code on servers) and **releasing** (exposing it to users)
 
 | Strategy | How | Downtime | Extra capacity | Rollback | Blast radius |
 |---|---|---|---|---|---|
-| **Recreate** | Stop all old, start all new | Yes | None | Redeploy old (slow) | 100 % |
+| **Recreate** | Stop all old, start all new | 🔴 Yes | None | Redeploy old (slow) | 100 % |
 | **Rolling update** | Replace pods a few at a time (`maxSurge`, `maxUnavailable`) | No | Small (surge) | Roll forward/back gradually | Grows with the rollout |
 | **Blue/green** | Run the full new version beside the old; switch the router at once | No | 2× during switch | Switch back — seconds | 100 % at the switch, but instant undo |
 | **Canary** | Send a small % of traffic to the new version, increase while metrics stay healthy | No | Small | Set weight to 0 — seconds | 1–5 % at first |
-| **Shadow (mirroring)** | Copy live traffic to the new version; discard its responses | No | Up to 2× | Nothing to roll back | 0 % (beware side effects: payments!) |
+| **Shadow (mirroring)** | Copy live traffic to the new version; discard its responses | No | Up to 2× | Nothing to roll back | 0 % (⚠️ beware side effects: payments!) |
 | **Feature flags** | Deploy code dark; enable per user/segment at runtime | No | None | Flip the flag | Chosen segment |
 
 Rolling updates are the Kubernetes default and are enough for most changes. For risky changes on the purchase path — `inventory`, `order`, `payment` — BoxOffice uses **canaries**, and for product features **feature flags** (with a vendor-neutral API such as OpenFeature), which decouple *deploy* from *release* entirely: the code ships on Tuesday, the feature turns on for 1 % of fans on Thursday.
@@ -260,6 +260,18 @@ Rolling updates are the Kubernetes default and are enough for most changes. For 
 !!! warning "The database does not roll back"
 
     Two versions of `order` run side by side during any rolling update or canary, so every schema change must be **backward compatible**. Use **expand/contract** (parallel change): (1) *expand* — add the new column, nullable; (2) deploy code that writes both and reads the new one with a fallback; (3) backfill; (4) *contract* — drop the old column in a later release. Never rename or drop a column in the same release that stops using it.
+
+Step by step, for a new column `buyer_email` that replaces `email` in the `orders` table. Each box is a separate release; old and new pods overlap at every arrow:
+
+``` diagram-sim
+flowchart LR
+    v1["v1 reads and writes<br/>email"] --> ex["1 expand: add buyer_email,<br/>nullable (v1 ignores it)"]
+    ex --> v2["2 deploy v2: writes both,<br/>reads buyer_email, falls back to email"]
+    v2 --> bf["3 backfill: copy email<br/>into the old rows"]
+    bf --> v3["deploy v3: uses<br/>buyer_email only"]
+    v3 --> ct["4 contract: drop email<br/>(the next release)"]
+    v1 -.->|"rename in one release"| bad["v1 pods still running<br/>query a column that is gone"]:::problem
+```
 
 ---
 
@@ -307,7 +319,7 @@ spec:
   metrics:
     - name: error-rate
       interval: 1m
-      failureLimit: 2                       # two bad minutes → abort and roll back
+      failureLimit: 1                       # a second bad minute → abort and roll back
       successCondition: result[0] < 0.005   # < 0.5 % of requests fail
       provider:
         prometheus:
@@ -318,7 +330,7 @@ spec:
             sum(rate(http_server_requests_seconds_count{service="inventory-canary"}[2m]))
     - name: p99-latency
       interval: 1m
-      failureLimit: 2
+      failureLimit: 1
       successCondition: result[0] < 0.300   # p99 below 300 ms (the hold SLO)
       provider:
         prometheus:

@@ -1,6 +1,6 @@
 # 1. Um Cluster Local { #1-a-local-cluster }
 
-O Kubernetes é a mesma API num laptop e numa região de nuvem. Este passo cria um cluster de três nós
+O Kubernetes é a mesma interface de programação de aplicações (API, *application programming interface*) num laptop e numa região de nuvem. Este passo cria um cluster de três nós
 dentro do Docker com o **kind** (*Kubernetes IN Docker*), instala os dois add-ons de que o lab precisa —
 um **Ingress controller** e o **metrics-server** — e carrega nele as suas imagens do BoxOffice.
 
@@ -25,7 +25,7 @@ com que a maioria dos add-ons é distribuída:
 
     O cluster publica o Ingress na porta **80** da sua máquina, a mesma porta do `edge` do
     [lab 3](../../3/index.md). Pare o Compose antes de criar o cluster (`docker compose down`) e dê ao
-    Docker pelo menos 4 CPUs e 8 GB de memória.
+    Docker pelo menos 4 unidades centrais de processamento (CPUs, *central processing units*) e 8 GB de memória.
 
 ## O cluster { #the-cluster }
 

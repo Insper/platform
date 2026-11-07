@@ -9,7 +9,7 @@ Two bad options: size the fleet for the peak and pay for idle machines 99% of th
 **Serverless** means you deploy code and the platform provisions, scales and bills the machines underneath, including **scaling to zero** when there is no traffic. Two shapes dominate:
 
 - **Functions as a Service (FaaS)** — AWS Lambda, Google Cloud Run functions, Azure Functions: you deploy a *function*, the platform calls it once per event (an HTTP request, a queue message, a file upload, a schedule).
-- **Serverless containers** — Google Cloud Run, AWS Fargate (with ECS), Azure Container Apps: you deploy a *container image* that serves HTTP; the platform runs as many instances as the traffic needs, down to zero.
+- **Serverless containers** — Google Cloud Run, AWS Fargate (with Elastic Container Service, ECS), Azure Container Apps: you deploy a *container image* that serves HTTP; the platform runs as many instances as the traffic needs, down to zero.
 
 The idea has been described as "cloud programming simplified"[^1]: no servers to patch, no capacity to plan, pay only for what runs. The constraints are the price.
 
@@ -32,7 +32,7 @@ sequenceDiagram
     Note over X: idle for a while → frozen, later destroyed
 ```
 
-Each **execution environment** (a lightweight VM or sandbox) handles **one request at a time** in Lambda; a burst of 300 simultaneous requests needs 300 environments. Environments are reused while traffic continues and destroyed after some idle time[^2]. Everything follows from that model:
+Each **execution environment** (a lightweight virtual machine, VM, or sandbox) handles **one request at a time** in Lambda; a burst of 300 simultaneous requests needs 300 environments. Environments are reused while traffic continues and destroyed after some idle time[^2]. Everything follows from that model:
 
 - **Cold start**: the first request on a new environment pays for creating it. For a small Python or Node.js function this is typically a few hundred milliseconds; for a Spring Boot application on a plain JVM it can be several seconds (illustrative ranges — measure your own).
 - **Concurrency = rate × duration** (Little's law again): 2,000 requests/s × 0.2 s = **400 concurrent environments**. Halving the duration halves the concurrency — and the bill.
@@ -43,10 +43,10 @@ Each **execution environment** (a lightweight VM or sandbox) handles **one reque
 | Technique | What it does | Cost |
 |---|---|---|
 | **Keep init cheap** | fewer dependencies, lazy loading, smaller package | engineering time |
-| **Initialize outside the handler** | DB clients and SDKs created once per environment, reused by every request | none — always do it |
+| **Initialize outside the handler** | database clients and software development kits (SDKs) created once per environment, reused by every request | none — always do it |
 | **Provisioned concurrency / minimum instances** | the platform keeps N environments warm | you pay for them while idle — partly undoing "pay per use" |
 | **Snapshot restore** (Lambda SnapStart) | starts from a snapshot of an already-initialized runtime (Java, Python, .NET) | restrictions on unique state at init (random seeds, connections) |
-| **Native compilation** (GraalVM native image, Spring AOT) | a Java service starts in tens of milliseconds | longer builds; some reflection limits |
+| **Native compilation** (GraalVM native image, Spring ahead-of-time compilation, AOT) | a Java service starts in tens of milliseconds | longer builds; some reflection limits |
 | **Choose the runtime** | Go, Node.js and Python start faster than a full JVM | may not match the team's stack |
 
 Cold starts matter on **latency-critical, user-facing** paths with spiky traffic. They do not matter for a queue consumer rendering ticket PDFs, where an extra second is invisible.
@@ -109,7 +109,7 @@ With these assumptions each invocation costs about US$ 1 per million, so functio
 === "AWS"
 
     - **Lambda** (functions; triggers from API Gateway, SQS, S3, EventBridge, Kinesis/Kafka).
-    - **Fargate** (serverless containers under ECS or EKS).
+    - **Fargate** (serverless containers under ECS or Elastic Kubernetes Service, EKS).
     - **App Runner** (container web services). Edge: **CloudFront Functions**, **Lambda@Edge**.
 
 === "Google Cloud"
@@ -120,7 +120,7 @@ With these assumptions each invocation costs about US$ 1 per million, so functio
 === "Azure"
 
     - **Azure Functions** (consumption and premium plans with pre-warmed instances).
-    - **Azure Container Apps** (serverless containers, KEDA-based scaling).
+    - **Azure Container Apps** (serverless containers, scaling based on Kubernetes Event-Driven Autoscaling, KEDA).
 
 === "Open source / Kubernetes"
 
@@ -277,6 +277,26 @@ Reactive autoscaling has a built-in delay: the load must arrive, be measured, tr
 | Readiness probe passes, load balancer adds the pod | 5–10 s |
 | **Total** | **~1 to 4 minutes** |
 
+The same chain, step by step, for one new pod at 10:00 when no node has room:
+
+``` diagram-sim
+sequenceDiagram
+    participant F as Fans
+    participant M as metrics-server
+    participant H as HPA
+    participant N as node autoscaler
+    participant P as new pod
+    participant S as Service
+    F->>S: 10:00, traffic jumps 20×
+    M->>H: CPU average, 15 to 60 s later
+    H->>H: next loop (≤ 15 s): desired 10 → 20
+    H->>N: new pods Pending, no node has room
+    N->>P: node ready after 30 to 120 s, image pulled in 5 to 60 s
+    Note over P: JVM, Spring context, pools, cache warm-up: 10 to 60 s
+    P->>S: readiness passes, added to the endpoints
+    S->>P: first fan served, 1 to 4 minutes after 10:00
+```
+
 A flash sale goes from 1× to 20× in seconds (here, 1,000 to 20,000 req/s in 20 s). The simulation below compares a reactive autoscaler (target 60%, doubling at most every 15 s, new replicas ready after 90 s) with the same autoscaler plus a **scheduled** pre-scale at 09:45 to the forecast, 20,000 / (500 × 0.6) ≈ 67 replicas:
 
 ```python exec="1" html="1"
@@ -338,7 +358,7 @@ print(buf.getvalue())
 plt.close()
 ```
 
-The red area is demand above capacity: requests that queue, time out or are rejected — in the first minutes of the sale, exactly when it matters most. Reactive scaling eventually catches up, but **after** the fans had a bad time.
+The red area is demand above capacity: requests that queue, time out or are rejected — in the first minutes of the sale, exactly when it matters most. Reactive scaling eventually catches up, but **after** the fans had a bad time. The [HPA simulator of the Kubernetes page](../../cloud-native/kubernetes/index.md#autoscaling) plays the same race with lab 10's real HPA settings: change the pod start-up time or the minimum and watch the loss.
 
 ### Scheduled and predictive scaling { #scheduled-and-predictive-scaling }
 
@@ -368,13 +388,13 @@ Scaling down causes incidents too:
 | | Containers + HPA (Kubernetes) | Serverless containers (Cloud Run, Fargate) | Functions (Lambda) |
 |---|---|---|---|
 | Scale-up speed | pods: seconds; nodes: minutes | seconds | sub-second to seconds per environment |
-| Scale to zero | with KEDA/Knative | yes | yes |
+| Scale to zero | ⚠️ with KEDA/Knative | ✅ yes | ✅ yes |
 | Cold start | per new pod (JVM: seconds) | per instance | per environment, more frequent |
 | Concurrency per instance | many requests | many requests (configurable) | one request (Lambda) |
-| Long-lived connections, WebSockets | yes | limited | via a managed gateway only |
+| Long-lived connections, WebSockets | ✅ yes | ⚠️ limited | ❌ via a managed gateway only |
 | Max request duration | unlimited | minutes (platform limit) | 15 min (Lambda) |
 | Cost shape | pay for provisioned nodes | pay per use (CPU-seconds), min instances optional | pay per invocation + GB-seconds |
-| Operational effort | highest (cluster) | low | lowest |
+| Operational effort | 🔴 highest (cluster) | 🟢 low | 🟢 lowest |
 | Best for | steady, busy core services | APIs with idle periods, small teams | event glue, webhooks, bursty jobs |
 
 !!! tip "In the interview"

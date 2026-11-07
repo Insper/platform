@@ -5,14 +5,14 @@
     Rodar o BoxOffice num cluster Kubernetes de verdade no seu laptop. Criar um cluster **kind** com
     três nós, instalar um **Ingress controller** (Traefik) e o **metrics-server**, fazer o deploy de
     `db`, `redis` e `catalog` com o **Kustomize** — probes, requests e limits de recursos, graceful
-    shutdown — e deixar um **Horizontal Pod Autoscaler** escalar o `catalog` sob uma rampa do k6. Medir
+    shutdown — e deixar um **Horizontal Pod Autoscaler** (HPA) escalar o `catalog` sob uma rampa do k6. Medir
     quão rápido a capacidade acompanha a carga, quantas requisições um rolling update perde e quanto
     tempo a autocura leva.
 
 No lab 3 você escalou o `catalog` editando o `docker-compose.yaml` e reiniciando; no lab 9 você viu um
 serviço cair e teve que reiniciá-lo à mão. Às 10:00 do dia da venda ninguém deveria estar editando YAML
 ou reiniciando contêineres. O Kubernetes transforma as duas coisas em **laços de controle**: você
-declara o estado desejado — "pelo menos duas réplicas prontas, mais quando a CPU passar de 60%" — e os
+declara o estado desejado — "pelo menos duas réplicas prontas, mais quando o uso de unidade central de processamento (CPU, *central processing unit*) passar de 60%" — e os
 controllers mantêm a realidade ali, a cada poucos segundos, para sempre. Este lab é o lado prático da
 [aula de cloud-native](../../classes/cloud-native/index.md) e constrói o capítulo 11 da
 [história do curso](../../index.md#story): ele implementa as decisões da aula sobre
@@ -68,7 +68,7 @@ flowchart LR
         svc --> c2[pod catalog]
         svc -.-> cN["pod catalog ... (HPA: 2..8)"]
         c1 --> redis[(redis)]
-        c1 --> db[("db-0 (StatefulSet + PVC)")]
+        c1 --> db[("db-0 (StatefulSet + volume)")]
         ms[metrics-server] -.->|CPU| hpa[HPA]
         hpa -.->|réplicas| svc
     end
@@ -109,6 +109,11 @@ flowchart LR
 4. [Ingress](ingress/index.md) — o caminho de uma requisição para dentro do cluster; Ingress e Gateway API.
 5. [Meça](measure/index.md) — fixo vs autoscaling, rollouts com e sem probes, tempos de recuperação.
 
+Ainda sem cluster, ou num laptop que não aguenta um? O cluster do lab também roda no navegador, como
+simulador no [Deploy](deploy/index.md) (convergência, autocorreção, um nó perdido) e no
+[Meça](measure/index.md) (o rollout do experimento B). Ele repete os comandos do lab com os manifestos
+dele; os números que você reporta continuam vindo do seu próprio cluster.
+
 ## Experimente no playground { #try-it-in-the-playground }
 
 **Experimente:** rode o `scale-out` com o perfil `stress` e um número fixo de réplicas até o p99
@@ -140,7 +145,7 @@ O passo [Meça](measure/index.md) tem os comandos e a tabela de resultados para 
 
 !!! success "Boas práticas neste lab"
 
-    - **Uma probe por pergunta**: startup dimensionada para a inicialização mais lenta (5 min, com migrations), liveness local à JVM, readiness para o tráfego — `k8s/base/catalog.yaml`; por quê: [Kubernetes — probes](../../classes/cloud-native/kubernetes/index.md#probes).
+    - **Uma probe por pergunta**: startup dimensionada para a inicialização mais lenta (5 min, com migrations), liveness local à máquina virtual Java (JVM, *Java virtual machine*), readiness para o tráfego — `k8s/base/catalog.yaml`; por quê: [Kubernetes — probes](../../classes/cloud-native/kubernetes/index.md#probes).
     - **Requests definidos de propósito, porque são a base da porcentagem do HPA** (60% de 250m) — `catalog.yaml` e `catalog-hpa.yaml`; por quê: [requests e limits](../../classes/cloud-native/kubernetes/index.md#requests-limits).
     - **Nenhuma requisição perdida num rollout**: `maxUnavailable: 0`, uma pausa de 5 s no `preStop` e graceful shutdown — `catalog.yaml`; por quê: [graceful shutdown](../../classes/cloud-native/containers/index.md#graceful-shutdown-the-other-half-of-disposability).
     - **Escale para cima rápido, para baixo devagar**: dobrar ou +2 pods a cada 15 s, um pod a cada 30 s depois de uma janela de 2 minutos — `catalog-hpa.yaml`; por quê: [autoscaling](../../classes/cloud-native/kubernetes/index.md#autoscaling).
@@ -177,7 +182,7 @@ Faça commit e tag: `git add -A && git commit -m "lab 10: kubernetes" && git tag
 - [ ] `k8s/kind.yaml`, `k8s/base/` e `k8s/overlays/local/` no seu repositório; `kubectl apply -k k8s/overlays/local` faz o deploy de tudo no namespace `boxoffice`
 - [ ] `curl localhost/catalog/events/1` responde pelo Traefik
 - [ ] o `catalog` tem probes de startup, liveness e readiness, requests e limits, graceful shutdown e uma pausa no `preStop`
-- [ ] o HPA escalou o `catalog` para cima durante a rampa do k6 e de volta para baixo depois; o log em CSV está no commit
+- [ ] o HPA escalou o `catalog` para cima durante a rampa do k6 e de volta para baixo depois; o log em valores separados por vírgula (CSV, *comma-separated values*) está no commit
 - [ ] o experimento de rolling update mostra o efeito de readiness + `preStop` nas requisições com falha
 - [ ] tabela de resultados preenchida e explicada; `git tag lab10`
 

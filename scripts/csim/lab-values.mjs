@@ -109,4 +109,40 @@ export default [
       { key: "limit", value: 1000, unit: "millicores", lab: dep, read: t => { const m = t.match(/limits:[^]*?cpu:\s*"?(\d+)(m?)"?/); return m ? +m[1] * (m[2] ? 1 : 1000) : undefined; } },
     ].map(e => ({ sim: "autoscale", ...e }));
   })(),
+  // compute/integrations: lab 9's payment client (timeout, retry) and its idempotency key
+  ...(() => {
+    const yaml = H + "9/code/services/order/src/main/resources/application.yaml";
+    const ms = re => t => { const m = t.match(re); return m ? Number(m[1]) * (m[2] === "s" ? 1000 : 1) : undefined; };
+    return [
+      { key: "timeoutMs", value: 1000, unit: "ms", lab: yaml, read: ms(/read-timeout:\s*\$\{PAYMENT_READ_TIMEOUT:(\d+)(ms|s)\}/) },
+      { key: "attempts", value: 3, lab: yaml, read: num(/max-attempts:\s*\$\{PAYMENT_RETRY_ATTEMPTS:(\d+)\}/) },
+      { key: "backoff", value: 200, unit: "ms", lab: yaml, read: ms(/wait-duration:\s*(\d+)(ms|s)\b/) },
+      { key: "mult", value: 2, lab: yaml, read: num(/exponential-backoff-multiplier:\s*([\d.]+)/) },
+      { key: "jitter", value: 0.5, lab: yaml, read: num(/randomized-wait-factor:\s*([\d.]+)/) },
+      { key: "orderKey", module: false, value: "order-<orderId>", quote: "order-<orderId>",
+        lab: H + "9/code/services/order/src/main/java/boxoffice/order/payment/PaymentClient.java",
+        read: has(/"Idempotency-Key", "order-" \+ orderId/, "order-<orderId>") },
+    ].map(e => ({ sim: "idempotent-retry", ...e }));
+  })(),
+
+  // hands-on/10: the lab twin of lab 10 (catalog.yaml, kind.yaml, the k6 command of experiment B)
+  ...(() => {
+    const dep = H + "10/code/k8s/base/catalog.yaml", kind = H + "10/code/k8s/kind.yaml", measure = H + "10/measure/index.md";
+    const probe = (name, key) => t => num(new RegExp(name + ":[^\\n]*\\n(?:\\s+(?!\\w+Probe:)[^\\n]*\\n)*?\\s+" + key + ":\\s*(\\d+)"))(t);
+    return [
+      { key: "replicas", value: 2, lab: dep, read: num(/^\s*replicas:\s*(\d+)/m) },
+      { key: "maxSurge", value: 1, lab: dep, read: num(/maxSurge:\s*(\d+)/) },
+      { key: "maxUnavailable", value: 0, lab: dep, read: num(/maxUnavailable:\s*(\d+)/) },
+      { key: "preStop", value: 5, unit: "s", lab: dep, read: num(/preStop:\s*\n\s*sleep:\s*\n\s*seconds:\s*(\d+)/) },
+      { key: "readinessPeriod", value: 5, unit: "s", lab: dep, read: probe("readinessProbe", "periodSeconds") },
+      { key: "startupPeriod", value: 5, unit: "s", lab: dep, read: probe("startupProbe", "periodSeconds") },
+      { key: "grace", value: 30, unit: "s", lab: dep, read: num(/terminationGracePeriodSeconds:\s*(\d+)/) },
+      { key: "port", value: 8082, lab: dep, read: num(/^\s*port:\s*(\d+)/m) },
+      { key: "workers", value: 2, lab: kind, read: t => (t.match(/role: worker\b/g) || []).length || undefined },
+      { key: "rate", value: 100, unit: "req/s", lab: measure, read: num(/k6 run -e RATE=(\d+) -e DURATION=2m load\/catalog-otel\.js &/) },
+      { key: "duration", value: 120, unit: "s", lab: measure, read: t => (num(/k6 run -e RATE=\d+ -e DURATION=(\d+)m load\/catalog-otel\.js &/)(t) ?? NaN) * 60 },
+      { key: "rolloutAt", value: 30, unit: "s", lab: measure, read: num(/sleep (\d+) && kubectl -n boxoffice rollout restart deployment\/catalog/) },
+      { key: "cluster", value: "boxoffice", lab: kind, read: has(/^name: boxoffice$/m, "boxoffice") },
+    ].map(e => ({ sim: "kind-lab", ...e }));
+  })(),
 ];

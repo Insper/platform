@@ -31,7 +31,7 @@ Two kernel features do the work[^4]:
 
 | | Virtual machine | Container |
 |---|---|---|
-| Isolation boundary | Hardware (hypervisor) — strong | Kernel (namespaces) — weaker; one kernel bug affects all |
+| Isolation boundary | ✅ Hardware (hypervisor) — strong | ⚠️ Kernel (namespaces) — weaker; one kernel bug affects all |
 | Start time | Tens of seconds to minutes (boot an OS) | Milliseconds to seconds (start a process) |
 | Size | Gigabytes (a full OS) | Megabytes to a few hundred MB |
 | Density per host | Tens | Hundreds |
@@ -39,7 +39,7 @@ Two kernel features do the work[^4]:
 
 Because the isolation is weaker, cloud providers that run *other customers'* containers on shared hosts wrap them in lightweight VMs (AWS Firecracker under Lambda and Fargate, gVisor under Google Cloud Run). For your own services on your own nodes, plain containers are the norm.
 
-!!! warning "The JVM must know it is in a container"
+!!! warning "The Java virtual machine (JVM) must know it is in a container"
 
     A JVM that sizes its heap from the *host's* memory (64 GB) inside a container limited to 1 GiB will be killed by the kernel the first time it grows. Modern JVMs (Java 10+) read the cgroup limits; size the heap as a percentage of the container limit with `-XX:MaxRAMPercentage=75` and leave room for metaspace, thread stacks and direct buffers.
 
@@ -104,9 +104,9 @@ Each line has a reason:
 
 | Choice | Effect |
 |---|---|
-| Copy `pom.xml` and resolve dependencies **before** copying `src` | A code change rebuilds only the last layers; CI builds drop from minutes to seconds |
+| Copy `pom.xml` and resolve dependencies **before** copying `src` | A code change rebuilds only the last layers; continuous integration (CI) builds drop from minutes to seconds |
 | Spring Boot **layered jar** extraction | The ~60 MB of dependencies become a layer that changes rarely[^3]; a deploy pushes only the few-hundred-KB application layer |
-| **Distroless** base image | No shell, no package manager: smaller attack surface and fewer CVEs to patch (Alpine or `eclipse-temurin:21-jre` are common alternatives) |
+| **Distroless** base image | No shell, no package manager: smaller attack surface and fewer known vulnerabilities (CVEs, Common Vulnerabilities and Exposures) to patch (Alpine or `eclipse-temurin:21-jre` are common alternatives) |
 | `USER nonroot` | A compromised process is not root inside the container |
 | `MaxRAMPercentage=75` | Heap follows the container memory limit |
 | `ExitOnOutOfMemoryError` | A JVM in a bad state dies fast and is replaced, instead of limping |
@@ -123,7 +123,7 @@ docker run --rm -p 8080:8080 --memory=512m --cpus=1 \
 
 !!! example "BoxOffice: what multi-stage bought us"
 
-    With the naive single-stage image (JDK + Maven + sources) the team measured an image of roughly 800 MB; the multi-stage distroless image was under 250 MB, and a typical code change pushed a single small layer. Your numbers will differ — measure them with `docker image ls` and `docker history` — but the order of magnitude is typical. Smaller images matter for **scaling speed**: when the HPA adds 20 pods during the flash sale, each new node must pull the image before the pod can start.
+    With the naive single-stage image (JDK + Maven + sources) the team measured an image of roughly 800 MB; the multi-stage distroless image was under 250 MB, and a typical code change pushed a single small layer. Your numbers will differ — measure them with `docker image ls` and `docker history` — but the order of magnitude is typical. Smaller images matter for **scaling speed**: when the Horizontal Pod Autoscaler (HPA) adds 20 pods during the flash sale, each new node must pull the image before the pod can start.
 
 !!! example "In the BoxOffice code: the `catalog` image (lab 1)"
 
@@ -145,6 +145,22 @@ spring:
     timeout-per-shutdown-phase: 20s
 ```
 
+The whole sequence, when a rolling update or a scale-in removes a `catalog` pod. Endpoint removal and `SIGTERM` start at the same moment, so a short `preStop` pause (5 s in the [Kubernetes manifests](../kubernetes/index.md#boxoffices-catalog-on-kubernetes)) lets every proxy stop routing to the pod before the JVM stops accepting:
+
+``` diagram-sim
+sequenceDiagram
+    participant K as Kubernetes (API, kubelet)
+    participant E as Service endpoints, Traefik
+    participant P as catalog pod (JVM)
+    K->>E: pod Terminating, remove it from the endpoints
+    K->>P: run the preStop hook, sleep 5 s
+    Note over E,P: the proxies update within seconds, late requests still arrive and are served
+    K->>P: SIGTERM
+    P->>P: stop accepting, finish in-flight requests (up to 20 s)
+    P-->>K: exit 0, well inside the 30 s grace period
+    Note over K,P: still running after 30 s, the kubelet sends SIGKILL
+```
+
 ---
 
 ## Registries and the supply chain { #supply-chain }
@@ -156,7 +172,7 @@ Images are stored in a **registry** (Docker Hub, GitHub Container Registry, Amaz
 | **Scan** images for known vulnerabilities (CVEs) and fail on critical ones | Trivy, Grype, registry scanning | Shipping a base image with a known exploit |
 | Generate an **SBOM** (Software Bill of Materials: the list of every package in the image) | Syft, `docker buildx --sbom`, CycloneDX, SPDX | Not knowing whether you are affected by the next Log4Shell |
 | **Sign** images and verify the signature at deploy time | Sigstore Cosign, Kyverno / admission policies | A tampered image pushed to your registry |
-| Record **provenance** (who built what, from which commit) | SLSA provenance attestations, GitHub artifact attestations | An image built outside the pipeline |
+| Record **provenance** (who built what, from which commit) | SLSA (Supply-chain Levels for Software Artifacts) provenance attestations, GitHub artifact attestations | An image built outside the pipeline |
 | Pin base images and dependencies; rebuild regularly | Renovate, Dependabot | Silent drift and stale patches |
 
 The [Network & security class](../../network-security/zero-trust/index.md) discusses supply-chain security in depth; the [Delivery](../delivery/index.md) page wires these steps into the CI pipeline.
@@ -224,7 +240,7 @@ Services find each other by **service name** (`db`, `redis`) through Compose's i
 
     - **`latest` in production**: you do not know what is running, and rollback is ambiguous.
     - **Secrets baked into layers**: a `COPY .env` or `ARG PASSWORD` stays in the image history forever — even if a later layer deletes the file.
-    - **Running as root** and with a full shell: one RCE becomes a foothold.
+    - **Running as root** and with a full shell: one remote code execution (RCE) becomes a foothold.
     - **No memory limit, or a heap larger than the limit**: random `OOMKilled` restarts under load.
     - **Shell-form `ENTRYPOINT`** (`ENTRYPOINT java -jar app.jar`): `sh` becomes PID 1, swallows `SIGTERM`, and every deploy kills requests mid-flight.
     - **Writing state to the container file system**: it is gone at the next restart.

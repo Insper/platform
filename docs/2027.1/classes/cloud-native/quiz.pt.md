@@ -46,9 +46,23 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
+**Q4.** Um colega diz "somos uma empresa AWS, então estamos em IaaS". O que está errado na frase?
+
+- A. Nada: a AWS vende só máquinas virtuais
+- B. Um modelo de serviço descreve um serviço, não uma empresa: a AWS vende EC2 (IaaS), EKS (CaaS), Lambda (FaaS), RDS (DBaaS) e mais, e o BoxOffice usa vários deles ao mesmo tempo
+- C. A AWS é um provedor de SaaS, então o time não opera nada
+- D. Só data centers on-premises podem ser IaaS
+
+??? success "Resposta"
+    **B — Um modelo descreve um serviço, não uma empresa.**
+
+    Toda grande nuvem oferece quase todas as linhas da [tabela de provedores](index.md#providers). O modelo é escolhido por componente: na AWS, os serviços do BoxOffice rodam no EKS (CaaS), o PostgreSQL no RDS (DBaaS) e as miniaturas no Lambda (FaaS), enquanto os pagamentos vão para um provedor SaaS de outra empresa.
+
+---
+
 ## Containers
 
-**Q4.** Dois containers rodam no mesmo host. O que eles compartilham que duas máquinas virtuais no mesmo host **não** compartilhariam?
+**Q5.** Dois containers rodam no mesmo host. O que eles compartilham que duas máquinas virtuais no mesmo host **não** compartilhariam?
 
 - A. A CPU
 - B. A memória física
@@ -62,7 +76,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** No Dockerfile do `catalog`, `COPY pom.xml` e `mvn dependency:go-offline` vêm **antes** de `COPY src`. Por quê?
+**Q6.** No Dockerfile do `catalog`, `COPY pom.xml` e `mvn dependency:go-offline` vêm **antes** de `COPY src`. Por quê?
 
 - A. O Maven exige que o POM fique em uma camada separada
 - B. Para que uma mudança de código invalide só as camadas posteriores e o download das dependências seja reaproveitado do cache de build
@@ -76,7 +90,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q6.** Um time usa `ENTRYPOINT java -jar app.jar` (forma shell). A cada rolling update algumas requisições falham. Qual a causa mais provável?
+**Q7.** Um time usa `ENTRYPOINT java -jar app.jar` (forma shell). A cada rolling update algumas requisições falham. Qual a causa mais provável?
 
 - A. A JVM inicia devagar demais
 - B. O `/bin/sh` é o PID 1, não repassa o `SIGTERM` ao Java e o container é morto com `SIGKILL` após o período de tolerância, derrubando as requisições em andamento
@@ -92,7 +106,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Kubernetes
 
-**Q7.** Um nó que executa dois pods de `catalog` perde energia. Qual mecanismo traz o Deployment de volta às 4 réplicas desejadas?
+**Q8.** Um nó que executa dois pods de `catalog` perde energia. Qual mecanismo traz o Deployment de volta às 4 réplicas desejadas?
 
 - A. O kubelet do nó com defeito reinicia os pods quando a energia volta
 - B. Controladores comparam o estado desejado e o real; o controlador do ReplicaSet cria novos pods e o scheduler os coloca em nós saudáveis
@@ -106,7 +120,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q8.** A readiness probe do `inventory` verifica se o PostgreSQL está acessível. O PostgreSQL faz failover e fica inacessível por 20 segundos. O que acontece?
+**Q9.** A readiness probe do `inventory` verifica se o PostgreSQL está acessível. O PostgreSQL faz failover e fica inacessível por 20 segundos. O que acontece?
 
 - A. Só os pods conectados ao primário antigo são removidos do Service
 - B. Todos os pods de `inventory` ficam não prontos ao mesmo tempo, o Service fica sem endpoints e todas as requisições falham — inclusive as que um cache ou um erro gracioso poderiam ter atendido
@@ -120,7 +134,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q9.** O HPA tem como meta 60 % de utilização média de CPU. O `catalog` tem 5 pods a 96 %. Quantas réplicas o HPA vai pedir (ignorando min/max e estabilização)?
+**Q10.** O HPA tem como meta 60 % de utilização média de CPU. O `catalog` tem 5 pods a 96 %. Quantas réplicas o HPA vai pedir (ignorando min/max e estabilização)?
 
 - A. 6
 - B. 8
@@ -134,7 +148,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q10.** Um serviço Java sensível à latência tem um **limit** de CPU de 1 núcleo. O uso médio de CPU é de 45 %, mas a latência p99 é alta e instável. O que você deve olhar primeiro?
+**Q11.** Um serviço Java sensível à latência tem um **limit** de CPU de 1 núcleo. O uso médio de CPU é de 45 %, mas a latência p99 é alta e instável. O que você deve olhar primeiro?
 
 - A. O limite de memória, porque Java usa muita memória
 - B. O throttling de CPU: muitas threads podem consumir a cota CFS de 100 ms no começo de cada período e depois esperar, adicionando latência mesmo com média baixa
@@ -150,7 +164,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ## Entrega e FinOps { #delivery-and-finops }
 
-**Q11.** Qual propriedade distingue o **GitOps por pull** (Argo CD) de um job de CI que executa `kubectl apply`?
+**Q12.** Qual propriedade distingue o **GitOps por pull** (Argo CD) de um job de CI que executa `kubectl apply`?
 
 - A. GitOps só funciona com Helm
 - B. Um agente dentro do cluster reconcilia continuamente o cluster com o estado no Git; a CI nunca guarda credenciais do cluster e a deriva manual é detectada ou revertida
@@ -164,7 +178,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q12.** Um canary de `order` recebe 5 % de 400 req/s. A taxa de erros de base é 0,1 %. Por que uma etapa de canary de 30 segundos não basta para promover com segurança?
+**Q13.** Um canary de `order` recebe 5 % de 400 req/s. A taxa de erros de base é 0,1 %. Por que uma etapa de canary de 30 segundos não basta para promover com segurança?
 
 - A. Porque o Argo Rollouts exige pelo menos 10 minutos por etapa
 - B. Porque 30 s a 20 req/s são só ~600 requisições — poucas demais para distinguir uma pequena regressão na taxa de erros (ex.: 0,1 % → 0,2 %) de ruído
@@ -178,7 +192,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q13.** Uma mudança de esquema renomeia `orders.total` para `orders.amount_cents`. Por que ela **não** deve ir na mesma release do código que usa o novo nome?
+**Q14.** Uma mudança de esquema renomeia `orders.total` para `orders.amount_cents`. Por que ela **não** deve ir na mesma release do código que usa o novo nome?
 
 - A. O Flyway não consegue renomear colunas
 - B. Durante um rolling update ou canary, versões antiga e nova rodam lado a lado; a versão antiga quebraria no momento em que a coluna fosse renomeada. Use expand/contract: adicione a nova coluna, escreva nas duas, faça o backfill, troque as leituras, remova a coluna antiga depois
@@ -192,7 +206,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q14.** No modelo de custo do BoxOffice, quatro vendas de 2 horas precisam de 24 nós extras. Por que elas acrescentam tão pouco à fatura mensal e qual é a lição?
+**Q15.** No modelo de custo do BoxOffice, quatro vendas de 2 horas precisam de 24 nós extras. Por que elas acrescentam tão pouco à fatura mensal e qual é a lição?
 
 - A. Porque nós de pico são gratuitos na AWS
 - B. Porque 24 nós × 8 horas é uma fração minúscula de 24 nós × 730 horas; capacidade elástica custa em proporção ao tempo em que existe, então autoscaling e pré-escala para picos conhecidos vencem o provisionamento permanente para o pico
@@ -206,7 +220,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q15.** Abaixo de qual nível de tráfego médio uma função paga por requisição costuma ser mais barata que duas tarefas de container sempre ligadas atrás de um load balancer, no modelo da página?
+**Q16.** Abaixo de qual nível de tráfego médio uma função paga por requisição costuma ser mais barata que duas tarefas de container sempre ligadas atrás de um load balancer, no modelo da página?
 
 - A. Cerca de 10 requisições por segundo em média
 - B. Cerca de 1 000 requisições por segundo
@@ -217,3 +231,17 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
     **A — Cerca de dez requisições por segundo em média (com as premissas da página).**
 
     Containers têm um piso mensal fixo (tarefas + load balancer) e um custo marginal baixo; funções não têm piso e têm custo maior por requisição. O ponto de cruzamento depende da duração da requisição, da memória e do preço por requisição da porta de entrada, então recalcule para a sua carga — mas a forma do trade-off é geral: tráfego baixo ou com rajadas muito fortes favorece o preço por requisição; carga constante favorece capacidade sempre ligada.
+
+---
+
+**Q17.** Por que a nuvem transforma o pico da abertura de vendas de um problema de despesa de capital (CapEx, *capital expenditure*) em um de despesa operacional (OpEx, *operational expenditure*) e qual é a pegadinha?
+
+- A. A nuvem é sempre mais barata que hardware próprio
+- B. Com OpEx os 24 nós extras existem só nas 8 horas de aberturas em vez de serem comprados, dimensionados para o pico e ociosos o resto do mês; mas uma carga em uso total 24/7 durante anos pode custar menos em capacidade própria ou comprometida
+- C. Com CapEx a capacidade acompanha a demanda automaticamente
+- D. OpEx elimina a necessidade de estimar custos
+
+??? success "Resposta"
+    **B — A capacidade acompanha a demanda, mas OpEx não é automaticamente mais barato.**
+
+    Hardware próprio é comprado em degraus dimensionados para o pico esperado: ocioso depois de cada compra, insuficiente antes da próxima ([CapEx vs OpEx](finops/index.md#capex-opex)). Pagar por hora elimina a aposta adiantada; para uma base constante, compromissos (ou hardware próprio) ainda podem ganhar.

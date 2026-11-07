@@ -5,7 +5,7 @@ Four different clients need the same information from BoxOffice — "which event
 - a **reseller partner** that integrates once and then expects the API never to break;
 - the internal **`order` service**, which asks `inventory` to confirm holds thousands of times per second during on-sale.
 
-One API style does not fit all four. This page compares the four families you will meet in practice — **REST, gRPC, GraphQL and asynchronous APIs** — on the *same* BoxOffice resource, and then covers what matters more than the style: designing the contract well and evolving it without breaking anyone.
+One API style does not fit all four. This page compares the four families you will meet in practice — **REST (representational state transfer), gRPC, GraphQL and asynchronous APIs** — on the *same* BoxOffice resource, and then covers what matters more than the style: designing the contract well and evolving it without breaking anyone.
 
 ---
 
@@ -15,7 +15,7 @@ An **API** (Application Programming Interface) is the contract between a **provi
 
 Three consequences shape everything below:
 
-- **Expose DTOs, not entities.** A DTO (Data Transfer Object) is a class whose only job is to cross the boundary. Returning the JPA entity ties the contract to the database schema and leaks internal fields.
+- **Expose DTOs, not entities.** A DTO (Data Transfer Object) is a class whose only job is to cross the boundary. Returning the Java Persistence API (JPA) entity ties the contract to the database schema and leaks internal fields.
 - **The contract is a document, not just code.** OpenAPI (REST), `.proto` files (gRPC), the GraphQL schema and AsyncAPI (events) describe it in a machine-readable way, from which clients, servers, mocks and tests are generated.
 - **Changing the contract is a negotiation.** Anything a consumer can observe — a field name, a status code, the order of a list — is part of it.
 
@@ -71,7 +71,7 @@ The resource: an **event** with its **availability** (seats left per section). H
                   priceCents: { type: integer, example: 45000 }
     ```
 
-    Any HTTP client can call it — a browser, `curl`, a partner's script — and `GET` responses can be cached by browsers and CDNs.
+    Any HTTP client can call it — a browser, `curl`, a partner's script — and `GET` responses can be cached by browsers and content delivery networks (CDNs).
 
 === "gRPC + Protocol Buffers"
 
@@ -211,7 +211,7 @@ REST (Representational State Transfer) was defined by Roy Fielding as an archite
 | `429 Too Many Requests` | rate limited (bots at on-sale) | wait `Retry-After`, then retry |
 | `503 Service Unavailable` | overloaded or dependency down | retry with backoff + jitter |
 
-Errors deserve a **uniform body**. RFC 9457 *Problem Details for HTTP APIs* defines one (`application/problem+json`) that Spring Boot (3 and later) supports out of the box via `ProblemDetail`[^4]:
+Errors deserve a **uniform body**. Request for Comments (RFC) 9457, *Problem Details for HTTP APIs*, defines one (`application/problem+json`) that Spring Boot (3 and later) supports out of the box via `ProblemDetail`[^4]:
 
 ```json title="409 Conflict — application/problem+json"
 {
@@ -283,7 +283,7 @@ class EventController {
 
 ## gRPC in practice
 
-gRPC is an RPC framework from Google built on **HTTP/2** and **Protocol Buffers**[^5]. What you get:
+gRPC is a remote procedure call (RPC) framework from Google built on **HTTP/2** and **Protocol Buffers**[^5]. What you get:
 
 - **Generated, typed clients** in a dozen languages from one `.proto` — calling `inventory.getAvailability(req)` looks like a local method call.
 - **Compact binary messages** and cheap parsing: protobuf payloads are typically several times smaller than the equivalent JSON, which matters for chatty internal traffic.
@@ -329,7 +329,7 @@ Not every interaction is a question that needs an immediate answer. Asynchronous
 | **Events on a broker** (Kafka, Pub/Sub) | provider publishes, many consumers | `OrderConfirmed` → notification, analytics, search | [messaging](../../messaging/index.md) |
 | **Commands on a queue** | one producer, one of N workers | "render ticket PDF for order 9" | [async work](../async-work/index.md) |
 | **Webhooks** | provider calls *your* URL when something happens | the payment provider tells `payment` a charge succeeded | [integrations](../integrations/index.md#webhooks) |
-| **WebSocket / SSE** | server pushes to a connected client | live seat map, "your place in the queue: 18,204" | [edge — protocols](../../edge/protocols/index.md#real-time) |
+| **WebSocket / server-sent events (SSE)** | server pushes to a connected client | live seat map, "your place in the queue: 18,204" | [edge — protocols](../../edge/protocols/index.md#real-time) |
 
 The contract still matters: event schemas need the same discipline as REST payloads — documented (AsyncAPI), versioned and evolved compatibly (schema registry, [messaging](../../messaging/index.md)).
 
@@ -339,14 +339,14 @@ The contract still matters: event schemas need the same discipline as REST paylo
 
 | | REST | gRPC | GraphQL | Async (events/queues) |
 |---|---|---|---|---|
-| Transport | HTTP/1.1, 2, 3 | HTTP/2 | HTTP | broker protocol (Kafka, AMQP), HTTP for webhooks |
+| Transport | HTTP/1.1, 2, 3 | HTTP/2 | HTTP | broker protocol (Kafka, Advanced Message Queuing Protocol or AMQP), HTTP for webhooks |
 | Payload | JSON (text) | protobuf (binary) | JSON | JSON, Avro, protobuf |
 | Contract | OpenAPI (optional!) | `.proto` (mandatory) | schema (mandatory) | AsyncAPI, schema registry |
-| Browser-native | yes | no (gRPC-Web/Connect) | yes | WebSocket/SSE for push |
-| HTTP caching | excellent (`GET`, ETag, CDN) | none | hard (persisted queries) | not applicable |
+| Browser-native | ✅ yes | ❌ no (gRPC-Web/Connect) | ✅ yes | WebSocket/SSE for push |
+| HTTP caching | ✅ excellent (`GET`, ETag, CDN) | ❌ none | ⚠️ hard (persisted queries) | not applicable |
 | Streaming | SSE, chunked | built in (4 kinds) | subscriptions | inherent |
 | Coupling | request/response, temporal | request/response, temporal, codegen | request/response, temporal | **none in time**: consumers can be down |
-| Best for | public & partner APIs, CRUD, cacheable reads | internal high-QPS calls, polyglot services, streaming | front-ends composing many services (BFF) | side effects, fan-out, work that can wait |
+| Best for | public & partner APIs, create-read-update-delete (CRUD), cacheable reads | internal calls at many queries per second (QPS), polyglot services, streaming | front-ends composing many services (BFF) | side effects, fan-out, work that can wait |
 
 ``` diagram
 flowchart TD
@@ -367,7 +367,7 @@ Real systems mix them. BoxOffice: **REST** at the public edge and for partners, 
 
 APIs change. The first question for every change is whether it is **breaking** — whether an existing, unchanged consumer would stop working:
 
-| Compatible (no new version) | Breaking (needs a new version or a migration) |
+| ✅ Compatible (no new version) | ❌ Breaking (needs a new version or a migration) |
 |---|---|
 | add an endpoint, RPC or query field | remove or rename an endpoint, RPC or field |
 | add an **optional** request field | add a **required** request field |
@@ -386,11 +386,22 @@ When a breaking change is unavoidable, version and migrate:
 
 | Strategy | Example | Notes |
 |---|---|---|
-| URI path | `/v1/orders` → `/v2/orders` | most visible; easiest to route and test — the common choice |
+| Uniform Resource Identifier (URI) path | `/v1/orders` → `/v2/orders` | most visible; easiest to route and test — the common choice |
 | Header / media type | `Accept: application/vnd.boxoffice.v2+json` | cleaner URLs; harder to test by hand |
 | Package (gRPC) | `boxoffice.inventory.v1` → `.v2` | both services can run side by side |
 
 Then **expand and contract** (parallel change): ship v2 next to v1, migrate consumers, watch v1 traffic fall to zero, announce the date with the `Sunset` header (RFC 8594)[^7], and only then remove v1.
+
+``` diagram-sim
+flowchart LR
+    e1["expand: ship v2<br/>next to v1"]:::comp --> e2["migrate consumers<br/>one by one"]
+    e2 --> e3["Sunset header on v1<br/>announces the date"]
+    e3 --> e4{"v1 calls per day<br/>at zero?"}
+    e4 -->|"no: find who still calls"| e2
+    e4 -->|yes| e5["contract: remove v1"]:::comp
+```
+
+The loop is the point: v1 goes away when its traffic says so, counted per consumer, not on the announced date alone.
 
 !!! info "Consumer-driven contract tests"
     How do you know a change is compatible before deploying it? Each consumer publishes the interactions it relies on ("`order` calls `GET /v1/holds/{id}` and reads `status` and `expiresAt`"); the provider's CI replays them against the new version and fails the build if any breaks. Tools: **Pact**, **Spring Cloud Contract**. This turns "did we break someone?" from a production incident into a red build.

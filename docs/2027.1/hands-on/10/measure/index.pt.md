@@ -1,6 +1,6 @@
 # 5. Meça { #5-measure-it }
 
-O Kubernetes promete elasticidade e autocura. Coloque números nas duas. Como sempre, rode cada
+O Kubernetes promete elasticidade, pelo Horizontal Pod Autoscaler (HPA), e autocura. Coloque números nas duas. Como sempre, rode cada
 experimento duas vezes e reporte a segunda execução; os números nas caixas de "forma esperada" são
 **ilustrativos** (vêm de uma execução num laptop e os seus vão ser outros).
 
@@ -8,7 +8,7 @@ experimento duas vezes e reporte a segunda execução; os números nas caixas de
 |---|---|---|---|
 | A | réplicas fixas vs HPA | HPA apagado vs aplicado | p95, p99, erros, máximo de réplicas, tempo para escalar |
 | B | rolling update sob carga | com vs sem readiness probe + `preStop` | requisições com falha durante o rollout |
-| C | autocura | apagar um pod / parar um nó | tempo até a capacidade voltar (MTTR) |
+| C | autocura | apagar um pod / parar um nó | tempo até a capacidade voltar (MTTR, *mean time to repair*) |
 
 ## A. Réplicas fixas vs HPA { #a-fixed-replicas-vs-hpa }
 
@@ -26,7 +26,7 @@ kubectl -n boxoffice get hpa catalog -w  # until REPLICAS is 2 again (minutes af
 kill %1                                  # stop the watcher
 ```
 
-Do `results/lab10-hpa.csv`, leia: o momento em que a CPU passou de 60% pela primeira vez, o momento em
+Do `results/lab10-hpa.csv`, leia: o momento em que o uso de unidade central de processamento (CPU, *central processing unit*) passou de 60% pela primeira vez, o momento em
 que o `desired` aumentou pela primeira vez (tempo de reação), o momento em que o `ready` chegou ao
 máximo (tempo até a capacidade), o número máximo de réplicas e o momento em que o `desired` voltou
 a 2 (scale-down). Faça um gráfico de `cpu`, `desired` e
@@ -35,7 +35,7 @@ a 2 (scale-down). Faça um gráfico de `cpu`, `desired` e
 !!! example "Forma esperada (ilustrativa)"
 
     Uma execução com `PEAK=1000` num laptop (kind, 3 nós dividindo 8 CPUs), começando com pods
-    aquecidos, amostrada do CSV:
+    aquecidos, amostrada do arquivo de valores separados por vírgula (CSV, *comma-separated values*):
 
     | t (min:s) | CPU (% do request) | desired | current | ready |
     |---|---|---|---|---|
@@ -52,7 +52,7 @@ a 2 (scale-down). Faça um gráfico de `cpu`, `desired` e
 
     Os dois pods aquecidos passaram de 60% 1:48 depois do início da rampa (cerca de 600 req/s); o HPA
     pediu um terceiro pod 15 s depois e oito em 3:33, mas o oitavo pod só ficou pronto em 7:31, quando
-    o patamar já tinha acabado. Num laptop, as JVMs novas sobem nas mesmas CPUs que servem a carga e
+    o patamar já tinha acabado. Num laptop, as máquinas virtuais Java (JVMs, *Java virtual machines*) novas sobem nas mesmas CPUs que servem a carga e
     rodam o k6: cada uma levou mais de um minuto para iniciar e, ainda fria, falhou a readiness probe de
     vez em quando por um tempo (o `ready` desce além de subir). O k6 reportou p95 de 5–7 s, p99 ≈ 19 s,
     0,3% de erros e descartou mais de 40% das chegadas. A mesma rampa com duas réplicas fixas deu p95 ≈
@@ -92,6 +92,17 @@ ponta: sem a pausa do `preStop`, os pods antigos param de aceitar conexões enqu
 listas de endpoints do Traefik. Conte as requisições com falha (`http_req_failed`) nas duas execuções.
 Numa execução de teste: 0 requisições com falha com as probes, cerca de 140 de 11.900 (1,2%, `502` e
 `504` do Traefik) sem elas.
+
+| Execução | Readiness probe + `preStop` | Requisições com falha (execução de teste) |
+|---|---|---|
+| com | ✅ | 0 |
+| sem | ❌ | cerca de 140 de 11.900 (1,2%) |
+
+<div class="csim" data-sim="kind-lab" data-script="rollout"></div>
+
+!!! tip "Experimente"
+
+    O experimento B antes do cluster no seu laptop: o mesmo cluster no navegador, aberto neste experimento; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **apply -k**, o `catalog` falha duas vezes antes de o `db-0` aceitar conexões (RESTARTS 2, como no [Deploy](../deploy/index.md)) e tudo está 1/1 em 3m31s. Em **autocorreção**, apagar os dois pods deixa o `catalog` sem endpoint: o `curl` recebe 503 até as duas JVMs novas ficarem prontas, 30 s depois — o MTTR da queda de um pod. Em **perder um nó**, o boxoffice-worker2 fica NotReady depois de 50 s; o k6 a 100 req/s perde 2.550 de 12.000 requisições (21,25%) antes de o Traefik parar de mandar para o pod dele e o substituto só fica pronto no boxoffice-worker 379 s depois da parada. Em **rollout (B)**, este experimento: 0 requisições com falha com a readiness probe e a pausa do `preStop`, 200 de 12.000 (1,67%) sem elas. No modo **livre**, ponha o atraso do Traefik em 6 s: mesmo com a pausa de 5 s, 100 requisições falham — a pausa precisa durar mais que a propagação dos endpoints.
 
 ## C. Autocura { #c-self-healing }
 

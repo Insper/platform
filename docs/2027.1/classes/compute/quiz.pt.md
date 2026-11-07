@@ -62,7 +62,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q5.** Na BoxOffice, a palavra *Event* significa "artista, data, local, imagens" no catálogo e "mapa de assentos, setores, holds" no inventário. O que o DDD recomenda?
+**Q5.** Na BoxOffice, a palavra *Event* significa "artista, data, local, imagens" no catálogo e "mapa de assentos, setores, holds" no inventário. O que o design orientado ao domínio (DDD, *Domain-Driven Design*) recomenda?
 
 - A. Que cada **bounded context** tenha seu próprio modelo de `Event`, trocando ids e eventos entre os contextos
 - B. Criar uma única classe `Event` compartilhada numa biblioteca comum usada por todos os serviços
@@ -96,7 +96,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 - A. GraphQL; o cuidado é que ele não pode ser usado entre serviços
 - B. Webhooks; o cuidado é que eles precisam de assinaturas
-- C. REST com XML; o cuidado é o tamanho do payload
+- C. REST (transferência de estado representacional, *representational state transfer*) com XML; o cuidado é o tamanho do payload
 - D. gRPC; o cuidado é que as conexões HTTP/2 de longa duração anulam o balanceamento L4, então é preciso um proxy L7, uma service mesh ou balanceamento no cliente
 
 ??? success "Resposta"
@@ -125,7 +125,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 - A. O problema N+1; agrupar as 20 consultas em uma chamada com um DataLoader
 - B. Over-fetching; trocar para REST
 - C. Faltam índices no banco do catálogo
-- D. GraphQL não pode chamar outros serviços; mover os dados para o banco próprio do BFF
+- D. GraphQL não pode chamar outros serviços; mover os dados para o banco próprio do backend para o front-end (BFF, *backend for frontend*)
 
 ??? success "Resposta"
     **A — N+1, corrigido com agrupamento (DataLoader).**
@@ -180,10 +180,10 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 ---
 
-**Q13.** Uma venda de estádio abre às 10:00 e o tráfego salta 20× em segundos. O HPA do Kubernetes mira 60% de CPU. Por que os fãs ainda veem erros nos primeiros minutos e qual é a melhor mitigação para esse evento **conhecido**?
+**Q13.** Uma venda de estádio abre às 10:00 e o tráfego salta 20× em segundos. O escalonador horizontal de pods (HPA, *Horizontal Pod Autoscaler*) do Kubernetes mira 60% de CPU. Por que os fãs ainda veem erros nos primeiros minutos e qual é a melhor mitigação para esse evento **conhecido**?
 
 - A. O escalonamento reativo precisa de métricas, de uma decisão, possivelmente de nós novos, de download de imagens e de aquecimento da JVM — minutos no total; escale **por agendamento** (por exemplo, às 09:45) até a previsão e pré-aqueça caches e pools
-- B. O HPA está quebrado; troque-o por um VPA
+- B. O HPA está quebrado; troque-o por um escalonador vertical de pods (VPA, *Vertical Pod Autoscaler*)
 - C. CPU é a métrica errada para qualquer serviço; escale pela latência
 - D. Defina `maxReplicas` como 1.000 para o HPA reagir mais rápido
 
@@ -212,7 +212,7 @@ Clique em **"Resposta"** para revelar a resposta correta e a explicação.
 
 **Q15.** Qual desenho de receptor de webhooks está correto?
 
-- A. Fazer o parse do JSON, serializá-lo de novo, verificar o HMAC sobre o resultado, processar o pagamento na hora e então responder `200`
+- A. Fazer o parse do JSON, serializá-lo de novo, verificar o código de autenticação de mensagem (HMAC, *hash-based message authentication code*) sobre o resultado, processar o pagamento na hora e então responder `200`
 - B. Responder `500` para eventos duplicados, para que o provedor pare de enviá-los
 - C. Pular a verificação de assinatura se a requisição chega por HTTPS
 - D. Verificar o HMAC sobre o **corpo bruto** (com o timestamp e uma comparação em tempo constante), gravar o evento com um id de evento único, enfileirá-lo, responder `2xx` imediatamente e aplicá-lo num worker como uma transição de estado monotônica

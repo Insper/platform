@@ -1,6 +1,18 @@
 The first real invoice of BoxOffice's production environment arrives, and it is three times the estimate. Nobody can say why: the costs are spread over forty line items, half of them have names like `USE1-NatGateway-Bytes` and `DataTransfer-Regional-Bytes`, and no resource is tagged with the service that created it. In the cloud, **every architectural decision is also a purchasing decision** — and the bill is the one metric that every executive reads.
 
-**FinOps** (cloud financial operations) is the practice of bringing financial accountability to the variable spending model of the cloud, so that engineering, finance and business make trade-offs between speed, cost and quality together[^1]. For a system designer it comes down to three skills: **estimate** what an architecture will cost, **attribute** what it actually costs, and **optimize** without breaking the SLOs[^2].
+**FinOps** (cloud financial operations) is the practice of bringing financial accountability to the variable spending model of the cloud, so that engineering, finance and business make trade-offs between speed, cost and quality together[^1]. For a system designer it comes down to three skills: **estimate** what an architecture will cost, **attribute** what it actually costs, and **optimize** without breaking the service level objectives (SLOs)[^2].
+
+---
+
+## From CapEx to OpEx { #capex-opex }
+
+Before the cloud, BoxOffice would have bought its servers. That is **capital expenditure (CapEx)**: a large payment up front for hardware sized for the peak you *expect*, used for years. The cloud turns it into **operational expenditure (OpEx)**: a monthly bill for what you *use*.
+
+--8<-- "docs/2027.1/classes/cloud-native/finops/capex-opex.svg"
+
+With CapEx, capacity grows in steps bought months ahead, so it never matches demand: after each purchase you pay for **idle** capacity, and before the next one arrives demand outgrows it and is **lost**. With OpEx, capacity follows demand with a small margin. For BoxOffice the difference is the on-sale: owned hardware must hold the 30 nodes of the peak all month long, while in the cloud 6 nodes run all month and 24 more exist only for the 8 hours of the four on-sales (the [cost model](#cost-model) below puts a price on both).
+
+OpEx removes the up-front bet, but it is not automatically cheaper: a workload at full load 24/7 for years can cost less on owned or committed capacity, which is what the commitments of the [pricing models](#pricing-models) sell. And a bill that follows usage also follows every mistake — an oversized request, a forgotten cluster, a chatty log — within the month. Keeping that variable bill under control is the job of FinOps.
 
 ---
 
@@ -15,7 +27,7 @@ flowchart LR
     operate --> inform
 ```
 
-- **Inform** — you cannot optimize what you cannot see. Every resource carries tags (`project`, `env`, `service`, `team`); Kubernetes costs are split by namespace and label using the pods' **resource requests** (tools such as the CNCF project OpenCost[^4], or Kubecost). The result is **showback** (teams see their costs) or **chargeback** (teams are billed internally).
+- **Inform** — you cannot optimize what you cannot see. Every resource carries tags (`project`, `env`, `service`, `team`); Kubernetes costs are split by namespace and label using the pods' **resource requests** (tools such as the Cloud Native Computing Foundation (CNCF) project OpenCost[^4], or Kubecost). The result is **showback** (teams see their costs) or **chargeback** (teams are billed internally).
 - **Optimize** — reduce waste (idle and oversized resources) and pay less per unit (commitments, spot, cheaper architectures).
 - **Operate** — budgets with alerts, anomaly detection on daily spend, policies (no untagged resources, no GPU instances in dev), and a monthly cost review next to the SLO review.
 
@@ -26,9 +38,9 @@ flowchart LR
 | Cost type | Billed by | BoxOffice examples | Watch out for |
 |---|---|---|---|
 | **Compute** | vCPU-hour and GB-hour (VMs, containers), or request + GB-second (FaaS) | Kubernetes nodes, Lambda thumbnails | Idle replicas, oversized requests |
-| **Managed services** | Instance-hour + storage + I/O | PostgreSQL, Redis, Kafka | Multi-AZ doubles the instance; replicas add up |
+| **Managed services** | Instance-hour + storage + I/O | PostgreSQL, Redis, Kafka | Multi-AZ (a standby in a second availability zone, AZ) doubles the instance; replicas add up |
 | **Storage** | GB-month, plus requests | S3 ticket PDFs, database volumes, snapshots | Snapshots and logs kept forever |
-| **Data transfer** | GB moved | CDN egress to fans, cross-AZ traffic between services, NAT processing | Internet egress and **cross-AZ** traffic are charged; ingress usually is not |
+| **Data transfer** | GB moved | content delivery network (CDN) egress to fans, cross-AZ traffic between services, network address translation (NAT) processing | Internet egress and **cross-AZ** traffic are charged; ingress usually is not |
 | **Fixed hourly items** | Hour, whether used or not | Kubernetes control plane, load balancers, NAT gateways, public IPv4 addresses | They dominate small and non-production environments |
 | **Observability** | GB ingested, retained, queried; active series | Logs, metrics, traces | High-cardinality metrics and debug logs in production |
 | **Third-party SaaS** | Per transaction or per seat | Payment fees (a percentage of the ticket price), e-mail per thousand | Often larger than the whole infrastructure — but a business cost |

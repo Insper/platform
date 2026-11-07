@@ -40,11 +40,11 @@ flowchart LR
 | **Deployable units** | 1 | 1 | many (one per service) |
 | **Boundaries enforced by** | discipline (often none) | the build: modules, package visibility, ArchUnit tests | the network: a service can only call another's API |
 | **Calls between parts** | in-process, nanoseconds | in-process, nanoseconds | network, ~0.5–5 ms in a datacenter, can fail |
-| **Transactions** | one ACID transaction across everything | one database, but each module owns its tables | no shared transaction: sagas, eventual consistency |
+| **Transactions** | one ACID (atomic, consistent, isolated, durable) transaction across everything | one database, but each module owns its tables | no shared transaction: sagas, eventual consistency |
 | **Scaling** | the whole app | the whole app | each service on its own profile |
-| **Failure isolation** | a memory leak kills everything | a memory leak kills everything | one service fails, others degrade |
-| **Team autonomy** | low beyond ~10 engineers | medium: separate modules, shared release | high: own code, data, release cadence |
-| **Operational cost** | lowest | low | high: discovery, tracing, CI/CD per service, on-call |
+| **Failure isolation** | ❌ a memory leak kills everything | ❌ a memory leak kills everything | ✅ one service fails, others degrade |
+| **Team autonomy** | 🔴 low beyond ~10 engineers | 🟡 medium: separate modules, shared release | 🟢 high: own code, data, release cadence |
+| **Operational cost** | 🟢 lowest | 🟢 low | 🔴 high: discovery, tracing, CI/CD per service, on-call |
 
 The **modular monolith** deserves more attention than it gets. It gives you the main benefit of microservices — clear boundaries, each module owning its data — without paying for the network. If a module later needs independent scaling or a different team, it can be extracted along a boundary that already exists. Shopify, for example, publicly described its choice to modularize a large Rails monolith rather than split it into services[^7].
 
@@ -59,8 +59,8 @@ Split a part of the system into its own service when at least one of these force
 |---|---|---|
 | **Different scaling profile** | `catalog` is read-heavy (thousands of reads per write), `inventory` is write-hot during on-sale | Scale and tune each on its own; cache one aggressively, protect the other |
 | **Team autonomy** | the search team ships twice a day; payments ships monthly after review | Independent releases, no release train |
-| **Failure isolation** | the AI `assistant` can be slow or down without blocking ticket sales | A failure stays inside a boundary (with timeouts and breakers, see [reliability](../../reliability/index.md)) |
-| **Security / compliance scope** | only `payment` talks to the payment provider and holds provider tokens | Smaller audit scope (PCI DSS), tighter network policies |
+| **Failure isolation** | the artificial intelligence (AI) `assistant` can be slow or down without blocking ticket sales | A failure stays inside a boundary (with timeouts and breakers, see [reliability](../../reliability/index.md)) |
+| **Security / compliance scope** | only `payment` talks to the payment provider and holds provider tokens | Smaller audit scope (Payment Card Industry Data Security Standard, PCI DSS), tighter network policies |
 | **Different technology** | `assistant` is Python + FastAPI + pgvector; the core is Java | Each service picks its runtime; the contract is HTTP or events |
 
 And the costs you accept when you split:
@@ -264,7 +264,7 @@ flowchart LR
 
 When `order` needs to confirm a hold, it calls the `inventory` **API**, never the `holds` **table**. That keeps the inventory team free to change its schema, add a cache or move to another database. Two consequences follow:
 
-- **Queries across services** become API calls — or a local, read-only copy of the other service's data kept up to date by events (CQRS, [messaging](../../messaging/index.md)). `search` keeps its own index of events this way.
+- **Queries across services** become API calls — or a local, read-only copy of the other service's data kept up to date by events (command query responsibility segregation, CQRS — see [messaging](../../messaging/index.md)). `search` keeps its own index of events this way.
 - **Business transactions across services** become a sequence of local transactions coordinated by events or an orchestrator, with compensations when a step fails: the **saga** pattern. "Payment failed → release the hold" is a compensation.
 
 !!! example "In the BoxOffice code: one PostgreSQL, one schema per owner (labs 1–9)"
@@ -281,7 +281,7 @@ When `order` needs to confirm a hold, it calls the `inventory` **API**, never th
 
     The caller waits for the answer. Simple, but **temporally coupled**: if `inventory` is down, `order` cannot confirm.
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         participant F as Fan
         participant O as order
@@ -298,7 +298,7 @@ When `order` needs to confirm a hold, it calls the `inventory` **API**, never th
 
     The producer publishes a fact and moves on; consumers react in their own time. No temporal coupling — `notification` can be down for five minutes and catch up.
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         participant O as order
         participant K as Kafka
@@ -334,7 +334,7 @@ The five SOLID principles[^8] are class-level rules that make that protection po
 | **O**pen/closed | add behavior by adding code, not editing working code | a `switch (provider)` that grows with each new payment provider |
 | **L**iskov substitution | a subtype must work wherever its parent does | a `FreeTicketPayment` that throws on `refund()` |
 | **I**nterface segregation | clients should not depend on methods they do not use | one `InventoryRepository` with 40 methods used by every class |
-| **D**ependency inversion | business code depends on abstractions it owns, not on infrastructure | `HoldService` importing the JPA `EntityManager` or the provider's SDK |
+| **D**ependency inversion | business code depends on abstractions it owns, not on infrastructure | `HoldService` importing the Java Persistence API (JPA) `EntityManager` or the provider's SDK |
 
 ### Layered, clean and hexagonal { #layered-clean-and-hexagonal }
 
@@ -389,7 +389,7 @@ The payoff: use-case tests run in milliseconds with a `FakeGateway`; adding a se
 | Swapping DB / provider / protocol | touches business classes | a new adapter |
 | Cost | fewest classes | more interfaces, mappers, indirection |
 
-!!! warning "Do not over-architect a CRUD service"
+!!! warning "Do not over-architect a create-read-update-delete (CRUD) service"
     Ports, adapters and mappers cost classes and indirection. A service that only stores and returns records (the venue list, a lookup table) can stay layered. The structure pays off where business rules are rich (`inventory`), integrations are external (`payment`, `notification`) or the service will live for years. Microservices let each service choose.
 
 ---
@@ -414,13 +414,13 @@ Two patterns repeat: these services are mostly **fed by events** rather than cal
 |---|---|---|---|---|
 | `gateway` | single entry point, auth check, rate limits | — | clients | requests/s |
 | `auth` | login, tokens | users, credentials | gateway | login bursts at on-sale |
-| `catalog` | events, venues, artists | catalog DB | gateway, order | read-heavy, cache + CDN |
+| `catalog` | events, venues, artists | catalog DB | gateway, order | read-heavy, cache + content delivery network (CDN) |
 | `inventory` | seat maps, holds | seats, holds | gateway, order | write-hot during on-sale; correctness first |
 | `order` | orders, checkout saga | orders | gateway | follows sales |
 | `payment` | adapter to the payment provider | payments, provider ids | order | follows sales; bounded by the provider |
 | `notification` | e-mail and push | templates, delivery log | events | queue-driven bursts |
 | `search` | full-text search | derived index | gateway | read-heavy |
-| `assistant` | AI support (Python) | conversations, embeddings | gateway | GPU/LLM-bound, isolated |
+| `assistant` | AI support (Python) | conversations, embeddings | gateway | bound by the graphics processing unit (GPU) and the large language model (LLM), isolated |
 
 !!! example "In the BoxOffice code: one front door, one route per service (labs 4 and 6)"
 
@@ -438,7 +438,7 @@ Two patterns repeat: these services are mostly **fed by events** rather than cal
 
     - **Write down the force behind each service boundary** — scaling profile, team, failure isolation, compliance or technology, in the design doc; a boundary with no force left is a candidate for merging. In BoxOffice: `catalog` (read-heavy, three replicas) and `inventory` (write-hot, correctness first) are split by scaling profile.
     - **Give each service its own database role, with rights only on its schema** — the boundary is then enforced by the database, not by code review. In BoxOffice the labs share the user `boxoffice` (box above): this is the step to take before production.
-    - **Name one owning team per service in a service catalog** — owner, on-call rotation, runbook and SLO; when `inventory` pages at 10:01, nobody should have to ask who answers.
+    - **Name one owning team per service in a service catalog** — owner, on-call rotation, runbook and service level objective (SLO); when `inventory` pages at 10:01, nobody should have to ask who answers.
     - **Send all external traffic through one gateway, and keep service-to-service calls off it** — one place for authentication and rate limits, without adding a hop to every internal call. In BoxOffice: the edge talks only to `gateway` ([lab 4](../../../hands-on/4/gateway/index.md)).
     - **Enforce module boundaries in the build before extracting services** — package visibility and an architecture test (ArchUnit) in CI keep a modular monolith modular; extracting a module whose boundary already holds is a deploy, not a rewrite.
 

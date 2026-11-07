@@ -62,7 +62,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q5.** In BoxOffice, the word *Event* means "artist, date, venue, images" in the catalog and "seat map, sections, holds" in inventory. What does DDD recommend?
+**Q5.** In BoxOffice, the word *Event* means "artist, date, venue, images" in the catalog and "seat map, sections, holds" in inventory. What does Domain-Driven Design (DDD) recommend?
 
 - A. Let each **bounded context** have its own `Event` model, exchanging ids and events between contexts
 - B. Create one shared `Event` class in a common library used by all services
@@ -96,7 +96,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 - A. GraphQL; the catch is that it cannot be used between services
 - B. Webhooks; the catch is that they need signatures
-- C. REST with XML; the catch is payload size
+- C. REST (representational state transfer) with XML; the catch is payload size
 - D. gRPC; the catch is that its long-lived HTTP/2 connections defeat L4 load balancing, so you need an L7 proxy, a mesh or client-side balancing
 
 ??? success "Answer"
@@ -125,7 +125,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 - A. The N+1 problem; batch the 20 lookups into one call with a DataLoader
 - B. Over-fetching; switch to REST
 - C. Missing indexes in the catalog database
-- D. GraphQL cannot call other services; move the data into the BFF's own database
+- D. GraphQL cannot call other services; move the data into a database owned by the backend for frontend (BFF)
 
 ??? success "Answer"
     **A — N+1, fixed with batching (DataLoader).**
@@ -180,10 +180,10 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q13.** A stadium on-sale opens at 10:00 and traffic jumps 20× within seconds. The Kubernetes HPA targets 60% CPU. Why do fans still see errors in the first minutes, and what is the best mitigation for this **known** event?
+**Q13.** A stadium on-sale opens at 10:00 and traffic jumps 20× within seconds. The Kubernetes Horizontal Pod Autoscaler (HPA) targets 60% CPU. Why do fans still see errors in the first minutes, and what is the best mitigation for this **known** event?
 
 - A. Reactive scaling needs metrics, a decision, possibly new nodes, image pulls and JVM warm-up — minutes in total; scale on a **schedule** (e.g. at 09:45) to the forecast and pre-warm caches and pools
-- B. The HPA is broken; replace it with a VPA
+- B. The HPA is broken; replace it with a Vertical Pod Autoscaler (VPA)
 - C. CPU is the wrong metric for every service; scale on latency instead
 - D. Set `maxReplicas` to 1,000 so the HPA can react faster
 
@@ -212,7 +212,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 **Q15.** Which webhook receiver design is correct?
 
-- A. Parse the JSON, re-serialize it, verify the HMAC on the result, process the payment inline, then answer `200`
+- A. Parse the JSON, re-serialize it, verify the hash-based message authentication code (HMAC) on the result, process the payment inline, then answer `200`
 - B. Answer `500` to duplicate events so the provider stops sending them
 - C. Skip signature verification if the request comes over HTTPS
 - D. Verify the HMAC over the **raw body** (with the timestamp and a constant-time comparison), store the event with a unique event id, enqueue it, answer `2xx` immediately, and apply it in a worker as a monotonic state transition

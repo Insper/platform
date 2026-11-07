@@ -14,6 +14,10 @@ theme: platform
 {{INCLUDE:scripts/slides/theme.js}}
 </script>
 
+<style>
+{{INCLUDE:scripts/slides/diagram.css}}
+</style>
+
 <div class="kicker">System Architecture · Insper</div>
 
 # Compute and services
@@ -53,7 +57,7 @@ What must the compute tier do in the next ten minutes?
 | **App Server** | request handlers behind a load balancer | `catalog`, `inventory`, `order` |
 | **Worker** | jobs pulled from a queue | ticket PDFs, e-mail sending |
 | **Serverless** | short functions started per event | webhook receiver, image resize |
-| **Auth Service** | login, tokens | `auth` issues JWTs |
+| **Auth Service** | login, tokens | `auth` issues JSON Web Tokens (JWTs) |
 | **Search** | full-text queries over an index | "coldplay são paulo" |
 | **Scheduler** | time-triggered work | release holds every 30 s |
 | **Notifications** | fan-out to e-mail / push / SMS | "your tickets are here" |
@@ -65,13 +69,23 @@ What must the compute tier do in the next ten minutes?
 
 Any replica can serve any request: **state lives outside the process**.
 
-| State that sticks to a server | New home |
-|---|---|
-| HTTP session in memory | JWT on the client, or Redis |
-| Uploaded files on local disk | object store (S3, GCS, MinIO) |
-| In-process cache | Redis — or short TTLs per replica |
-| `@Scheduled` job inside the app | CronJob, lock or leader |
-| Counters, rate limits in memory | Redis `INCR`, API gateway |
+<div class="flow">
+<div class="box muted" style="flex: .5">fans</div><div class="arrow">→</div>
+<div class="box" style="flex: .7">load balancer</div><div class="arrow">any →</div>
+<div class="group">
+<div class="caption">interchangeable replicas</div>
+<div class="box accent">catalog #1</div>
+<div class="box accent">catalog #2</div>
+<div class="box accent">catalog #3</div>
+</div>
+<div class="arrow">→</div>
+<div class="group">
+<div class="caption">the state lives here</div>
+<div class="box green">Redis<small>sessions, cache</small></div>
+<div class="box green">PostgreSQL<small>holds, orders</small></div>
+<div class="box green">object store<small>images, ticket PDFs</small></div>
+</div>
+</div>
 
 <div class="warn">
 
@@ -81,11 +95,26 @@ Any replica can serve any request: **state lives outside the process**.
 
 ---
 
+## Where each kind of state goes
+
+| State that sticks to a server | Why it breaks scaling | New home |
+|---|---|---|
+| HTTP session in memory | next request, other replica: "logged out" | JWT on the client, or Redis |
+| Uploaded files on local disk | other replicas cannot see them | object store (S3, GCS, MinIO) |
+| In-process cache | each replica has its own stale copy | Redis — or short times to live (TTLs) |
+| `@Scheduled` job inside the app | 10 replicas run it 10 times | CronJob, lock or leader |
+| Counters, rate limits in memory | each replica counts only its share | Redis `INCR`, API gateway |
+| WebSocket connections | a connection *is* state | keep it; publish through pub/sub |
+
+<p class="small">Twelve-Factor VI: the <em>system</em> keeps state — concentrated in a few components built to hold it.</p>
+
+---
+
 ## How many replicas?
 
-> N = ⌈ peak RPS / (RPS per replica × target utilization) ⌉ + spare
+> N = ⌈ peak requests per second (RPS) / (RPS per replica × target utilization) ⌉ + spare
 
-- `catalog`: 10 vCPUs × (1 / 20 ms) = **500 req/s** per replica; peak **4,000 req/s**.
+- `catalog`: 10 virtual CPUs (vCPUs) × (1 / 20 ms) = **500 req/s** per replica; peak **4,000 req/s**.
 - At 100%: 8 replicas — zero headroom.
 - At a **65%** target: 4,000 / 325 ≈ 12.3 → **13**, + 1 spare = **14**.
 
@@ -111,24 +140,55 @@ the bottleneck moves to the database. Show the scale-out scenario in the playgro
 
 | Shape | Scales in | Pay for | Typical use |
 |---|---|---|---|
-| VM | minutes | provisioned hours | legacy, databases |
+| Virtual machine (VM) | minutes | provisioned hours | legacy, databases |
 | Containers on Kubernetes | seconds (pod) to minutes (node) | nodes | the default for services |
 | Serverless containers | seconds, to zero | per use | APIs with idle periods |
-| Functions (FaaS) | sub-second, to zero | invocations + GB-s | event glue, webhooks |
+| Functions as a Service (FaaS) | sub-second, to zero | invocations + GB-s | event glue, webhooks |
 
 ---
 
 ## Monolith → modular monolith → microservices
+
+<div class="flow" style="align-items: stretch">
+<div class="group">
+<div class="caption">monolith</div>
+<div class="box">one app<small>catalog · inventory · order · payment</small></div>
+<div class="box muted">one database, every table shared</div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">modular monolith</div>
+<div class="box">one app, one deploy</div>
+<div class="box accent">module catalog → schema catalog</div>
+<div class="box accent">module inventory → schema inventory</div>
+<div class="box accent">module order → schema order</div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">microservices</div>
+<div class="box">gateway</div>
+<div class="box green">catalog → catalog DB</div>
+<div class="box green">inventory → inventory DB</div>
+<div class="box green">order → order DB</div>
+</div>
+</div>
+
+- Boundaries enforced by **discipline** → by **the build** (modules, ArchUnit) → by **the network**.
+- A modular monolith gets the boundaries and data ownership **without** paying for the network.
+
+---
+
+## Three shapes compared
 
 | | Monolith | Modular monolith | Microservices |
 |---|---|---|---|
 | Deployable units | 1 | 1 | many |
 | Boundaries enforced by | discipline | the build (modules, ArchUnit) | the network |
 | Calls between parts | in-process | in-process | network: can fail, ms |
-| Transactions | ACID across all | ACID, tables owned per module | sagas, eventual consistency |
+| Transactions | ACID (atomic, consistent, isolated, durable) across all | ACID, tables owned per module | sagas, eventual consistency |
 | Scaling | whole app | whole app | per service |
-| Team autonomy | low | medium | high |
-| Operational cost | lowest | low | high |
+| Team autonomy | 🔴 low | 🟡 medium | 🟢 high |
+| Operational cost | 🟢 lowest | 🟢 low | 🔴 high |
 
 <div class="ok">
 
@@ -145,7 +205,7 @@ the bottleneck moves to the database. Show the scale-out scenario in the playgro
 | Different scaling profile | `catalog` read-heavy vs `inventory` write-hot |
 | Team autonomy | search ships twice a day; payments monthly |
 | Failure isolation | `assistant` down must not stop ticket sales |
-| Compliance scope | only `payment` touches the provider (PCI) |
+| Compliance scope | only `payment` touches the provider: smaller Payment Card Industry (PCI DSS) scope |
 | Different technology | `assistant` in Python, core in Java |
 
 <div class="warn">
@@ -156,7 +216,7 @@ the bottleneck moves to the database. Show the scale-out scenario in the playgro
 
 ---
 
-## Boundaries with DDD
+## Boundaries with Domain-Driven Design (DDD)
 
 - **Subdomains**: core (inventory, waiting room) → build; supporting (catalog, notifications); generic (auth, payments, e-mail) → **buy**.
 - **Bounded context**: where one model — and one meaning of each word — applies.
@@ -186,7 +246,7 @@ the bottleneck moves to the database. Show the scale-out scenario in the playgro
 
 ## Context maps and Conway's law
 
-- **Open Host Service**: `catalog` publishes REST + OpenAPI for any consumer.
+- **Open Host Service**: `catalog` publishes a REST (representational state transfer) API + OpenAPI for any consumer.
 - **Customer / Supplier**: `inventory` plans its hold API with `order`.
 - **Anti-Corruption Layer**: `payment` translates the provider's model at the border.
 
@@ -210,9 +270,9 @@ public interface PaymentGateway {
 class ProviderPaymentGateway implements PaymentGateway { /* translate THEIR states */ }
 ```
 
-- **SOLID**, especially **D**ependency inversion: business code depends on abstractions it owns.
+- **SOLID** (five class-design principles), especially **D**ependency inversion: business code depends on abstractions it owns.
 - Payoff: millisecond tests with a fake, a second provider is a new adapter.
-- Do **not** over-architect a CRUD service: layered is fine there.
+- Do **not** over-architect a create-read-update-delete (CRUD) service: layered is fine there.
 
 ---
 
@@ -252,13 +312,13 @@ topic `inventory.availability.v1`
 | | REST | gRPC | GraphQL | Async |
 |---|---|---|---|---|
 | Payload | JSON | protobuf | JSON | JSON / Avro / protobuf |
-| Browser-native | yes | no (gRPC-Web) | yes | push via WS/SSE |
-| HTTP caching | excellent | none | hard | n/a |
+| Browser-native | ✅ yes | ❌ no (gRPC-Web) | ✅ yes | push via WebSocket / server-sent events (SSE) |
+| HTTP caching | ✅ excellent | ❌ none | ⚠️ hard | n/a |
 | Coupling in time | yes | yes | yes | **none** |
-| Best for | public, partners, cacheable reads | internal high-QPS, streaming | BFF composing services | side effects, fan-out |
+| Best for | public, partners, cacheable reads | internal, many queries per second (QPS), streaming | backend for frontend (BFF) composing services | side effects, fan-out |
 
 - BoxOffice: **REST** at the edge, **GraphQL BFF** for apps, **gRPC** order → inventory, **events** after confirmation, **webhooks** in from the provider.
-- gRPC catch: long HTTP/2 connections defeat **L4** load balancing. GraphQL catch: **N+1** → DataLoader.
+- gRPC catch: long HTTP/2 connections defeat **layer-4 (L4)** load balancing. GraphQL catch: **N+1** → DataLoader.
 
 ---
 
@@ -267,13 +327,21 @@ topic `inventory.availability.v1`
 - REST: correct methods and codes (`201`, `202`, `409`, `422`, `429`), **Problem Details** errors, **cursor** pagination, `ETag` + `Cache-Control`.
 - Unsafe writes (`POST /holds`, `POST /orders`) require an **`Idempotency-Key`**.
 
-| Compatible | Breaking |
+| ✅ Compatible | ❌ Breaking |
 |---|---|
 | add endpoint / optional field / response field | remove or rename a field |
 | new enum value in input | change type or meaning (reais → cents) |
 | protobuf: new tag | protobuf: reuse a tag (`reserved`!) |
 
-**Expand and contract**: v2 next to v1 → migrate → `Sunset` header → remove v1. Catch breaks with **contract tests** (Pact).
+<div class="flow">
+<div class="box green">expand<small>v2 next to v1</small></div><div class="arrow">→</div>
+<div class="box">migrate consumers</div><div class="arrow">→</div>
+<div class="box">Sunset header<small>announces the date</small></div><div class="arrow">→</div>
+<div class="box orange">v1 calls at zero?<small>no: find who still calls</small></div><div class="arrow">yes →</div>
+<div class="box green">contract<small>remove v1</small></div>
+</div>
+
+<p class="small">Catch breaks before they ship with <b>contract tests</b> (Pact, Spring Cloud Contract).</p>
 
 ---
 
@@ -281,7 +349,19 @@ topic `inventory.availability.v1`
 
 Does the user's answer depend on this step? **No → job on a queue → worker.**
 
-- Confirm order: in the request. Ticket PDF, e-mail, push, dashboard, search: **workers**.
+<div class="flow">
+<div class="box muted" style="flex: .5">fan</div><div class="arrow">POST →</div>
+<div class="box accent">order<small>CONFIRMED + event, one transaction</small></div><div class="arrow">→</div>
+<div class="box green">"your order is confirmed"<small>tens of ms</small></div>
+</div>
+<div class="flow">
+<div class="box muted" style="flex: .5">later</div><div class="arrow">→</div>
+<div class="box">queue / Kafka</div><div class="arrow">→</div>
+<div class="box">ticket worker<small>PDF + QR → object store</small></div><div class="arrow">→</div>
+<div class="box">notification worker</div><div class="arrow">→</div>
+<div class="box orange">e-mail provider<small>may be slow or down</small></div>
+</div>
+
 - Gains: latency, availability (e-mail down ≠ sales down), load leveling, independent scaling.
 
 <div class="q">
@@ -301,7 +381,7 @@ Delivery is **at least once** — so:
 
 - **Idempotent jobs** (check before acting, dedupe keys); **ack after** the work.
 - **Ids in messages**, not data; a **timeout** per job.
-- **Retry with backoff**, then the **DLQ** (poison messages); alert on DLQ growth.
+- **Retry with backoff**, then the **dead-letter queue (DLQ)** for poison messages; alert on DLQ growth.
 - **Separate queues** by priority: tickets ≠ marketing e-mails.
 - **Respect downstream limits**: more workers than the provider allows = `429`s.
 - Scale workers on **queue depth / lag**, not CPU.
@@ -325,7 +405,7 @@ Delivery is **at least once** — so:
 | **Leader election** | `Lease`, etcd, ZooKeeper |
 | **Managed scheduler** | EventBridge Scheduler, Cloud Scheduler |
 
-- Locks **expire** (GC pause!) → **fencing tokens**, or idempotent conditional writes.
+- Locks **expire** (a garbage-collection pause!) → **fencing tokens**, or idempotent conditional writes.
 - Keep the scheduler **off the critical path**: lazy hold expiry + sweeper; `onSaleAt` checked in data.
 
 ---
@@ -333,13 +413,13 @@ Delivery is **at least once** — so:
 ## Serverless
 
 - Platform runs your function **per event**, scales to zero, bills per invocation + **GB-seconds**.
-- **Cold start**: create sandbox + start runtime + init (JVM: seconds) → provisioned concurrency, SnapStart, native image.
-- **Concurrency = rate × duration**: 1,500 req/s × 0.2 s = **300** environments.
+- **Cold start**: create sandbox + start runtime + init (Java virtual machine, JVM: seconds) → provisioned concurrency, SnapStart, native image.
+- **Concurrency = rate × duration**: 2,000 req/s × 0.2 s = **400** environments.
 - Limits: account quota (Lambda default 1,000 per Region), 15-min max, no long connections.
 
 <div class="warn">
 
-Serverless scales; **your database does not**: 300 environments = 300 connections → RDS Proxy / PgBouncer, reserved concurrency.
+Serverless scales; **your database does not**: 1,000 concurrent functions = 1,000 connections → RDS Proxy / PgBouncer, reserved concurrency.
 
 </div>
 
@@ -349,10 +429,10 @@ Serverless scales; **your database does not**: 300 environments = 300 connection
 
 ## Autoscaling
 
-> desiredReplicas = ⌈ currentReplicas × currentMetric / target ⌉ — every 15 s (HPA)
+> desiredReplicas = ⌈ currentReplicas × currentMetric / target ⌉ — every 15 s (Horizontal Pod Autoscaler, HPA)
 
 - 6 replicas at 90% CPU, target 60% → **9**. Scale-down waits 5 min (stabilization).
-- Levels: **HPA/KEDA** (replicas), **VPA** (size), **Cluster Autoscaler / Karpenter** (nodes).
+- Levels: **HPA** or Kubernetes Event-Driven Autoscaling (**KEDA**) for replicas, Vertical Pod Autoscaler (**VPA**) for size, **Cluster Autoscaler / Karpenter** for nodes.
 - Metric: CPU (CPU-bound), RPS or concurrency (I/O-bound), **consumer lag** (workers, KEDA).
 - Policies: target tracking, step, **scheduled**, predictive, queue-based.
 
@@ -366,14 +446,17 @@ Serverless scales; **your database does not**: 300 environments = 300 connection
 
 ## Autoscaling lag
 
-| Step | Typical (illustrative) |
-|---|---|
-| metrics collected | 15–60 s |
-| HPA loop | ≤ 15 s |
-| new node, if needed | 30–120 s |
-| image pull | 5–60 s |
-| JVM start + warm-up | 10–60 s |
-| **total** | **~1–4 min** |
+<div class="flow">
+<div class="box">metrics<small>15–60 s</small></div><div class="arrow">→</div>
+<div class="box">HPA loop<small>≤ 15 s</small></div><div class="arrow">→</div>
+<div class="box orange">new node, if no room<small>30–120 s</small></div><div class="arrow">→</div>
+<div class="box">image pull<small>5–60 s</small></div><div class="arrow">→</div>
+<div class="box">JVM start + warm-up<small>10–60 s</small></div><div class="arrow">→</div>
+<div class="box">readiness<small>5–10 s</small></div><div class="arrow">=</div>
+<div class="box red">~1–4 min<small>until the first fan is served</small></div>
+</div>
+
+<p class="small">Typical durations, illustrative. The HPA simulator on the Kubernetes page of class 11 plays the race with lab 10's settings.</p>
 
 <div class="ok">
 
@@ -388,7 +471,16 @@ A flash sale goes 1× → 20× in seconds. For **known** peaks: **scale on a sch
 - Latency with a heavy tail, **their** availability, **rate limits**, their API calendar, per-call cost.
 - Outcomes **decided later**: `processing`, 3-D Secure, webhook.
 
-**Payment states**: CREATED → PENDING → SUCCEEDED / FAILED · timeout → **UNKNOWN** → query / webhook
+<div class="flow">
+<div class="box">CREATED</div><div class="arrow">accepted →</div>
+<div class="box accent">PENDING<small>3-D Secure: REQUIRES_ACTION</small></div><div class="arrow">webhook →</div>
+<div class="box green">SUCCEEDED</div><div class="box red">FAILED</div>
+</div>
+<div class="flow">
+<div class="box">CREATED</div><div class="arrow">timeout →</div>
+<div class="box orange">UNKNOWN<small>it may have been charged</small></div><div class="arrow">query / webhook →</div>
+<div class="box accent">PENDING</div>
+</div>
 
 <div class="warn">
 
@@ -405,6 +497,13 @@ A timeout is **not** a failure: releasing the seats of a fan who *was* charged i
 - **Inbound**: the app sends `Idempotency-Key` per logical action (the *Pay* press), reused on every retry.
 - **Outbound**: BoxOffice sends a key derived from its own id (`ord_9`) to the provider.
 
+<div class="flow">
+<div class="box">create payment<small>key ord_9</small></div><div class="arrow">→</div>
+<div class="box green">provider charges<small>pay_77</small></div><div class="arrow">answer lost ✕</div>
+<div class="box orange">UNKNOWN<small>retry with the SAME key</small></div><div class="arrow">→</div>
+<div class="box green">pay_77 returned<small>no second charge</small></div>
+</div>
+
 | Case | Behavior |
 |---|---|
 | same key, same request, done | replay the stored response |
@@ -416,11 +515,28 @@ A timeout is **not** a failure: releasing the seats of a fan who *was* charged i
 
 ---
 
+## Retries and unknown outcomes
+
+| What happened | Could it have taken effect? | What to do |
+|---|---|---|
+| connection refused, DNS or TLS failure | ❌ no: nothing was sent | retry with backoff |
+| timeout after sending, `5xx` | ⚠️ **unknown** | retry with the **same key**, or query first |
+| `429 Too Many Requests` | ❌ no | wait for `Retry-After` |
+| `400`, `402` declined, `422` | ❌ no, and it never will | do not retry |
+
+<div class="ok">
+
+**Simulator on the page**: 1,000 fans press Pay with lab 9's client (1 s timeout, 3 attempts). 6.2% of the calls time out and, without a key, **63 fans pay twice or more**; one key per order (`"order-" + orderId`): **0**. On a slow day 133 checkouts end UNKNOWN, each charged once: the webhook or the reconciliation settles them.
+
+</div>
+
+---
+
 ## Webhooks
 
 | Delivery property | Receiver must… |
 |---|---|
-| anyone can call your URL | **verify the HMAC** over the raw body |
+| anyone can call your URL | **verify the hash-based message authentication code (HMAC)** over the raw body |
 | captured requests can be replayed | check the **timestamp** |
 | at-least-once, retried for days | **deduplicate** by event id |
 | no ordering | apply **monotonic** transitions |

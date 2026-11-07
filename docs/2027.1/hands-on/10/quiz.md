@@ -8,7 +8,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 - A. `kubectl`, which recreates deleted pods automatically
 - B. The ReplicaSet owned by the `catalog` Deployment: its controller saw 1 of 2 desired pods and created another
-- C. The HPA
+- C. The Horizontal Pod Autoscaler (HPA)
 - D. The kubelet of the node where the pod ran
 
 ??? success "Answer"
@@ -51,7 +51,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 **Q4.** A team puts a database check in `catalog`'s **liveness** probe. During a 20-second database blip, what happens?
 
 - A. Nothing; liveness only matters at startup
-- B. Every `catalog` pod fails liveness and Kubernetes restarts all of them, turning a 20-second blip into minutes of outage while JVMs restart
+- B. Every `catalog` pod fails liveness and Kubernetes restarts all of them, turning a 20-second blip into minutes of outage while Java virtual machines (JVMs) restart
 - C. The pods are removed from the Service until the database returns, then added back
 - D. The HPA adds pods
 
@@ -139,7 +139,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 - A. The HPA also scales PostgreSQL down
 - B. Each pod has its own connection pool (e.g. 10 connections): 8 pods open up to 80 connections, exceeding what one database instance allows or handles well — scaling the stateless tier moved the bottleneck to the stateful one
 - C. Traefik limits connections
-- D. The PVC is full
+- D. The PersistentVolumeClaim (PVC) is full
 
 ??? success "Answer"
     **B — connection fan-in.**

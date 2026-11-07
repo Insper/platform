@@ -73,7 +73,7 @@ of the pods that use it — a stale credential cannot linger in a running pod.
     ```
 
 A **StatefulSet** gives the database what a Deployment does not: a stable identity (`db-0`) and a
-**PersistentVolumeClaim** per replica that survives pod restarts. Deleting the pod keeps the data;
+**PersistentVolumeClaim** (PVC) per replica that survives pod restarts. Deleting the pod keeps the data;
 deleting the PVC deletes it.
 
 ## The `catalog` Deployment
@@ -93,12 +93,13 @@ The three probes answer three different questions, and confusing them causes out
 !!! warning "Never put a dependency in the liveness probe"
 
     If liveness checked the database, a database blip would make Kubernetes restart **every**
-    `catalog` pod at once — turning a 10-second blip into minutes of outage while JVMs restart. Spring
+    `catalog` pod at once — turning a 10-second blip into minutes of outage while the Java virtual machines (JVMs) restart. Spring
     Boot's liveness group checks only the application's own state; that is why lab 1 enabled
     `management.endpoint.health.probes`.
 
-`requests` are what the scheduler reserves on a node (and the base of HPA percentages); `limits` are
-the ceiling — above the memory limit the container is killed (`OOMKilled`), above the CPU limit it
+`requests` are what the scheduler reserves on a node (and the base of the percentages of the Horizontal Pod
+Autoscaler, HPA); `limits` are the ceiling — above the memory limit the container is killed (`OOMKilled`),
+above the central processing unit (CPU) limit it
 is throttled. Lab 1's Dockerfile sizes the heap with `-XX:MaxRAMPercentage=75`, so the JVM respects
 the 768 Mi limit.
 
@@ -162,7 +163,7 @@ redis-6757b9b5ff-9klb4    1/1     Running   0             3m31s   boxoffice-work
     ```
 
     Pods on the lost node are replaced on the remaining nodes — but only after the node is declared
-    unhealthy and the pods' tolerations expire (about 5 minutes by default). Detection time dominates
+    `NotReady` (about a minute without heartbeats) and the pods' default 5-minute toleration expires. Detection time dominates
     recovery, exactly as in the [availability math](../../../classes/estimation/availability-math/index.md).
 
 === "Rolling update"
@@ -182,8 +183,31 @@ redis-6757b9b5ff-9klb4    1/1     Running   0             3m31s   boxoffice-work
     When a pod is terminated: (1) it is removed from the Service endpoints **and**, in parallel, (2)
     the `preStop` hook runs (5 s sleep), then (3) `SIGTERM` reaches the JVM, which with
     `server.shutdown=graceful` stops accepting and finishes in-flight requests. Without the `preStop`
-    pause, step 3 can happen before every node's proxy has stopped sending traffic to the pod — and
-    those requests fail with connection refused.
+    pause, step 3 can happen before Traefik (and every node's kube-proxy) has stopped sending traffic to
+    the pod — and those requests fail with connection refused.
+
+``` diagram-sim
+sequenceDiagram
+    participant D as kubectl / Deployment
+    participant API as API server
+    participant T as Traefik
+    participant K as kubelet
+    participant J as catalog JVM
+    D->>API: delete the pod (or the rollout replaces it)
+    API->>T: endpoint removed, applied a moment later
+    API->>K: the pod is Terminating
+    K->>J: preStop sleep 5 s, the JVM still serves
+    Note over T,J: Traefik stops routing to the pod during the pause
+    K->>J: SIGTERM
+    J->>J: stop accepting, finish in-flight requests
+    J-->>K: exit, well before the 30 s grace period
+```
+
+<div class="csim" data-sim="kind-lab" data-script="deploy"></div>
+
+!!! tip "Try it"
+
+    Before (or after) the cluster on your laptop, the same cluster in the browser: it opens on the `kubectl apply -k` of this page; play or → runs the page's commands, and the buttons work at any time. In **apply -k**, `catalog` fails twice before `db-0` accepts connections (RESTARTS 2, as above) and everything is 1/1 at 3m31s. In **self-healing**, deleting both pods leaves `catalog` with no endpoint: `curl` gets 503 until the two new JVMs are ready, 30 s later — the MTTR of a pod crash. In **losing a node**, boxoffice-worker2 is NotReady after 50 s; k6 at 100 req/s loses 2,550 of 12,000 requests (21.25%) before Traefik stops sending to its pod, and the replacement is ready on boxoffice-worker only 379 s after the stop. In **rollout (B)**, experiment B of [Measure it](../measure/index.md): 0 failed requests with the readiness probe and the `preStop` pause, 200 of 12,000 (1.67%) without them. In **free** mode, set Traefik's delay to 6 s: even with the 5 s pause, 100 requests fail — the pause must outlast the endpoint propagation.
 
 ## Your turn: the other services
 

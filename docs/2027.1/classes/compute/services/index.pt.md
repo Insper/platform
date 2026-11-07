@@ -40,11 +40,11 @@ flowchart LR
 | **Unidades de deploy** | 1 | 1 | muitas (uma por serviço) |
 | **Fronteiras impostas por** | disciplina (muitas vezes nenhuma) | o build: módulos, visibilidade de pacotes, testes ArchUnit | a rede: um serviço só pode chamar a API do outro |
 | **Chamadas entre partes** | em processo, nanossegundos | em processo, nanossegundos | rede, ~0,5–5 ms dentro de um datacenter, podem falhar |
-| **Transações** | uma transação ACID sobre tudo | um banco, mas cada módulo é dono das suas tabelas | sem transação compartilhada: sagas, consistência eventual |
+| **Transações** | uma transação ACID (atômica, consistente, isolada, durável) sobre tudo | um banco, mas cada módulo é dono das suas tabelas | sem transação compartilhada: sagas, consistência eventual |
 | **Escala** | a aplicação inteira | a aplicação inteira | cada serviço com seu próprio perfil |
-| **Isolamento de falhas** | um vazamento de memória derruba tudo | um vazamento de memória derruba tudo | um serviço falha, os outros se degradam |
-| **Autonomia dos times** | baixa acima de ~10 engenheiros | média: módulos separados, release compartilhado | alta: código, dados e cadência de release próprios |
-| **Custo operacional** | o menor | baixo | alto: descoberta, tracing, CI/CD por serviço, on-call |
+| **Isolamento de falhas** | ❌ um vazamento de memória derruba tudo | ❌ um vazamento de memória derruba tudo | ✅ um serviço falha, os outros se degradam |
+| **Autonomia dos times** | 🔴 baixa acima de ~10 engenheiros | 🟡 média: módulos separados, release compartilhado | 🟢 alta: código, dados e cadência de release próprios |
+| **Custo operacional** | 🟢 o menor | 🟢 baixo | 🔴 alto: descoberta, tracing, CI/CD por serviço, on-call |
 
 O **monolito modular** merece mais atenção do que costuma receber. Ele entrega o principal benefício dos microsserviços — fronteiras claras, cada módulo dono dos seus dados — sem pagar pela rede. Se um módulo depois precisar de escala independente ou de outro time, ele pode ser extraído ao longo de uma fronteira que já existe. A Shopify, por exemplo, descreveu publicamente sua escolha de modularizar um grande monolito Rails em vez de quebrá-lo em serviços[^7].
 
@@ -59,8 +59,8 @@ Separe uma parte do sistema em um serviço próprio quando pelo menos uma destas
 |---|---|---|
 | **Perfil de escala diferente** | `catalog` é dominado por leituras (milhares de leituras por escrita), `inventory` tem escrita intensa durante a abertura de vendas | Escalar e ajustar cada um separadamente; cachear um agressivamente, proteger o outro |
 | **Autonomia dos times** | o time de busca publica duas vezes por dia; o de pagamentos, uma vez por mês, após revisão | Releases independentes, sem "trem de release" |
-| **Isolamento de falhas** | o `assistant` de IA pode ficar lento ou fora do ar sem bloquear a venda de ingressos | Uma falha fica dentro de uma fronteira (com timeouts e circuit breakers, veja [confiabilidade](../../reliability/index.md)) |
-| **Escopo de segurança / compliance** | só `payment` fala com o provedor de pagamentos e guarda tokens do provedor | Escopo de auditoria menor (PCI DSS), políticas de rede mais restritas |
+| **Isolamento de falhas** | o `assistant` de inteligência artificial (IA) pode ficar lento ou fora do ar sem bloquear a venda de ingressos | Uma falha fica dentro de uma fronteira (com timeouts e circuit breakers, veja [confiabilidade](../../reliability/index.md)) |
+| **Escopo de segurança / compliance** | só `payment` fala com o provedor de pagamentos e guarda tokens do provedor | Escopo de auditoria menor (padrão de segurança de dados da indústria de cartões, PCI DSS, *Payment Card Industry Data Security Standard*), políticas de rede mais restritas |
 | **Tecnologia diferente** | `assistant` é Python + FastAPI + pgvector; o núcleo é Java | Cada serviço escolhe seu runtime; o contrato é HTTP ou eventos |
 
 E os custos que você aceita ao dividir:
@@ -264,7 +264,7 @@ flowchart LR
 
 Quando `order` precisa confirmar um hold, ele chama a **API** de `inventory`, nunca a **tabela** `holds`. Isso deixa o time de inventário livre para mudar seu schema, acrescentar um cache ou migrar para outro banco. Duas consequências decorrem disso:
 
-- **Consultas entre serviços** viram chamadas de API — ou uma cópia local, somente leitura, dos dados do outro serviço, mantida atualizada por eventos (CQRS, [mensageria](../../messaging/index.md)). O `search` mantém seu próprio índice de eventos dessa forma.
+- **Consultas entre serviços** viram chamadas de API — ou uma cópia local, somente leitura, dos dados do outro serviço, mantida atualizada por eventos (segregação de responsabilidade entre comando e consulta, CQRS, *command query responsibility segregation* — veja [mensageria](../../messaging/index.md)). O `search` mantém seu próprio índice de eventos dessa forma.
 - **Transações de negócio entre serviços** viram uma sequência de transações locais coordenadas por eventos ou por um orquestrador, com compensações quando um passo falha: o padrão **saga**. "Pagamento falhou → liberar o hold" é uma compensação.
 
 !!! example "No código do BoxOffice: um PostgreSQL, um schema por dono (labs 1–9)"
@@ -281,7 +281,7 @@ Quando `order` precisa confirmar um hold, ele chama a **API** de `inventory`, nu
 
     Quem chama espera a resposta. Simples, mas com **acoplamento temporal**: se `inventory` está fora do ar, `order` não consegue confirmar.
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         participant F as Fã
         participant O as order
@@ -298,7 +298,7 @@ Quando `order` precisa confirmar um hold, ele chama a **API** de `inventory`, nu
 
     O produtor publica um fato e segue em frente; os consumidores reagem no seu próprio tempo. Sem acoplamento temporal — `notification` pode ficar cinco minutos fora do ar e depois se atualizar.
 
-    ``` mermaid-sim
+    ``` diagram-sim
     sequenceDiagram
         participant O as order
         participant K as Kafka
@@ -334,7 +334,7 @@ Os cinco princípios SOLID[^8] são regras no nível de classe que tornam essa p
 | **O**pen/closed (aberto/fechado) | acrescente comportamento adicionando código, não editando código que funciona | um `switch (provider)` que cresce a cada novo provedor de pagamentos |
 | **L**iskov substitution (substituição de Liskov) | um subtipo deve funcionar onde quer que o tipo pai funcione | um `FreeTicketPayment` que lança exceção em `refund()` |
 | **I**nterface segregation (segregação de interfaces) | clientes não devem depender de métodos que não usam | um único `InventoryRepository` com 40 métodos usado por todas as classes |
-| **D**ependency inversion (inversão de dependência) | o código de negócio depende de abstrações que ele mesmo define, não da infraestrutura | um `HoldService` que importa o `EntityManager` do JPA ou o SDK do provedor |
+| **D**ependency inversion (inversão de dependência) | o código de negócio depende de abstrações que ele mesmo define, não da infraestrutura | um `HoldService` que importa o `EntityManager` da API de persistência Java (JPA, *Java Persistence API*) ou o SDK do provedor |
 
 ### Em camadas, clean e hexagonal { #layered-clean-and-hexagonal }
 
@@ -389,7 +389,7 @@ O ganho: os testes dos casos de uso rodam em milissegundos com um `FakeGateway`;
 | Trocar banco / provedor / protocolo | mexe nas classes de negócio | um novo adaptador |
 | Custo | o menor número de classes | mais interfaces, mappers e indireção |
 
-!!! warning "Não superarquitete um serviço CRUD"
+!!! warning "Não superarquitete um serviço CRUD (criar, ler, atualizar, apagar)"
     Portas, adaptadores e mappers custam classes e indireção. Um serviço que só guarda e devolve registros (a lista de locais, uma tabela de consulta) pode continuar em camadas. A estrutura compensa onde as regras de negócio são ricas (`inventory`), as integrações são externas (`payment`, `notification`) ou o serviço vai viver por anos. Os microsserviços permitem que cada serviço escolha.
 
 ---
@@ -414,13 +414,13 @@ Dois padrões se repetem: esses serviços são em sua maioria **alimentados por 
 |---|---|---|---|---|
 | `gateway` | ponto único de entrada, verificação de autenticação, rate limits | — | clientes | requisições/s |
 | `auth` | login, tokens | usuários, credenciais | gateway | rajadas de login na abertura de vendas |
-| `catalog` | eventos, locais, artistas | banco do catálogo | gateway, order | dominado por leituras, cache + CDN |
+| `catalog` | eventos, locais, artistas | banco do catálogo | gateway, order | dominado por leituras, cache + rede de distribuição de conteúdo (CDN, *content delivery network*) |
 | `inventory` | mapas de assentos, holds | assentos, holds | gateway, order | escrita intensa na abertura de vendas; correção em primeiro lugar |
 | `order` | pedidos, saga do checkout | pedidos | gateway | acompanha as vendas |
 | `payment` | adaptador para o provedor de pagamentos | pagamentos, ids do provedor | order | acompanha as vendas; limitado pelo provedor |
 | `notification` | e-mail e push | templates, log de entregas | eventos | rajadas movidas a fila |
 | `search` | busca textual | índice derivado | gateway | dominado por leituras |
-| `assistant` | suporte com IA (Python) | conversas, embeddings | gateway | limitado por GPU/LLM, isolado |
+| `assistant` | suporte com IA (Python) | conversas, embeddings | gateway | limitado pela unidade de processamento gráfico (GPU, *graphics processing unit*) e pelo modelo de linguagem de grande porte (LLM, *large language model*), isolado |
 
 !!! example "No código do BoxOffice: uma porta de entrada, uma rota por serviço (labs 4 e 6)"
 
@@ -438,7 +438,7 @@ Dois padrões se repetem: esses serviços são em sua maioria **alimentados por 
 
     - **Escreva a força por trás de cada fronteira de serviço** — perfil de escala, time, isolamento de falhas, conformidade ou tecnologia, no design doc; uma fronteira sem força restante é candidata a ser fundida. Na BoxOffice: `catalog` (leitura intensa, três réplicas) e `inventory` (escrita quente, correção em primeiro lugar) são separados pelo perfil de escala.
     - **Dê a cada serviço seu próprio papel no banco, com direitos só sobre o seu schema** — assim a fronteira é imposta pelo banco, não pela revisão de código. Na BoxOffice os labs compartilham o usuário `boxoffice` (quadro acima): este é o passo a dar antes da produção.
-    - **Nomeie um time dono por serviço num catálogo de serviços** — dono, escala de plantão, runbook e SLO; quando o `inventory` disparar um alerta às 10:01, ninguém deve precisar perguntar quem atende.
+    - **Nomeie um time dono por serviço num catálogo de serviços** — dono, escala de plantão, runbook e objetivo de nível de serviço (SLO, *service level objective*); quando o `inventory` disparar um alerta às 10:01, ninguém deve precisar perguntar quem atende.
     - **Passe todo o tráfego externo por um gateway e deixe as chamadas entre serviços fora dele** — um lugar para autenticação e limites de taxa, sem acrescentar um salto a cada chamada interna. Na BoxOffice: a borda só fala com o `gateway` ([lab 4](../../../hands-on/4/gateway/index.md)).
     - **Imponha as fronteiras dos módulos no build antes de extrair serviços** — visibilidade de pacotes e um teste de arquitetura (ArchUnit) no CI mantêm um monólito modular modular; extrair um módulo cuja fronteira já se sustenta é um deploy, não uma reescrita.
 

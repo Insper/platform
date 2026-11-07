@@ -73,7 +73,7 @@ usam — uma credencial velha não fica esquecida num pod em execução.
     ```
 
 Um **StatefulSet** dá ao banco de dados o que um Deployment não dá: uma identidade estável (`db-0`) e
-um **PersistentVolumeClaim** por réplica que sobrevive aos restarts do pod. Apagar o pod mantém os
+um **PersistentVolumeClaim** (PVC) por réplica que sobrevive aos restarts do pod. Apagar o pod mantém os
 dados; apagar o PVC os apaga.
 
 ## O Deployment do `catalog` { #the-catalog-deployment }
@@ -94,11 +94,12 @@ As três probes respondem três perguntas diferentes e confundi-las causa quedas
 
     Se a liveness verificasse o banco de dados, uma oscilação do banco faria o Kubernetes reiniciar
     **todos** os pods do `catalog` de uma vez — transformando uma oscilação de 10 segundos em minutos
-    de queda enquanto as JVMs reiniciam. O grupo de liveness do Spring Boot verifica só o estado da
+    de queda enquanto as máquinas virtuais Java (JVMs, *Java virtual machines*) reiniciam. O grupo de liveness do Spring Boot verifica só o estado da
     própria aplicação; é por isso que o lab 1 ativou o `management.endpoint.health.probes`.
 
-Os `requests` são o que o scheduler reserva num nó (e a base das porcentagens do HPA); os `limits` são
-o teto — acima do limite de memória o contêiner é morto (`OOMKilled`), acima do limite de CPU ele é
+Os `requests` são o que o scheduler reserva num nó (e a base das porcentagens do Horizontal Pod Autoscaler, o
+HPA); os `limits` são o teto — acima do limite de memória o contêiner é morto (`OOMKilled`), acima do
+limite de unidade central de processamento (CPU, *central processing unit*) ele é
 estrangulado (*throttled*). O Dockerfile do lab 1 dimensiona o heap com `-XX:MaxRAMPercentage=75`,
 então a JVM respeita o limite de 768 Mi.
 
@@ -161,8 +162,8 @@ redis-6757b9b5ff-9klb4    1/1     Running   0             3m31s   boxoffice-work
     docker start boxoffice-worker2
     ```
 
-    Os pods do nó perdido são substituídos nos nós restantes — mas só depois que o nó é declarado não
-    saudável e as tolerations dos pods expiram (cerca de 5 minutos por padrão). O tempo de detecção
+    Os pods do nó perdido são substituídos nos nós restantes — mas só depois que o nó é declarado
+    `NotReady` (cerca de um minuto sem heartbeats) e a toleration padrão de 5 minutos dos pods expira. O tempo de detecção
     domina a recuperação, exatamente como na
     [matemática da disponibilidade](../../../classes/estimation/availability-math/index.md).
 
@@ -183,8 +184,31 @@ redis-6757b9b5ff-9klb4    1/1     Running   0             3m31s   boxoffice-work
     Quando um pod é terminado: (1) ele é removido dos endpoints do Service **e**, em paralelo, (2) o
     hook `preStop` roda (sleep de 5 s), depois (3) o `SIGTERM` chega à JVM, que, com
     `server.shutdown=graceful`, para de aceitar requisições e termina as que estão em andamento. Sem a
-    pausa do `preStop`, o passo 3 pode acontecer antes que o proxy de cada nó tenha parado de mandar
-    tráfego para o pod — e essas requisições falham com connection refused.
+    pausa do `preStop`, o passo 3 pode acontecer antes que o Traefik (e o kube-proxy de cada nó) tenha
+    parado de mandar tráfego para o pod — e essas requisições falham com connection refused.
+
+``` diagram-sim
+sequenceDiagram
+    participant D as kubectl / Deployment
+    participant API as API server
+    participant T as Traefik
+    participant K as kubelet
+    participant J as JVM do catalog
+    D->>API: apaga o pod (ou o rollout o substitui)
+    API->>T: endpoint removido, aplicado um instante depois
+    API->>K: o pod está Terminating
+    K->>J: preStop sleep 5 s, a JVM ainda atende
+    Note over T,J: o Traefik para de rotear para o pod durante a pausa
+    K->>J: SIGTERM
+    J->>J: para de aceitar, termina as requisições em andamento
+    J-->>K: sai, bem antes do grace period de 30 s
+```
+
+<div class="csim" data-sim="kind-lab" data-script="deploy"></div>
+
+!!! tip "Experimente"
+
+    Antes (ou depois) do cluster no seu laptop, o mesmo cluster no navegador: ele abre no `kubectl apply -k` desta página; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **apply -k**, o `catalog` falha duas vezes antes de o `db-0` aceitar conexões (RESTARTS 2, como acima) e tudo está 1/1 em 3m31s. Em **autocorreção**, apagar os dois pods deixa o `catalog` sem endpoint: o `curl` recebe 503 até as duas JVMs novas ficarem prontas, 30 s depois — o MTTR da queda de um pod. Em **perder um nó**, o boxoffice-worker2 fica NotReady depois de 50 s; o k6 a 100 req/s perde 2.550 de 12.000 requisições (21,25%) antes de o Traefik parar de mandar para o pod dele e o substituto só fica pronto no boxoffice-worker 379 s depois da parada. Em **rollout (B)**, o experimento B de [Meça](../measure/index.md): 0 requisições com falha com a readiness probe e a pausa do `preStop`, 200 de 12.000 (1,67%) sem elas. No modo **livre**, ponha o atraso do Traefik em 6 s: mesmo com a pausa de 5 s, 100 requisições falham — a pausa precisa durar mais que a propagação dos endpoints.
 
 ## Sua vez: os outros serviços { #your-turn-the-other-services }
 

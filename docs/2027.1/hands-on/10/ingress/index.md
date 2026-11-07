@@ -2,7 +2,7 @@
 
 A Service gives a set of pods one stable virtual address *inside* the cluster. The **Ingress** is the
 [`ingress`](../../../reference/components/edge/index.md#ingress) of the palette: the door from the
-outside world, routing HTTP requests by host and path to Services — the Kubernetes counterpart of
+outside world, routing Hypertext Transfer Protocol (HTTP) requests by host and path to Services — the Kubernetes counterpart of
 the Nginx `edge` of [lab 3](../../3/index.md).
 
 ## The path of a request
@@ -16,7 +16,7 @@ flowchart LR
     svc --> p2[catalog pod 2]
 ```
 
-Traefik watches the Kubernetes API: when an Ingress (or a pod's readiness) changes, its routing table
+Traefik watches the Kubernetes application programming interface (API): when an Ingress (or a pod's readiness) changes, its routing table
 changes within seconds, with no reload. It sends traffic directly to the **ready** pod endpoints of
 the Service, so a pod that fails its readiness probe stops receiving requests from the edge too.
 
@@ -31,7 +31,7 @@ the Service, so a pod that fails its readiness probe stops receiving requests fr
 === "Gateway API (HTTPRoute)"
 
     The **Gateway API** is the successor of Ingress: the same idea, split by role — the platform team
-    owns the `Gateway` (ports, TLS), each service team owns its `HTTPRoute` — with features Ingress only
+    owns the `Gateway` (ports, Transport Layer Security (TLS) certificates), each service team owns its `HTTPRoute` — with features Ingress only
     had as vendor annotations (header matching, traffic splitting by weight, timeouts). Enable it in
     Traefik, which then creates a `GatewayClass` named `traefik` and a default `Gateway` named
     `traefik-gateway` listening on its `web` entry point:
@@ -68,6 +68,12 @@ the Service, so a pod that fails its readiness probe stops receiving requests fr
     with HTTP routing. An API gateway (Spring Cloud Gateway in [lab 4](../../4/index.md)) adds
     application concerns — authentication, rate limits per user, request transformation. A typical
     production path is cloud load balancer → Ingress/Gateway → API gateway → services.
+
+    | | `LoadBalancer` Service | Ingress / Gateway API | API gateway |
+    |---|---|---|---|
+    | One external address shared by many services | ❌ one per service | ✅ | ✅ |
+    | Routes by host and path | ❌ | ✅ | ✅ |
+    | Authentication, rate limits per user | ❌ | ❌ (vendor extensions at most) | ✅ |
 
 ## Check the routing
 

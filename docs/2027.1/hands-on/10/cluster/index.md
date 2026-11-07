@@ -1,6 +1,6 @@
 # 1. A Local Cluster
 
-Kubernetes is the same API on a laptop and in a cloud region. This step creates a three-node cluster
+Kubernetes is the same application programming interface (API) on a laptop and in a cloud region. This step creates a three-node cluster
 inside Docker with **kind** (Kubernetes IN Docker), installs the two add-ons the lab needs — an
 **Ingress controller** and **metrics-server** — and loads your BoxOffice images into it.
 
@@ -25,7 +25,7 @@ add-ons are distributed with:
 
     The cluster publishes the Ingress on port **80** of your machine, the same port as the `edge` of
     [lab 3](../../3/index.md). Stop Compose before creating the cluster (`docker compose down`), and
-    give Docker at least 4 CPUs and 8 GB of memory.
+    give Docker at least 4 central processing units (CPUs) and 8 GB of memory.
 
 ## The cluster
 

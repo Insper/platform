@@ -2,7 +2,7 @@
 
 Um Service dá a um conjunto de pods um endereço virtual estável *dentro* do cluster. O **Ingress** é o
 [`ingress`](../../../reference/components/edge/index.md#ingress) da paleta: a porta de entrada do mundo
-externo, que roteia requisições HTTP por host e caminho para os Services — a contraparte, no
+externo, que roteia requisições do protocolo de transferência de hipertexto (HTTP, *Hypertext Transfer Protocol*) por host e caminho para os Services — a contraparte, no
 Kubernetes, do `edge` Nginx do [lab 3](../../3/index.md).
 
 ## O caminho de uma requisição { #the-path-of-a-request }
@@ -16,7 +16,7 @@ flowchart LR
     svc --> p2[pod catalog 2]
 ```
 
-O Traefik observa a API do Kubernetes: quando um Ingress (ou a readiness de um pod) muda, a tabela de
+O Traefik observa a interface de programação de aplicações (API, *application programming interface*) do Kubernetes: quando um Ingress (ou a readiness de um pod) muda, a tabela de
 roteamento dele muda em segundos, sem reload. Ele manda o tráfego diretamente para os endpoints de pods
 **prontos** do Service, então um pod que falha na readiness probe também deixa de receber requisições
 da borda.
@@ -32,7 +32,7 @@ da borda.
 === "Gateway API (HTTPRoute)"
 
     A **Gateway API** é a sucessora do Ingress: a mesma ideia, dividida por papel — o time de
-    plataforma é dono do `Gateway` (portas, TLS), cada time de serviço é dono da sua `HTTPRoute` —, com
+    plataforma é dono do `Gateway` (portas, certificados de segurança da camada de transporte, TLS, *Transport Layer Security*), cada time de serviço é dono da sua `HTTPRoute` —, com
     recursos que o Ingress só tinha como anotações de fornecedor (match por header, divisão de tráfego
     por peso, timeouts). Ative-a no Traefik, que então cria uma `GatewayClass` chamada `traefik` e um
     `Gateway` padrão chamado `traefik-gateway`, escutando no ponto de entrada `web`:
@@ -70,6 +70,12 @@ da borda.
     [lab 4](../../4/index.md)) adiciona preocupações de aplicação — autenticação, rate limits por
     usuário, transformação de requisições. Um caminho típico em produção é load balancer de nuvem →
     Ingress/Gateway → API gateway → serviços.
+
+    | | Service `LoadBalancer` | Ingress / Gateway API | API gateway |
+    |---|---|---|---|
+    | Um endereço externo dividido por muitos serviços | ❌ um por serviço | ✅ | ✅ |
+    | Roteia por host e caminho | ❌ | ✅ | ✅ |
+    | Autenticação, rate limits por usuário | ❌ | ❌ (no máximo extensões do fornecedor) | ✅ |
 
 ## Confira o roteamento { #check-the-routing }
 

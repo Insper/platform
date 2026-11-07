@@ -46,9 +46,23 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
+**Q4.** A colleague says "we are an AWS shop, so we are on IaaS". What is wrong with the sentence?
+
+- A. Nothing: AWS sells only virtual machines
+- B. A service model describes a service, not a company: AWS sells EC2 (IaaS), EKS (CaaS), Lambda (FaaS), RDS (DBaaS) and more, and BoxOffice uses several of them at once
+- C. AWS is a SaaS provider, so the team operates nothing
+- D. Only on-premises data centres can be IaaS
+
+??? success "Answer"
+    **B — A model describes a service, not a company.**
+
+    Every big cloud offers almost every row of the [providers table](index.md#providers). The model is chosen per component: on AWS, BoxOffice's services run on EKS (CaaS), PostgreSQL on RDS (DBaaS) and the thumbnails on Lambda (FaaS), while payments go to a SaaS provider of another company.
+
+---
+
 ## Containers
 
-**Q4.** Two containers run on the same host. What do they share that two virtual machines on the same host would **not** share?
+**Q5.** Two containers run on the same host. What do they share that two virtual machines on the same host would **not** share?
 
 - A. The CPU
 - B. The physical memory
@@ -62,7 +76,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q5.** In the `catalog` Dockerfile, `COPY pom.xml` and `mvn dependency:go-offline` come **before** `COPY src`. Why?
+**Q6.** In the `catalog` Dockerfile, `COPY pom.xml` and `mvn dependency:go-offline` come **before** `COPY src`. Why?
 
 - A. Maven requires the POM to be in a separate layer
 - B. So that a code change invalidates only the later layers, and the dependency download is reused from the build cache
@@ -76,7 +90,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q6.** A team uses `ENTRYPOINT java -jar app.jar` (shell form). During every rolling update a few requests fail. What is the most likely cause?
+**Q7.** A team uses `ENTRYPOINT java -jar app.jar` (shell form). During every rolling update a few requests fail. What is the most likely cause?
 
 - A. The JVM starts too slowly
 - B. `/bin/sh` is PID 1, does not forward `SIGTERM` to Java, and the container is killed with `SIGKILL` after the grace period, dropping in-flight requests
@@ -92,7 +106,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Kubernetes
 
-**Q7.** A node running two `catalog` pods loses power. Which mechanism brings the Deployment back to its 4 desired replicas?
+**Q8.** A node running two `catalog` pods loses power. Which mechanism brings the Deployment back to its 4 desired replicas?
 
 - A. The kubelet on the failed node restarts the pods when power returns
 - B. Controllers compare desired and actual state; the ReplicaSet controller creates new pods and the scheduler places them on healthy nodes
@@ -106,7 +120,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q8.** The readiness probe of `inventory` checks that PostgreSQL is reachable. PostgreSQL fails over and is unreachable for 20 seconds. What happens?
+**Q9.** The readiness probe of `inventory` checks that PostgreSQL is reachable. PostgreSQL fails over and is unreachable for 20 seconds. What happens?
 
 - A. Only the pods connected to the old primary are removed from the Service
 - B. Every `inventory` pod becomes unready at the same time, the Service has no endpoints, and all requests fail — including those that a cache or a graceful error could have served
@@ -120,7 +134,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q9.** The HPA targets 60 % average CPU utilization. `catalog` has 5 pods at 96 %. How many replicas will the HPA request (ignoring min/max and stabilization)?
+**Q10.** The HPA targets 60 % average CPU utilization. `catalog` has 5 pods at 96 %. How many replicas will the HPA request (ignoring min/max and stabilization)?
 
 - A. 6
 - B. 8
@@ -134,7 +148,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q10.** A latency-sensitive Java service has a CPU **limit** of 1 core. Average CPU usage is 45 %, but p99 latency is high and spiky. What should you look at first?
+**Q11.** A latency-sensitive Java service has a CPU **limit** of 1 core. Average CPU usage is 45 %, but p99 latency is high and spiky. What should you look at first?
 
 - A. The memory limit, because Java uses a lot of memory
 - B. CPU throttling: many threads can consume the 100 ms CFS quota early in each period and then wait, adding latency even at a low average
@@ -150,7 +164,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Delivery and FinOps
 
-**Q11.** Which property distinguishes **pull-based GitOps** (Argo CD) from a CI job that runs `kubectl apply`?
+**Q12.** Which property distinguishes **pull-based GitOps** (Argo CD) from a CI job that runs `kubectl apply`?
 
 - A. GitOps only works with Helm
 - B. An agent inside the cluster continuously reconciles the cluster to the state in Git; CI never holds cluster credentials, and manual drift is detected or reverted
@@ -164,7 +178,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q12.** A canary of `order` receives 5 % of 400 req/s. The baseline error rate is 0.1 %. Why is a 30-second canary step not enough to promote safely?
+**Q13.** A canary of `order` receives 5 % of 400 req/s. The baseline error rate is 0.1 %. Why is a 30-second canary step not enough to promote safely?
 
 - A. Because Argo Rollouts requires at least 10 minutes per step
 - B. Because 30 s at 20 req/s is only ~600 requests — too few to distinguish a small error-rate regression (e.g. 0.1 % → 0.2 %) from noise
@@ -178,7 +192,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q13.** A schema change renames `orders.total` to `orders.amount_cents`. Why should it **not** be shipped in the same release as the code that uses the new name?
+**Q14.** A schema change renames `orders.total` to `orders.amount_cents`. Why should it **not** be shipped in the same release as the code that uses the new name?
 
 - A. Flyway cannot rename columns
 - B. During a rolling update or canary, old and new versions run side by side; the old version would break the moment the column is renamed. Use expand/contract: add the new column, write both, backfill, switch reads, drop the old column later
@@ -192,7 +206,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q14.** In the BoxOffice cost model, four 2-hour on-sales need 24 extra nodes. Why do they add so little to the monthly bill, and what is the lesson?
+**Q15.** In the BoxOffice cost model, four 2-hour on-sales need 24 extra nodes. Why do they add so little to the monthly bill, and what is the lesson?
 
 - A. Because peak nodes are free on AWS
 - B. Because 24 nodes × 8 hours is a tiny fraction of 24 nodes × 730 hours; elastic capacity costs in proportion to the time it exists, so autoscaling and pre-scaling for known peaks beat provisioning for the peak permanently
@@ -206,7 +220,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q15.** Below which average traffic level is a pay-per-request function usually cheaper than two always-on container tasks behind a load balancer, in the page's model?
+**Q16.** Below which average traffic level is a pay-per-request function usually cheaper than two always-on container tasks behind a load balancer, in the page's model?
 
 - A. About 10 requests per second on average
 - B. About 1 000 requests per second
@@ -217,3 +231,17 @@ Click **"Answer"** to reveal the correct answer and explanation.
     **A — Around ten requests per second on average (with the page's assumptions).**
 
     Containers have a fixed monthly floor (tasks + load balancer) and a low marginal cost; functions have no floor and a higher cost per request. The crossing point depends on request duration, memory and the front door's per-request price, so recompute it for your workload — but the shape of the trade-off is general: low or very spiky traffic favours per-request pricing, steady load favours always-on capacity.
+
+---
+
+**Q17.** Why does the cloud turn the on-sale peak from a capital expenditure (CapEx) problem into an operational expenditure (OpEx) one, and what is the catch?
+
+- A. The cloud is always cheaper than owned hardware
+- B. With OpEx the 24 extra nodes exist only for the 8 hours of on-sales instead of being bought, sized for the peak and idle the rest of the month; but a workload at full load 24/7 for years can cost less on owned or committed capacity
+- C. With CapEx capacity follows demand automatically
+- D. OpEx removes the need to estimate costs
+
+??? success "Answer"
+    **B — Capacity follows demand, but OpEx is not automatically cheaper.**
+
+    Owned hardware is bought in steps sized for the expected peak: idle after each purchase, short before the next ([CapEx vs OpEx](finops/index.md#capex-opex)). Paying per hour removes the up-front bet; for a steady baseline, commitments (or owned hardware) can still win.

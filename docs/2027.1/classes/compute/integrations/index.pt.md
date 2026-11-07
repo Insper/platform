@@ -9,7 +9,7 @@ A BoxOffice compra de propósito seus **subdomínios genéricos** ([serviços](.
 | Propriedade | Serviço interno | Provedor externo |
 |---|---|---|
 | Latência | baixa, previsível, medida por você | maior, com cauda pesada, pela internet pública |
-| Disponibilidade | o seu SLO, o seu on-call | o SLA deles (créditos, não as suas vendas perdidas) |
+| Disponibilidade | o seu objetivo de nível de serviço (SLO, *service level objective*), o seu on-call | o acordo de nível de serviço (SLA, *service level agreement*) deles: créditos, não as suas vendas perdidas |
 | Limites | você define | **rate limits e cotas** por chave de API |
 | Mudanças | coordenadas, com testes de contrato | versionadas por eles, descontinuadas no calendário deles |
 | Resultado de uma chamada | conhecido quando a chamada retorna | pode ser **decidido depois** (3-D Secure, análise do banco) |
@@ -29,7 +29,7 @@ Cada linha corresponde a uma regra de design:
 
 ## Anatomia de um pagamento { #anatomy-of-a-payment }
 
-Pagamentos com cartão são a integração mais difícil da BoxOffice, então os usamos como guia. O número do cartão nunca toca a BoxOffice: o app o coleta com os campos hospedados (hosted fields) do provedor e recebe um **token**, o que mantém a BoxOffice fora da maior parte do escopo do PCI DSS[^7]. O serviço `payment` então cria um pagamento com esse token.
+Pagamentos com cartão são a integração mais difícil da BoxOffice, então os usamos como guia. O número do cartão nunca toca a BoxOffice: o app o coleta com os campos hospedados (hosted fields) do provedor e recebe um **token**, o que mantém a BoxOffice fora da maior parte do escopo do padrão de segurança de dados da indústria de cartões (PCI DSS, *Payment Card Industry Data Security Standard*)[^7]. O serviço `payment` então cria um pagamento com esse token.
 
 ``` diagram-sim
 sequenceDiagram
@@ -174,7 +174,7 @@ As decisões escondidas nessas linhas são as que um entrevistador vai explorar:
 | Mesma chave, requisição **diferente** | `422` | um bug do cliente; executá-la seria surpreendente |
 | Operação falhou antes do commit | apagar a chave | nada aconteceu; um retry deve rodar de novo |
 | Processo caiu em `IN_PROGRESS` | após um tempo limite (`locked_at` mais antigo que, por exemplo, 1 min), permitir que uma nova tentativa assuma | senão a chave fica presa para sempre |
-| Chaves antigas | expurgar após 24 h (ou a janela de retry que você documentar) | armazenamento; o draft da IETF e os provedores usam janelas parecidas |
+| Chaves antigas | expurgar após 24 h (ou a janela de retry que você documentar) | armazenamento; o draft da força-tarefa de engenharia da internet (IETF, *Internet Engineering Task Force*) e os provedores usam janelas parecidas |
 
 Quando a operação **também chama o provedor**, o passo 3 não é puramente local: a chamada ao provedor não é desfeita com a transação. Por isso a chamada de saída leva sua própria chave de idempotência derivada do id do pedido — se a transação da BoxOffice falhar depois de o provedor cobrar, o retry pergunta de novo ao provedor com a mesma chave e recebe o mesmo pagamento. Para operações mais longas, com vários passos, o desenho de "fases atômicas e pontos de recuperação" de Brandur Leach generaliza essa ideia[^3].
 
@@ -207,7 +207,20 @@ Nem toda falha é igual. O que você pode fazer em seguida depende de **a requis
 | `429 Too Many Requests` | não | esperar o `Retry-After` e repetir; limitar a própria vazão |
 | `400`, `401`, `402` cartão recusado, `422` | não e não vai dar certo | não repetir; mostrar o erro |
 
-Os retries seguem as regras de [confiabilidade](../../reliability/index.md): backoff exponencial com full jitter, um número máximo pequeno de tentativas, em **uma** camada só, e dentro do orçamento de tempo de quem chama. Para um checkout diante do usuário esse orçamento é curto — alguns segundos; depois disso, o pagamento vira `UNKNOWN`/`PENDING` e o fã vê "estamos confirmando seu pagamento", enquanto um job em segundo plano resolve a situação.
+Os retries seguem as regras de [confiabilidade](../../reliability/index.md): backoff exponencial com full jitter, um número máximo pequeno de tentativas, em **uma** camada só e dentro do orçamento de tempo de quem chama. Para um checkout diante do usuário esse orçamento é curto — alguns segundos; depois disso, o pagamento vira `UNKNOWN`/`PENDING` e o fã vê "estamos confirmando seu pagamento", enquanto um job em segundo plano resolve a situação.
+
+O simulador abaixo repete 1.000 checkouts contra um provedor com uma cauda de latência pesada, para você ver o que um timeout seguido de retry faz com e sem chave.
+
+<div class="csim" data-sim="idempotent-retry" data-key="none" data-provider="normal"></div>
+
+!!! tip "Experimente"
+    O simulador começa com a configuração de cliente do lab 9 para a chamada de pagamento (timeout de leitura de 1 s, 3 tentativas, backoff de 200 ms que dobra, jitter de ±50%) e sem chave de idempotência.
+
+    1. Com o provedor **normal**, 6,2% das chamadas passam de 1 s. Quem chama desiste delas, mas o provedor as termina: cada retry cobra de novo, então 63 fãs pagam duas vezes ou mais (71 cobranças a mais, R$ 31.950 a estornar).
+    2. Escolha **nova por tentativa**: nada muda. Uma chave nova a cada tentativa não identifica operação nenhuma.
+    3. Escolha **uma por pedido** (o order-<orderId> do lab 9): 0 duplicadas. As repetições ainda custam chamadas: 1.076 para 1.000 checkouts.
+    4. Mude para **dia lento**: 40,2% das chamadas estouram o timeout. Sem chave 392 fãs pagam duas vezes ou mais; com uma chave por pedido ninguém paga, mas 133 checkouts terminam em UNKNOWN, cada um cobrado uma vez, e o webhook ou a reconciliação precisa resolvê-los.
+    5. De volta ao dia normal sem chave, ponha **tentativas** em 1: nenhuma duplicada, mas 66 fãs ficam em UNKNOWN, todos cobrados. Com 3 tentativas um timeout de 5 s também acaba com as duplicadas num dia normal, mas no dia lento 19 fãs ainda pagam duas vezes e o checkout mais lento leva 11,1 s: nenhum timeout substitui a chave.
 
 ---
 
@@ -245,7 +258,7 @@ sequenceDiagram
 
 ### Verificando assinaturas { #verifying-signatures }
 
-Os provedores assinam cada entrega com um segredo compartilhado só com você, normalmente um **HMAC-SHA256** sobre o corpo bruto mais um timestamp e um id de mensagem. A especificação *Standard Webhooks*, adotada por vários provedores, define os headers `webhook-id`, `webhook-timestamp` e `webhook-signature`, e assina a string `id.timestamp.body`[^4]; outros provedores usam a mesma ideia com seus próprios nomes de header (o `Stripe-Signature` da Stripe, por exemplo[^5]). Um receptor em Python com FastAPI:
+Os provedores assinam cada entrega com um segredo compartilhado só com você, normalmente um **HMAC-SHA256** (código de autenticação de mensagem baseado em hash, HMAC, *hash-based message authentication code*, com o hash SHA-256) sobre o corpo bruto mais um timestamp e um id de mensagem. A especificação *Standard Webhooks*, adotada por vários provedores, define os headers `webhook-id`, `webhook-timestamp` e `webhook-signature`, e assina a string `id.timestamp.body`[^4]; outros provedores usam a mesma ideia com seus próprios nomes de header (o `Stripe-Signature` da Stripe, por exemplo[^5]). Um receptor em Python com FastAPI:
 
 ```python title="payment-webhooks/main.py"
 import base64
@@ -398,7 +411,7 @@ As decisões da BoxOffice:
 - **API de mapas do local fora** → a página do evento é renderizada sem o mapa interativo (fallback para uma imagem em cache).
 
 !!! example "E-mail é uma integração com regras próprias"
-    Enviar e-mail de forma confiável é mais do que uma chamada de API. Os provedores impõem **rate limits** por conta; eles informam **bounces** (endereço inexistente) e **reclamações** (marcado como spam) por webhook e a BoxOffice precisa parar de enviar para esses endereços (uma **lista de supressão**), ou o provedor suspende a conta. A autenticação do domínio com **SPF, DKIM e DMARC** decide se as mensagens chegam à caixa de entrada. E o e-mail **transacional** (ingressos, redefinição de senha) deve usar um fluxo ou subdomínio separado do e-mail de **marketing**, para que uma campanha ruim não prejudique a entrega de ingressos.
+    Enviar e-mail de forma confiável é mais do que uma chamada de API. Os provedores impõem **rate limits** por conta; eles informam **bounces** (endereço inexistente) e **reclamações** (marcado como spam) por webhook e a BoxOffice precisa parar de enviar para esses endereços (uma **lista de supressão**), ou o provedor suspende a conta. A autenticação do domínio com **SPF, DKIM e DMARC** (*Sender Policy Framework*, *DomainKeys Identified Mail* e *Domain-based Message Authentication, Reporting and Conformance*) decide se as mensagens chegam à caixa de entrada. E o e-mail **transacional** (ingressos, redefinição de senha) deve usar um fluxo ou subdomínio separado do e-mail de **marketing**, para que uma campanha ruim não prejudique a entrega de ingressos.
 
 ### Experimente no playground { #try-it-in-the-playground }
 
@@ -418,7 +431,7 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
 
 - **Segredos** (chaves de API, segredos de webhook) ficam num gerenciador de segredos, nunca no repositório; faça rotação e use **chaves restritas** só com as permissões de que cada serviço precisa ([redes e segurança](../../network-security/index.md)).
 - **Minimize o escopo do PCI DSS**: tokenize com os campos hospedados ou a página de pagamento do provedor, para que números de cartão nunca atravessem a rede da BoxOffice.
-- **Controle de saída**: as chamadas aos provedores saem por um NAT gateway com IPs fixos (alguns provedores os colocam em allowlist); negue o restante do tráfego de saída.
+- **Controle de saída**: as chamadas aos provedores saem por um gateway de tradução de endereços de rede (NAT, *network address translation*) com IPs fixos (alguns provedores os colocam em allowlist); negue o restante do tráfego de saída.
 - **Trate as respostas do provedor como entrada**: valide-as; um provedor comprometido ou com bug não pode injetar dados no seu sistema sem verificação.
 
 ---
@@ -427,7 +440,7 @@ Abra o cenário `payment-system`: o checkout chama um serviço de pagamento que 
 
 | Decisão | Opção A | Opção B |
 |---|---|---|
-| Confirmar um pagamento | resposta síncrona: UX simples, mas o checkout depende da latência do provedor e falha em timeouts | `202` + webhook: robusto e honesto sobre a incerteza, mas exige estados, push/polling na interface e reconciliação |
+| Confirmar um pagamento | resposta síncrona: experiência do usuário (UX, *user experience*) simples, mas o checkout depende da latência do provedor e falha em timeouts | `202` + webhook: robusto e honesto sobre a incerteza, mas exige estados, push/polling na interface e reconciliação |
 | Saber dos resultados | webhooks: rápidos, eficientes, podem se perder | polling: simples, completo, lento e desperdiçador |
 | Redundância de provedor | um provedor: mais simples, mais barato | dois provedores: sobrevive a falhas, dobra o trabalho de integração e reconciliação |
 | Processamento de webhooks | na hora: mais simples | inbox + fila: confirmação rápida, retries sob seu controle |
