@@ -4,7 +4,7 @@ Confiabilidade é a probabilidade de um sistema executar a função exigida sem 
 
 Um sistema confiável não é aquele que nunca falha. É aquele que **falha de forma controlada, se recupera rapidamente e limita o raio de impacto de qualquer falha isolada** sobre seus usuários. (O **raio de impacto** — *blast radius* — é o conjunto de usuários e componentes afetados por uma falha.)
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

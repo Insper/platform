@@ -7,7 +7,7 @@ This course is about that layer — the decisions that sit *above* the code and 
 
     Chapter 1 of the [story of the course](../../index.md#story). BoxOffice is, for now, one service and one database — and nobody has written down what "works" means: how many fans, how fast, how available, and what must never happen. **This class** answers: what must BoxOffice do, and how well — stated as numbers that a design can be checked against?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

@@ -4,7 +4,7 @@ Um sistema que você não consegue observar é um sistema que você não consegu
 
 Imagine um cliente reclamando que "o checkout está lento" na loja. A requisição passou pelo Nginx, pelo gateway, pela verificação de autenticação, pelo serviço de pedidos, pelo serviço de produtos e pelo Postgres, e talvez tenha publicado um evento no Kafka. Qual deles foi lento? Foi lento para todo mundo ou só para esse cliente? Sem telemetria projetada de antemão — números, registros e caminhos de requisição emitidos por cada serviço —, a única resposta é chutar.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

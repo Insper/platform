@@ -19,7 +19,7 @@ flowchart LR
     classDef highlighted fill:#fcc
 ```
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

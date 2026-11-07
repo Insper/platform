@@ -4,7 +4,7 @@ Kubernetes não é a resposta certa para todo time. Ele resolve problemas reais 
 
 A aula anterior, [Modelos de serviço](../service_models/index.md), deu o vocabulário (IaaS, PaaS, CaaS, DBaaS). Esta aula o transforma em plataformas concretas, preços e um caminho de migração para a loja: gateway, account, order, Postgres.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

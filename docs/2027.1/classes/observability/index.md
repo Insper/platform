@@ -7,7 +7,7 @@ This is the moment observability exists for. The system is not *down* — it is 
 
     Chapter 9 of the [story of the course](../../index.md#story). [Class 8](../messaging/index.md) took the slow work out of the request: the order goes to an outbox, through Kafka, to `notification`, and a waiting room lets the crowd in at the pace `inventory` can serve. Asynchrony has a price: failures stop showing up in requests. An order confirmed at 10:01 whose e-mail never arrives produced no `5xx` and no slow endpoint — it vanished somewhere between the outbox, Kafka and the consumer — and dashboards of causes (pods, CPU, averages) stay green while fans fail, as on the morning above. **This class** answers: what must BoxOffice emit to follow one order across services and Kafka, what promise do we measure it against (the [service level objective (SLO)](slo/index.md)), and who is woken up when the promise breaks?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

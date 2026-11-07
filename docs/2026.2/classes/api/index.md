@@ -19,7 +19,7 @@ flowchart LR
     classDef highlighted fill:#fcc
 ```
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

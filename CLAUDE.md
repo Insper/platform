@@ -174,6 +174,8 @@ Quiz pages (2026.2, 2027.1 and `appendix/network/quiz.md`) keep plain Markdown (
 whose first bold starts with the letter); `assets/javascripts/quiz.js` turns each `##` section into one compact quiz box (the AI course's layout: numbered rows, lettered
 options, one "Check answers" per box with the score in its header, explanations after Check).
 
+Every class and exercise page opens with `!!! objectives "Learning objectives"` (pt `"Objetivos de aprendizagem"`): a lead-in line, then one
+`- **Verb** …` item per objective (numbered rows, the leading bold verb as a chip; styled in `extra.css`).
 Every class page closes with `## Key takeaways { #key-takeaways }` (pt `## Pontos-chave`) followed by the list
 inside `!!! takeaways ""` (a highlighted box, styled in `extra.css`).
 

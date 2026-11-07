@@ -4,7 +4,7 @@ In [Hands-on 3](../../hands-on/3/index.md) we secured the store with a homemade 
 
 JWT is a transport format — it carries claims such as "this is account 42". It says nothing about how the user proved their identity, who may issue tokens, how a third-party app gets access without seeing the password, or why one service should trust a call from another. **OAuth 2.0** and **OpenID Connect** are the standards that fill these gaps; **Zero Trust** is the architecture that stops trusting the network itself: distrust everything, verify always.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

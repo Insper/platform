@@ -6,7 +6,7 @@ A solução não é um banco maior. É parar de fazer ao banco a mesma pergunta 
 
     Capítulo 7 da [história da disciplina](../../index.md#story). A borda espalha os fãs por réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)) e o PostgreSQL garante que um assento seja vendido uma vez só ([aula 6](../databases/index.md)). Não guardar estado tem um preço: **toda** leitura agora chega ao banco e as páginas de evento são lidas cerca de 100 vezes mais do que mudam. **Esta aula** responde: como parar de fazer ao banco a mesma pergunta — e o que nunca pode ser respondido por uma cópia?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

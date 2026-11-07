@@ -3,7 +3,7 @@ Open the `account-service` of [Hands-on 1](../../hands-on/1/index.md) a year fro
 
 Software architecture defines how the components of a system are organised, how they communicate, and — most importantly — which components are **allowed to know about which others**. The architectures covered here share the same foundational goal: **protect business logic from external concerns** such as frameworks, databases, and delivery mechanisms. This separation matters because external concerns change more often than business rules. A database migration, a framework upgrade, or a new API protocol should not require rewriting core logic.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

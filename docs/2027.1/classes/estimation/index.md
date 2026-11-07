@@ -7,7 +7,7 @@ This class gives you the tools to settle that argument in five minutes on a whit
 
     Chapter 2 of the [story of the course](../../index.md#story). [Class 1](../intro/index.md) wrote down what BoxOffice must do and how well: 2 million fans in the first minute, 60,000 seats, hold 99th-percentile latency (p99) < 300 ms. BoxOffice still runs on one service and one PostgreSQL. **This class** answers: can that database take the 10:00 on-sale — and how do we know before building anything?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

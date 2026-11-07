@@ -4,7 +4,7 @@ Kubernetes is not the right answer for every team. It solves real problems at sc
 
 The previous class, [Service Models](../service_models/index.md), gave the vocabulary (IaaS, PaaS, CaaS, DBaaS). This class turns it into concrete platforms, prices and a migration path for the store: gateway, account, order, Postgres.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

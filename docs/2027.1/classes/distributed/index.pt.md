@@ -8,7 +8,7 @@ Um sistema distribuído é um conjunto de computadores independentes (**nós**) 
 
     Capítulo 3 da [história da disciplina](../../index.md#story). A [aula 2](../estimation/index.md) encontrou uma diferença de 30× entre a demanda da abertura de vendas (~33.000 reservas/s) e o que um banco sustenta (~1.100): o BoxOffice precisa de várias máquinas — réplicas da aplicação, um banco standby, uma sala de espera. **Esta aula** responde: o que muda quando a única ligação entre essas máquinas é uma rede que perde, atrasa e duplica mensagens — e como impedir que um clique repetido reserve ou cobre duas vezes?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

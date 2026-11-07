@@ -10,7 +10,7 @@ None of these are machine-learning problems. They are **system design** problems
 
     Chapter 13 of the [story of the course](../../index.md#story). BoxOffice now survives its on-sale: the edge, the caches and the waiting room carry the 2 M fans ([class 4](../edge/index.md) to [class 8](../messaging/index.md)), Kubernetes heals, scales and rolls it back ([class 11](../cloud-native/index.md)), and every call between services is authenticated ([class 12](../network-security/index.md)). What arrives next is not more traffic but a new kind of dependency: a model that answers in seconds, is billed per token, can be wrong in fluent prose and — given tools — can act on the inventory. **This class** answers: how do we put that box into the design without it becoming the weakest one?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

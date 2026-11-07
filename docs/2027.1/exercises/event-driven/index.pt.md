@@ -1,6 +1,6 @@
 Um fã paga por dois lugares, o serviço `order` da BoxOffice grava o pedido… e cai antes de avisar alguém. Nada de e-mail com o ingresso. Ou o contrário: o evento sai, a transação no banco é desfeita e um fã recebe um ingresso de um pedido que não existe. Ou o broker entrega o mesmo evento duas vezes e o fã recebe dois e-mails — e depois, dois ingressos. Esse é o **problema da escrita dupla** (*dual write*) e todo sistema orientado a eventos precisa resolvê-lo. Neste exercício você o resolve com um **outbox transacional**, um **consumidor idempotente** e um **tópico de mensagens mortas** (DLT), e depois se esforça para quebrá-lo.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final deste exercício você será capaz de:
 

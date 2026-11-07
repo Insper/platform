@@ -7,7 +7,7 @@ Nenhum desses casos é um bug em uma linha de código. São problemas de **proje
 
     Capítulo 12 da [história da disciplina](../../index.md#story). O gateway já confere o token de cada fã uma única vez ([aula 4 — Identidade](../edge/identity/index.md), construída no [lab 4](../../hands-on/4/index.md)) e a [aula 11](../cloud-native/index.md) trocou o Compose por Kubernetes e um pipeline de entrega. Agora muitos serviços, construídos por muitas pessoas e por um pipeline, dividem uma plataforma — e as quatro histórias acima mostram o custo dessa confiança: bots na fila da abertura de vendas, uma chave vazada, um pod que alcança tudo, bibliotecas que ninguém revisou. **Esta aula** responde: onde ficam as fronteiras de confiança, quem pode falar com quem, como segredos são limitados e revogados, e como sabemos o que entregamos?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

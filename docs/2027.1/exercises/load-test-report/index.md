@@ -1,6 +1,6 @@
 "How many requests per second does the BoxOffice `catalog` handle?" is a question with no answer until you add **"…with a p99 below 200 ms and less than 1% errors, on this machine"**. In this exercise you run a small but rigorous **k6 campaign** against your own service, find the point where latency explodes (the *knee*), name the resource that causes it, change one thing and **prove** the change with a new measurement.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     After this exercise you will be able to:
 

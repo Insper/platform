@@ -320,6 +320,91 @@
     color: var(--tk);
 }
 
+/* Learning objectives at the top of each class and exercise: !!! objectives "Learning objectives".
+   One numbered row per objective, its leading bold verb (Bloom's action) as a chip, so the verbs line up
+   and the eye reads "Calculate · Classify · Explain…" first. Theme colors only, as the takeaways. */
+.md-typeset .admonition.objectives {
+    --ob: var(--md-typeset-a-color);
+    border: .05rem solid color-mix(in srgb, var(--ob) 30%, transparent);
+    border-radius: .5rem;
+    background: color-mix(in srgb, var(--ob) 4%, var(--md-default-bg-color));
+    box-shadow: none;
+    padding: 0 .9rem .3rem;
+    font-size: .74rem;
+    counter-reset: ob;
+}
+.md-typeset .objectives > .admonition-title {
+    margin: 0 -.9rem;
+    padding: .55rem .9rem .55rem 2.6rem;
+    border: 0;
+    border-bottom: .05rem solid color-mix(in srgb, var(--ob) 22%, transparent);
+    background: color-mix(in srgb, var(--ob) 9%, transparent);
+    color: var(--ob);
+    font-size: .64rem;
+    font-weight: 800;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+.md-typeset .objectives > .admonition-title::before {
+    left: .9rem;
+    top: .5rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    background-color: var(--ob);
+    -webkit-mask-image: var(--ob-icon);
+    mask-image: var(--ob-icon);
+    --ob-icon: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>');
+}
+/* the "By the end of this class…" line: a quiet lead-in */
+.md-typeset .objectives > .admonition-title + p {
+    margin: .6rem 0 .35rem;
+    color: var(--md-default-fg-color--light);
+    font-size: .68rem;
+    font-style: italic;
+}
+.md-typeset .objectives > ul {
+    margin: 0 0 .25rem;
+    padding: 0;
+    list-style: none;
+}
+.md-typeset .objectives > ul > li {
+    position: relative;
+    margin: 0;
+    padding: .45rem 0 .45rem 1.9rem;
+    line-height: 1.55;
+    counter-increment: ob;
+}
+.md-typeset .objectives > ul > li + li {
+    border-top: .05rem dashed color-mix(in srgb, var(--ob) 22%, transparent);
+}
+.md-typeset .objectives > ul > li::before {
+    content: counter(ob);
+    position: absolute;
+    left: 0;
+    top: .5rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    border: .05rem solid color-mix(in srgb, var(--ob) 45%, transparent);
+    color: var(--ob);
+    font-size: .6rem;
+    font-weight: 800;
+    line-height: 1.15rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+/* the action verb: a chip at the start, the other bold verbs of the sentence in the accent color */
+.md-typeset .objectives > ul > li > strong {
+    color: var(--ob);
+}
+.md-typeset .objectives > ul > li > strong:first-child {
+    display: inline-block;
+    padding: 0 .45rem;
+    border-radius: .3rem;
+    background: color-mix(in srgb, var(--ob) 13%, transparent);
+    line-height: 1.5;
+}
+
 /* Tables with many columns: <div class="compact-table" markdown>. Material's 5rem minimum per header
    would push them past the page even when the cells are short. */
 .md-typeset .compact-table table:not([class]) {

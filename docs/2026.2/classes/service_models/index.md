@@ -7,7 +7,7 @@ Each option draws a different line between **what your team operates** and **wha
 
     **Every service model answers the same question: who operates each layer of the stack?** The more you hand over, the faster you move and the less you control.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

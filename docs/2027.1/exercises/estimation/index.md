@@ -1,6 +1,6 @@
 At 09:55 the BoxOffice team is staring at a dashboard. In five minutes a stadium show goes on sale: **2 million fans for 60 thousand seats**. How many requests per second will hit the catalog? How many seat holds per second will the database take? Does the seat map fit in memory? How many app servers do we need? The answers decide the architecture — and you can get them **before writing a single line of code**, with a sheet of paper and a few formulas. That is what this exercise trains.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     After this exercise you will be able to:
 

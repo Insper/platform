@@ -1,6 +1,6 @@
 A fan pays for two seats, the BoxOffice `order` service saves the order… and crashes before telling anybody. No ticket e-mail. Or the opposite: the event goes out, the database transaction rolls back, and a fan receives a ticket for an order that does not exist. Or the broker delivers the same event twice and the fan gets two e-mails — and later, two tickets. This is the **dual-write problem**, and every event-driven system has to solve it. In this exercise you solve it with a **transactional outbox**, an **idempotent consumer** and a **dead-letter topic**, and then you try hard to break it.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     After this exercise you will be able to:
 

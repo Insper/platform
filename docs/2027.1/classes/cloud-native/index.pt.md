@@ -6,7 +6,7 @@ Nenhum desses é um problema da aplicação. São problemas de **plataforma**: o
 
     Capítulo 11 da [história do curso](../../index.md#story). O BoxOffice tem todos os seus blocos: uma borda, serviços sem estado, um banco que vende cada assento uma única vez, caches, uma fila justa, telemetria e padrões de resiliência ([aula 4](../edge/index.md) a [aula 10](../reliability/index.md)). Os padrões funcionam, mas tudo isso ainda roda num único notebook com `docker compose up` e o Compose não reinicia uma réplica morta em outro nó, não acrescenta réplicas de `catalog` às 09:45 nem desfaz uma versão ruim. **Esta aula** responde: onde o código roda, como ele chega lá, como escala — e quanto custa?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula você deverá ser capaz de:
 

@@ -8,7 +8,7 @@ A reliable system is not one that never fails. It is one that **fails gracefully
 
     Chapter 10 of the [story of the course](../../index.md#story). BoxOffice spreads the 10:00 crowd over stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), sells each seat once ([class 6](../databases/index.md)), answers reads from a cache ([class 7](../caching/index.md)) and admits fans through a waiting room ([class 8](../messaging/index.md)); [class 9](../observability/index.md) made it visible, with a service level objective (SLO) per journey and one trace per checkout. Now the trace shows the problem: the payment provider answers in seconds instead of milliseconds, and nothing in BoxOffice is broken. **This class** answers: how do we keep one slow dependency from taking everything down, and how much redundancy does the SLO ask us to buy?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

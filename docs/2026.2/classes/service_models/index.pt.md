@@ -7,7 +7,7 @@ Cada opção traça uma linha diferente entre **o que seu time opera** e **o que
 
     **Todo modelo de serviço responde à mesma pergunta: quem opera cada camada da pilha?** Quanto mais você entrega ao provedor, mais rápido avança e menos controla.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

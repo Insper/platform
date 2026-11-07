@@ -1,6 +1,6 @@
 Most architecture decisions in real companies are not made in front of a whiteboard: they are made in a **design document** that colleagues read, question and approve — and in the **ADRs** (Architecture Decision Records) that remind everyone, a year later, *why* things are the way they are. In an interview the same thinking happens out loud in 45 minutes. In this exercise you do both: you write a complete design doc with ADRs for a classic system-design problem, and then you **defend it orally**, including a change of requirements you did not see coming.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     After this exercise you will be able to:
 

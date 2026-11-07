@@ -29,7 +29,7 @@ An application that works on a developer's laptop may fail in production because
 
 **Containerisation** solves this by packaging the application together with all its dependencies into a portable, self-contained unit — a **container image** — that runs identically everywhere: on your laptop, on the CI server and on every production node.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

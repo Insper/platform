@@ -8,7 +8,7 @@ Neste curso, **a borda** é o conjunto de componentes que recebem, filtram, rote
 
     Capítulo 4 da [história do curso](../../index.md#story). O BoxOffice tem números ([aula 2](../estimation/index.md)) e sabe que a rede entre suas máquinas mente ([aula 3](../distributed/index.md)). Agora 2 milhões de celulares enviam uma requisição no mesmo segundo — cerca de 100.000 requisições/s na borda — enquanto uma réplica de `catalog` só mantém sua meta de latência até algumas centenas. **Esta aula** responde: quais requisições podem terminar antes de chegar a qualquer serviço e como o restante chega a uma réplica saudável — de um chamador identificado, de forma justa e a uma taxa que o núcleo aguenta?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
 

@@ -8,7 +8,7 @@ Um sistema confiável não é aquele que nunca falha. É aquele que **falha de f
 
     Capítulo 10 da [história do curso](../../index.md#story). O BoxOffice espalha a multidão das 10:00 por réplicas stateless ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), vende cada assento uma única vez ([aula 6](../databases/index.md)), responde leituras de um cache ([aula 7](../caching/index.md)) e admite fãs por uma sala de espera ([aula 8](../messaging/index.md)); a [aula 9](../observability/index.md) o tornou visível, com um objetivo de nível de serviço (SLO, *service level objective*) por jornada e um trace por checkout. Agora o trace mostra o problema: o provedor de pagamento responde em segundos em vez de milissegundos e nada no BoxOffice está quebrado. **Esta aula** responde: como impedir que uma dependência lenta derrube tudo e quanta redundância o SLO nos pede para comprar?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
 

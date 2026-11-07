@@ -6,7 +6,7 @@ The edge ([class 4](../edge/index.md)) decides *where* each request goes. This c
 
     Chapter 5 of the [story of the course](../../index.md#story). The edge of [class 4](../edge/index.md) spreads the 2 million requests of 10:00 over three `catalog` replicas, and [lab 3](../../hands-on/3/index.md) measured the gain. But a replica can be added, killed or replaced only if it keeps nothing that another replica needs: a seat hold or a login session in a replica's memory dies with it. And BoxOffice now has more services than `catalog`: someone must check the fan's token once, for all of them. **This class** answers: what must a replica be, how is the code split into services, and how do those services depend on each other and on providers we do not control?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

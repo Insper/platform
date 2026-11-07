@@ -1,6 +1,6 @@
 "Quantas requisições por segundo o `catalog` da BoxOffice aguenta?" é uma pergunta sem resposta até você acrescentar **"…com p99 abaixo de 200 ms e menos de 1% de erros, nesta máquina"**. Neste exercício você executa uma **campanha de k6** pequena, mas rigorosa, contra o seu próprio serviço, encontra o ponto em que a latência explode (o *joelho*), nomeia o recurso que o causa, muda uma coisa e **prova** a mudança com uma nova medição.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final deste exercício você será capaz de:
 

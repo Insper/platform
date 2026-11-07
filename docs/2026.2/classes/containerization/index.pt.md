@@ -29,7 +29,7 @@ Uma aplicação que funciona no notebook do desenvolvedor pode falhar em produç
 
 A **containerização** resolve isso empacotando a aplicação junto com todas as suas dependências em uma unidade portátil e autocontida — uma **imagem de container** — que roda de forma idêntica em qualquer lugar: no seu notebook, no servidor de CI e em cada nó de produção.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

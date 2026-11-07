@@ -1,6 +1,6 @@
 Às 09:55 o time da BoxOffice está olhando para um dashboard. Em cinco minutos começa a venda de um show em estádio: **2 milhões de fãs para 60 mil lugares**. Quantas requisições por segundo vão chegar ao catálogo? Quantas reservas de assento por segundo o banco vai receber? O mapa de assentos cabe em memória? Quantos servidores de aplicação precisamos? As respostas decidem a arquitetura — e dá para obtê-las **antes de escrever uma linha de código**, com uma folha de papel e algumas fórmulas. É isso que este exercício treina.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final deste exercício você será capaz de:
 

@@ -7,7 +7,7 @@ Esta aula dá as ferramentas para encerrar essa discussão em cinco minutos num 
 
     Capítulo 2 da [história da disciplina](../../index.md#story). A [aula 1](../intro/index.md) escreveu o que a BoxOffice precisa fazer e quão bem: 2 milhões de fãs no primeiro minuto, 60.000 lugares, latência de percentil 99 (p99) da reserva < 300 ms. A BoxOffice ainda roda num serviço e num PostgreSQL. **Esta aula** responde: esse banco aguenta a abertura das 10:00 — e como saber isso antes de construir qualquer coisa?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

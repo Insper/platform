@@ -5,7 +5,7 @@ Sistemas distribuídos representam um paradigma de computação em que vários c
 
 Essa arquitetura sustenta as plataformas de nuvem modernas (AWS, Google Cloud, Azure), as aplicações de larga escala (redes sociais, e-commerce) e as simulações científicas. O desafio fundamental é que os nós operam de forma independente, se comunicam apenas trocando mensagens e não têm um relógio compartilhado — o que torna a coordenação um problema de engenharia nada trivial.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

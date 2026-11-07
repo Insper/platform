@@ -5,7 +5,7 @@ Reliability is the probability that a system performs its required function with
 
 A reliable system is not one that never fails. It is one that **fails gracefully, recovers quickly, and limits the blast radius of any single failure** on its users. (The **blast radius** is the set of users and components affected by one failure.)
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

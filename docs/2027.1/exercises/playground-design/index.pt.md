@@ -1,6 +1,6 @@
 Saber o que *é* um cache, uma fila ou um circuit breaker não é o mesmo que saber **de quais um sistema precisa, onde e quantos**. Neste exercício você recebe três designs que falham sob carga no [System Design Playground](../../../playground/index.md) — uma venda relâmpago, uma cascata causada por uma dependência lenta e um assistente de IA lento e caro demais — e precisa fazer cada um **atingir suas metas dentro do orçamento**, explicar por que o seu design funciona com as fórmulas do curso e mostrar que ele continua funcionando quando os dados são lançados de novo.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final deste exercício você será capaz de:
 

@@ -8,7 +8,7 @@ In this course, **the edge** means the set of components that receive, filter, r
 
     Chapter 4 of the [story of the course](../../index.md#story). BoxOffice has numbers ([class 2](../estimation/index.md)) and knows that the network between its machines lies ([class 3](../distributed/index.md)). Now 2 million phones send a request in the same second — about 100,000 requests/s at the edge — while one `catalog` replica keeps its latency target only up to a few hundred. **This class** answers: which requests can end before reaching any service, and how does the rest reach a healthy replica — from an identified caller, fairly and at a rate the core can take?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

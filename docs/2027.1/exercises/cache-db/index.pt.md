@@ -1,6 +1,6 @@
 Durante uma venda da BoxOffice, quase toda requisição é uma **leitura** das mesmas poucas coisas: a página do evento, o local, a tabela de preços. Mandar cada uma delas para o banco primário é como pedir ao atendente da bilheteria que reimprima o cartaz para cada fã da fila. Neste exercício você coloca um **cache Redis** e uma **réplica de leitura PostgreSQL** na frente do seu serviço, mede o que eles trazem e encara o preço: **dados desatualizados**, **atraso de replicação** e o **cache stampede**.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final deste exercício você será capaz de:
 

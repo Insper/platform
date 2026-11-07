@@ -5,7 +5,7 @@ A system you cannot observe is a system you cannot operate. Monitoring tells you
 
 Picture a customer complaining that "checkout is slow" in the store. The request went through Nginx, the gateway, the auth check, the order service, the product service and Postgres, and maybe published an event to Kafka. Which one was slow? Was it slow for everyone or just for this customer? Without telemetry designed in advance — numbers, records and request paths emitted by every service — the only answer is guessing.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

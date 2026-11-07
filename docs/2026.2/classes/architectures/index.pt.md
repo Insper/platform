@@ -3,7 +3,7 @@ Abra o `account-service` do [Hands-on 1](../../hands-on/1/index.md) daqui a um a
 
 A arquitetura de software define como os componentes de um sistema são organizados, como se comunicam e — mais importante — quais componentes **podem conhecer quais outros**. As arquiteturas vistas aqui compartilham o mesmo objetivo fundamental: **proteger a lógica de negócio de preocupações externas**, como frameworks, bancos de dados e mecanismos de entrega. Essa separação importa porque as preocupações externas mudam com mais frequência do que as regras de negócio. Uma migração de banco de dados, uma atualização de framework ou um novo protocolo de API não deveriam exigir reescrever a lógica central.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

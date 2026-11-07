@@ -6,7 +6,7 @@ Esta aula é sobre a outra forma de ligar os serviços: **mensagens**. Em vez de
 
     Capítulo 8 da [história da disciplina](../../index.md#story). A borda espalha os fãs por réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), o PostgreSQL vende cada assento uma vez só ([aula 6](../databases/index.md)) e o Redis responde as páginas de evento ([aula 7](../caching/index.md)). O caminho de **escrita** ainda é uma única cadeia síncrona e a multidão ainda é 30 vezes grande demais: chegam cerca de 33.000 reservas/s para as ~1.100 que um banco aguenta. **Esta aula** responde: o que pode sair da requisição e esperar numa fila, como nunca perder nem duplicar um evento no caminho e como dar a 2 milhões de fãs uma fila justa?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
 

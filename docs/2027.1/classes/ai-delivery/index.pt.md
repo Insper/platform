@@ -6,7 +6,7 @@ Nada disso é problema dos modelos. As mesmas ferramentas, bem projetadas, reduz
 
     Capítulo 14 da [história da disciplina](../../index.md#story). Toda mudança na BoxOffice passa pelo pipeline do [lab 11](../../hands-on/11/index.md) — build, testes, varredura, assinatura, canary — e, desde a [aula 13](../ai-systems/index.md), um modelo roda dentro do produto. Agora os mesmos modelos escrevem o código e as mudanças chegam mais rápido do que as pessoas que as revisam, testam e liberam. **Esta aula** responde: onde a IA pode acelerar a entrega sem virar quem aprova o próprio trabalho?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

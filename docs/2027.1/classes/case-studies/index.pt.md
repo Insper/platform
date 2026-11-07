@@ -7,7 +7,7 @@ Os doze estudos de caso abaixo são os problemas clássicos das entrevistas de s
 
     Capítulo 16, o último da [história da disciplina](../../index.md#story). Cada capítulo anterior acrescentou uma caixa ao BoxOffice porque um número pediu e a [aula 15](../performance/index.md) provou que as caixas aguentam juntas às 10:00. O próximo sistema não será o BoxOffice: será um feed, um chat, um app de corridas — os mesmos blocos com outros números. **Esta aula** responde: você consegue reconstruir esse raciocínio, número a número, para um sistema que nunca viu, em 45 minutos?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula você deve ser capaz de:
 

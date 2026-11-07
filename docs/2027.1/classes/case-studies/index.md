@@ -7,7 +7,7 @@ The twelve case studies below are the classic system-design interview problems. 
 
     Chapter 16, the last of the [story of the course](../../index.md#story). Every earlier chapter added one box to BoxOffice because a number asked for it, and [class 15](../performance/index.md) proved that the boxes hold together at 10:00. The next system will not be BoxOffice: it will be a feed, a chat, a ride app — the same blocks with other numbers. **This class** answers: can you rebuild that reasoning, number by number, for a system you have never seen, in 45 minutes?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

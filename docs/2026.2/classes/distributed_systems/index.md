@@ -5,7 +5,7 @@ Distributed systems represent a computing paradigm where multiple independent co
 
 This architecture underpins modern cloud platforms (AWS, Google Cloud, Azure), large-scale applications (social networks, e-commerce), and scientific simulations. The foundational challenge is that nodes operate independently, communicate only by passing messages, and have no shared clock — making coordination a non-trivial engineering problem.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

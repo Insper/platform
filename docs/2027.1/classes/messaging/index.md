@@ -6,7 +6,7 @@ This class is about the other wiring: **messages**. Instead of calling every ser
 
     Chapter 8 of the [story of the course](../../index.md#story). The edge spreads the fans over stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), PostgreSQL sells each seat once ([class 6](../databases/index.md)) and Redis answers the event pages ([class 7](../caching/index.md)). The **write** path is still one synchronous chain, and the crowd is still 30 times too big: about 33,000 holds/s arrive for the ~1,100 one database can take. **This class** answers: what can leave the request and wait in a queue, how do we never lose or double an event on the way, and how do we give 2 million fans a fair line?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

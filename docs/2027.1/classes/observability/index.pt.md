@@ -7,7 +7,7 @@ Sábado, 9h59. Um show de estádio abre as vendas às 10h00 no BoxOffice: 2 milh
 
     Capítulo 9 da [história do curso](../../index.md#story). A [aula 8](../messaging/index.md) tirou o trabalho lento da requisição: o pedido vai para um outbox, passa pelo Kafka e chega ao `notification`, e uma sala de espera deixa a multidão entrar no ritmo que o `inventory` consegue atender. A assincronia tem um preço: as falhas deixam de aparecer nas requisições. Um pedido confirmado às 10h01 cujo e-mail nunca chega não gerou nenhum `5xx` nem endpoint lento — sumiu em algum ponto entre o outbox, o Kafka e o consumidor —, e dashboards de causas (pods, CPU, médias) continuam verdes enquanto os fãs falham, como na manhã acima. **Esta aula** responde: o que o BoxOffice precisa emitir para seguir um pedido entre serviços e pelo Kafka, contra qual promessa o medimos (o [objetivo de nível de serviço (SLO, *service level objective*)](slo/index.md)) e quem é acordado quando a promessa quebra?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

@@ -7,7 +7,7 @@ None of these is a bug in a single line of code. They are **design** problems: w
 
     Chapter 12 of the [story of the course](../../index.md#story). The gateway already checks every fan's token once ([class 4 — Identity](../edge/identity/index.md), built in [lab 4](../../hands-on/4/index.md)), and [class 11](../cloud-native/index.md) replaced Compose with Kubernetes and a delivery pipeline. Now many services, built by many people and by a pipeline, share one platform — and the four stories above show what that trust costs: bots in the on-sale line, a leaked key, a pod that can reach everything, libraries nobody reviewed. **This class** answers: where are the trust boundaries, who may talk to whom, how are secrets limited and revoked, and how do we know what we ship?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

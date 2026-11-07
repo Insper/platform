@@ -6,7 +6,7 @@ None of these is an application problem. They are **platform** problems: where t
 
     Chapter 11 of the [story of the course](../../index.md#story). BoxOffice has all its building blocks: an edge, stateless services, a database that sells each seat once, caches, a fair queue, telemetry and resilience patterns ([class 4](../edge/index.md) to [class 10](../reliability/index.md)). The patterns work, but all of it still runs on one laptop with `docker compose up`, and Compose does not restart a dead replica on another node, add `catalog` replicas at 09:45 or roll a bad release back. **This class** answers: where does the code run, how does it get there, how does it scale — and what does it cost?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

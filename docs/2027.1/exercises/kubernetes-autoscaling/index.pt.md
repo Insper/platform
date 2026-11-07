@@ -1,6 +1,6 @@
 Às 10:00 o catálogo da BoxOffice passa de uma manhã tranquila a dez vezes o tráfego normal em menos de um minuto. Ninguém consegue acrescentar servidores tão rápido à mão — um **Horizontal Pod Autoscaler** consegue. Mas "automático" não é "instantâneo": as métricas são amostradas, as decisões são periódicas, os pods novos precisam subir, aquecer e passar na readiness probe. Neste exercício você implanta um serviço no Kubernetes, aplica uma rampa de carga com k6 e **mede quão rápido e quão bem ele escala** — e o que quebra enquanto isso.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final deste exercício você será capaz de:
 

@@ -6,7 +6,7 @@ The fix is not a bigger database. It is to stop asking the database the same que
 
     Chapter 7 of the [story of the course](../../index.md#story). The edge spreads the fans over stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), and PostgreSQL guarantees that a seat is sold once ([class 6](../databases/index.md)). Being stateless has a price: **every** read now lands on the database, and the event pages are read about 100 times more than they change. **This class** answers: how do we stop asking the database the same question — and what must never be answered from a copy?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

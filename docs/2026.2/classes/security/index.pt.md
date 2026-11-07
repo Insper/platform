@@ -4,7 +4,7 @@ No [Hands-on 3](../../hands-on/3/index.md) protegemos a loja com um esquema case
 
 O JWT é um formato de transporte — ele carrega claims como "esta é a conta 42". Ele não diz nada sobre como o usuário provou sua identidade, quem pode emitir tokens, como um aplicativo de terceiros obtém acesso sem ver a senha, ou por que um serviço deveria confiar em uma chamada vinda de outro. **OAuth 2.0** e **OpenID Connect** são os padrões que preenchem essas lacunas; **Zero Trust** é a arquitetura que deixa de confiar na própria rede: desconfie de tudo, verifique sempre.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deverá ser capaz de:
 

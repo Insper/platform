@@ -5,7 +5,7 @@ O estilo de microsserviços é uma resposta a esse problema específico: à medi
 
 **Microsserviços** é um estilo arquitetural que estrutura uma aplicação como uma coleção de serviços pequenos e autônomos, cada um modelado em torno de um domínio de negócio específico[^5][^2]. Em vez de construir uma única grande unidade implantável (um *monólito*), o sistema é composto de partes implantáveis de forma independente, que colaboram por meio de APIs bem definidas.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

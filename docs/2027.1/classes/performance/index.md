@@ -6,7 +6,7 @@ Performance engineering is the discipline that prevents that post-mortem. It is 
 
     Chapter 15 of the [story of the course](../../index.md#story). Every chapter added a box to BoxOffice because a number asked for it: an edge and stateless replicas ([class 4](../edge/index.md), [class 5](../compute/index.md)), a database that sells each seat once ([class 6](../databases/index.md)), a cache ([class 7](../caching/index.md)), a waiting room ([class 8](../messaging/index.md)), service level objectives (SLOs) and breakers ([class 9](../observability/index.md), [class 10](../reliability/index.md)), Kubernetes ([class 11](../cloud-native/index.md)) — and, since [class 14](../ai-delivery/index.md), changes arrive faster than anyone can re-check them by hand. Each box was measured alone, in its own lab. **This class** answers: does the *whole* design hold the next on-sale — 2 M fans at 10:00, p99 under 300 ms — how do we prove it, and how do we keep it proven on every change?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

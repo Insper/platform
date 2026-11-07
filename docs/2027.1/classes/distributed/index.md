@@ -8,7 +8,7 @@ A distributed system is a set of independent computers (**nodes**) that cooperat
 
     Chapter 3 of the [story of the course](../../index.md#story). [Class 2](../estimation/index.md) found a 30× gap between the on-sale demand (~33,000 holds/s) and what one database sustains (~1,100): BoxOffice needs several machines — app replicas, a standby database, a waiting room. **This class** answers: what changes when the only link between those machines is a network that loses, delays and duplicates messages — and how do we keep a retried click from holding or charging twice?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

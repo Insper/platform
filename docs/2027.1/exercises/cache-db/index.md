@@ -1,6 +1,6 @@
 During a BoxOffice on-sale, almost every request is a **read** of the same few things: the event page, the venue, the price list. Sending each of them to the primary database is like asking the box-office clerk to re-print the poster for every fan in line. In this exercise you put a **Redis cache** and a **PostgreSQL read replica** in front of your service, measure what they buy you, and face the price: **stale data**, **replication lag** and the **cache stampede**.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     After this exercise you will be able to:
 

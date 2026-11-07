@@ -1,6 +1,6 @@
 At 10:00 the BoxOffice catalog goes from a quiet morning to ten times its normal traffic in under a minute. Nobody can add servers that fast by hand — a **Horizontal Pod Autoscaler** can. But "automatic" is not "instant": metrics are sampled, decisions are periodic, new pods must start, warm up and pass their readiness probe. In this exercise you deploy a service on Kubernetes, put it under a k6 ramp, and **measure how fast and how well it scales** — and what breaks while it does.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     After this exercise you will be able to:
 

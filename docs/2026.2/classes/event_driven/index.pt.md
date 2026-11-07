@@ -3,7 +3,7 @@
 
 REST síncrono funciona bem quando quem chama precisa de uma resposta imediata. Mas, quando um pedido é feito, o sistema pode precisar avisar 5 serviços downstream — e-mail, estoque, detecção de fraude, entrega, analytics. Chamar todos eles de forma síncrona antes de responder ao usuário gera um abismo de latência e uma explosão de acoplamento. A arquitetura orientada a eventos resolve isso com um contrato fundamentalmente diferente: publique um evento e deixe os interessados reagirem de forma assíncrona.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

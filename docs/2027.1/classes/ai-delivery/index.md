@@ -6,7 +6,7 @@ None of that is a problem of the models. The same tools, designed well, cut revi
 
     Chapter 14 of the [story of the course](../../index.md#story). Every change to BoxOffice goes through the pipeline of [lab 11](../../hands-on/11/index.md) — build, test, scan, sign, canary — and, since [class 13](../ai-systems/index.md), a model runs inside the product. Now the same models write the code, and changes arrive faster than the people who review, test and release them. **This class** answers: where can AI speed up delivery without becoming the one that approves its own work?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

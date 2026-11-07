@@ -1,6 +1,6 @@
 Knowing what a cache, a queue or a circuit breaker *is* is not the same as knowing **which ones a system needs, where, and how many**. In this exercise you get three designs that fail under load in the [System Design Playground](../../../playground/index.md) — a flash sale, a cascade caused by a slow dependency and an AI assistant that is too slow and too expensive — and you must make each one **meet its goals within its budget**, explain why your design works with the formulas of the course, and show that it still works when the dice are rolled again.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     After this exercise you will be able to:
 

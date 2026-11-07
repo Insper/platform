@@ -1,6 +1,6 @@
 A maioria das decisões de arquitetura nas empresas de verdade não é tomada na frente de um quadro branco: ela é tomada em um **design doc** que os colegas leem, questionam e aprovam — e nas **ADRs** (Architecture Decision Records) que lembram a todos, um ano depois, *por que* as coisas são como são. Em uma entrevista, o mesmo raciocínio acontece em voz alta, em 45 minutos. Neste exercício você faz os dois: escreve um design doc completo com ADRs para um problema clássico de system design e depois o **defende oralmente**, incluindo uma mudança de requisitos que você não viu chegando.
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final deste exercício você será capaz de:
 

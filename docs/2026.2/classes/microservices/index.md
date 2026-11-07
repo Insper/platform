@@ -5,7 +5,7 @@ The microservices style is a response to this specific problem: as teams and cod
 
 **Microservices** is an architectural style that structures an application as a collection of small, autonomous services, each modelled around a specific business domain[^5][^2]. Rather than building one large deployable unit (a *monolith*), the system is composed of independently deployable pieces that collaborate through well-defined APIs.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

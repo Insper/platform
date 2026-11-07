@@ -6,7 +6,7 @@ Não havia nada "errado" com o PostgreSQL. O problema era que **dados diferentes
 
     Capítulo 6 da [história da disciplina](../../index.md#story). A [aula 5](../compute/index.md) deixou toda réplica sem estado, então toda reserva, todo pedido e todo login agora terminam no banco, e o gateway do [lab 4](../../hands-on/4/index.md) pode colocar quantas réplicas quisermos na frente dele. Mais réplicas multiplicam quem chama, não o banco: às 10:00 chegam cerca de 33.000 reservas/s contra as ~1.100 que um PostgreSQL atende ([aula 2](../estimation/index.md)) e dois fãs clicam no mesmo assento no mesmo milissegundo. **Esta aula** responde: qual armazenamento para qual dado, como o armazenamento garante "um assento, uma reserva" e como ele cresce quando uma máquina não basta?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

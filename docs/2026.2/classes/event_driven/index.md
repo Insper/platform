@@ -3,7 +3,7 @@
 
 Synchronous REST works well when the caller needs an immediate answer. But when an order is placed, the system might need to notify 5 downstream services — email, inventory, fraud detection, shipping, analytics. Calling them all synchronously before returning to the user creates a latency cliff and a coupling explosion. Event-driven architecture solves this with a fundamentally different contract: publish an event, and let interested parties react asynchronously.
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

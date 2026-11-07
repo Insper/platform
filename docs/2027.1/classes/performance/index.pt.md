@@ -6,7 +6,7 @@ Engenharia de desempenho é a disciplina que evita esse post-mortem. Não é "ro
 
     Capítulo 15 da [história da disciplina](../../index.md#story). Cada capítulo acrescentou uma caixa ao BoxOffice porque um número pediu: uma borda e réplicas sem estado ([aula 4](../edge/index.md), [aula 5](../compute/index.md)), um banco que vende cada assento uma vez só ([aula 6](../databases/index.md)), um cache ([aula 7](../caching/index.md)), uma sala de espera ([aula 8](../messaging/index.md)), objetivos de nível de serviço (SLOs, *service level objectives*) e disjuntores ([aula 9](../observability/index.md), [aula 10](../reliability/index.md)), Kubernetes ([aula 11](../cloud-native/index.md)) — e, desde a [aula 14](../ai-delivery/index.md), as mudanças chegam mais rápido do que alguém consegue reverificá-las à mão. Cada caixa foi medida sozinha, no seu próprio lab. **Esta aula** responde: o projeto *inteiro* aguenta a próxima venda — 2 M de fãs às 10:00, p99 abaixo de 300 ms —, como provar isso e como manter a prova a cada mudança?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula você deverá ser capaz de:
 

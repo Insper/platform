@@ -6,7 +6,7 @@ Nothing was "wrong" with PostgreSQL. The problem was that **different data has d
 
     Chapter 6 of the [story of the course](../../index.md#story). [Class 5](../compute/index.md) made every replica stateless, so every hold, order and login now ends in the database, and the gateway of [lab 4](../../hands-on/4/index.md) can put as many replicas in front of it as we like. More replicas multiply the callers, not the database: at 10:00 about 33,000 holds/s arrive against the ~1,100 that one PostgreSQL serves ([class 2](../estimation/index.md)), and two fans click the same seat in the same millisecond. **This class** answers: which store for which data, how does the store guarantee "one seat, one hold", and how does it grow when one machine is not enough?
 
-!!! abstract "Learning objectives"
+!!! objectives "Learning objectives"
 
     By the end of this class you should be able to:
 

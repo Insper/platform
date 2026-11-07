@@ -7,7 +7,7 @@ Esta disciplina trata dessa camada — as decisões que ficam *acima* do código
 
     Capítulo 1 da [história da disciplina](../../index.md#story). A BoxOffice é, por enquanto, um serviço e um banco de dados — e ninguém escreveu o que "funcionar" significa: quantos fãs, com que rapidez, com que disponibilidade e o que nunca pode acontecer. **Esta aula** responde: o que a BoxOffice precisa fazer e quão bem — em números contra os quais um design possa ser conferido?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

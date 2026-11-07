@@ -6,7 +6,7 @@ A borda ([aula 4](../edge/index.md)) decide *para onde* vai cada requisição. E
 
     Capítulo 5 da [história da disciplina](../../index.md#story). A borda da [aula 4](../edge/index.md) espalha os 2 milhões de requisições das 10:00 por três réplicas do `catalog` e o [lab 3](../../hands-on/3/index.md) mediu o ganho. Mas uma réplica só pode ser adicionada, derrubada ou substituída se não guardar nada de que outra réplica precise: uma reserva de lugar ou uma sessão de login na memória de uma réplica morre com ela. E a BoxOffice agora tem mais serviços além do `catalog`: alguém precisa verificar o token do fã uma vez, por todos eles. **Esta aula** responde: o que uma réplica precisa ser, como o código é dividido em serviços e como esses serviços dependem uns dos outros e de provedores que não controlamos?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 

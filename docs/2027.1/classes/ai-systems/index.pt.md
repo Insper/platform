@@ -10,7 +10,7 @@ Nenhum desses é um problema de aprendizado de máquina. São problemas de **pro
 
     Capítulo 13 da [história da disciplina](../../index.md#story). A BoxOffice agora sobrevive à sua abertura de vendas: a borda, os caches e a sala de espera aguentam os 2 M de fãs (da [aula 4](../edge/index.md) à [aula 8](../messaging/index.md)), o Kubernetes a recupera, escala e reverte ([aula 11](../cloud-native/index.md)), e toda chamada entre serviços é autenticada ([aula 12](../network-security/index.md)). O que chega agora não é mais tráfego e sim um novo tipo de dependência: um modelo que responde em segundos, é cobrado por token, pode errar com uma prosa fluente e — com ferramentas — pode agir sobre o estoque. **Esta aula** responde: como colocar essa caixa no projeto sem que ela vire a mais fraca?
 
-!!! abstract "Objetivos de aprendizagem"
+!!! objectives "Objetivos de aprendizagem"
 
     Ao final desta aula, você deve ser capaz de:
 
