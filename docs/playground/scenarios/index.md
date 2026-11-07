@@ -606,7 +606,7 @@ Labs 1–2: one catalog (1 CPU) and its PostgreSQL, with the default pool of 10 
 - **Setup:** `boxoffice-pool` · profile `breakpoint` · target 150 req/s · 100% reads · seed 2002 · chaos `off`
 - **Goals:** breaking point ≥ 550 req/s · p99 < 500 ms
 - **Try:** Press ▶ (profile breakpoint, like stress.js) and read the breaking point and the reason of the bottleneck. Raise the connections of catalog-db to 30 and run again with the same seed.
-- **Observe:** As drawn, the run breaks at ≈ 530 req/s and the bottleneck is catalog-db by connections while the catalog CPU is below 70%. With 30 connections the ramp reaches 600 req/s without breaking (p99 ≈ 70 ms) and the catalog CPU becomes the next limit.
+- **Observe:** As drawn, the run breaks at ≈ 530 req/s and the bottleneck is catalog-db by connections while the catalog CPU is below 70%. With 30 connections the ramp reaches 600 req/s without breaking (p99 ≈ 70 ms) and the catalog CPU becomes the next limit. The Playground holds the query time at about 20 ms, so it plays the case where the pool is the narrowest pipe. In the real lab the queries slow down as PostgreSQL's CPU fills (lab 3 saw `db` at ~670%), and the knee may barely move: step 6 of the lab tells which case you are in.
 - **Related:** [Estimation](../../2027.1/classes/estimation/index.md) · [Performance engineering](../../2027.1/classes/performance/index.md) · [Lab 2](../../2027.1/hands-on/2/index.md)
 
 <div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="420"></div>

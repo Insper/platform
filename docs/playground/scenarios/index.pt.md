@@ -606,7 +606,7 @@ Labs 1–2: um catalog (1 CPU) e seu PostgreSQL, com o pool padrão de 10 conex�
 - **Configuração:** `boxoffice-pool` · perfil `breakpoint` · alvo 150 req/s · 100% leituras · semente 2002 · caos `off`
 - **Metas:** ponto de ruptura ≥ 550 req/s · p99 < 500 ms
 - **Tente:** Aperte ▶ (perfil breakpoint, como o stress.js) e leia o ponto de ruptura e o motivo do gargalo. Aumente as conexões do catalog-db para 30 e rode de novo com a mesma semente.
-- **Observe:** Como está, a execução quebra em ≈ 530 req/s e o gargalo é o catalog-db por conexões enquanto a CPU do catalog está abaixo de 70%. Com 30 conexões a rampa chega a 600 req/s sem quebrar (p99 ≈ 70 ms) e a CPU do catalog vira o próximo limite.
+- **Observe:** Como está, a execução quebra em ≈ 530 req/s e o gargalo é o catalog-db por conexões enquanto a CPU do catalog está abaixo de 70%. Com 30 conexões a rampa chega a 600 req/s sem quebrar (p99 ≈ 70 ms) e a CPU do catalog vira o próximo limite. O playground mantém o tempo de consulta em cerca de 20 ms, então joga o caso em que o pool é o cano mais estreito. No lab real as consultas ficam mais lentas conforme a CPU do PostgreSQL enche (o lab 3 viu o `db` a ~670%) e o joelho pode quase não se mexer: o passo 6 do lab diz em qual caso você está.
 - **Relacionado:** [Estimativas](../../2027.1/classes/estimation/index.md) · [Engenharia de desempenho](../../2027.1/classes/performance/index.md) · [Lab 2](../../2027.1/hands-on/2/index.md)
 
 <div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="420"></div>
