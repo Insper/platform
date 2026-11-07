@@ -10,7 +10,7 @@ Draw a system with the components of the course, put it under load, and **watch 
 
 <div class="sdp" data-scenario="monolith" data-mode="full" data-height="640"></div>
 
-Pick a scenario in the toolbar (or **Blank canvas**), press ▶ and read the panels below the canvas. The [scenario guide](scenarios/index.md) explains what each scenario teaches. Your design is saved in this browser for each scenario; **Reset scenario** brings the original back.
+Pick a scenario in the toolbar (or **Blank canvas**), press ▶ and read the panels below the canvas. The menu groups the scenarios: building blocks, [BoxOffice](scenarios/index.md#boxoffice) (the system of the 2027.1 classes and labs, with their numbers) and case studies; the [scenario guide](scenarios/index.md) explains what each one teaches. Your design is saved in this browser for each scenario; **Reset scenario** brings the original back.
 
 !!! abstract "What the playground is (and is not)"
 
@@ -46,7 +46,7 @@ Time advances in **ticks of 0.1 s** of simulated time; the speed selector runs 1
 
 ### Arrivals and requests
 
-Each client generates arrivals from the **load profile** × random noise × traffic events. The number of arrivals in a tick is a Poisson draw with mean $\lambda \cdot \Delta t$, so even a constant target shows realistic jitter. A request is a **read** (share set by *Read %* in the toolbar, or per client) or a **write**; writes usually cost more downstream (a write on SQL uses 3 reads' worth of capacity). Bots (client parameter *bot traffic*) are extra load that a WAF or a rate limiter can stop; goals only count real users.
+Each client generates arrivals from the **load profile** × random noise × traffic events. The number of arrivals in a tick is a Poisson draw with mean $\lambda \cdot \Delta t$, so even a constant target shows realistic jitter. A request is a **read** (share set by *Read %* in the toolbar, or per client) or a **write**; writes usually cost more downstream (a write on SQL uses 3 reads' worth of capacity). Bots (client parameter *bot traffic*) are extra load that a WAF or a rate limiter can stop; goals only count real users. A *rate limit* on an API Gateway or a Load Balancer (a reverse proxy such as Nginx with `limit_req`) is a token bucket with 2 s of burst that cuts the heaviest clients (the bots) first and answers 429.
 
 ### How a node routes requests { #how-a-node-routes-requests }
 
@@ -163,7 +163,7 @@ Each round trip is sampled from a lognormal around the *replication round trip*.
 
 $$\text{lag} \approx 0.02 + \frac{0.5\,\rho_w^3}{1 - \rho_w}\ \text{s}$$
 
-where $\rho_w$ is the write utilization of the busiest primary (the lag grows without limit while $\rho_w \ge 1$). When reads go to the followers, a share of them is **stale** (reads a key written within the lag):
+where $\rho_w$ is the write utilization of the busiest primary (the lag grows without limit while $\rho_w \ge 1$). An *apply delay* (default 0; e.g. 1 s, like `REPLICA_DELAY` in lab 6) is a floor for that lag, and `sync`/`quorum` writes wait for it too: they are acknowledged once the follower has applied them, like PostgreSQL's `remote_apply`. When reads go to the followers, a share of them is **stale** (reads a key written within the lag):
 
 $$\text{stale reads} \approx \frac{\text{followers behind}}{1 + R} \times \text{write share} \times \min\left(1, \frac{\text{lag}}{1\,\text{s}}\right)$$
 

@@ -7,7 +7,8 @@
  * They check the properties the simulator teaches: determinism with a seed,
  * Little's Law, cache hit ratio vs database load, queue backlog, timeouts
  * against cascading failures, retry storms, the breaking point, random
- * events, and that every scenario runs, fails as designed and is solvable.
+ * events, and that every scenario runs, fails as designed and is solvable
+ * (the BoxOffice and case-study scenarios also show their story's key number).
  */
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -478,6 +479,166 @@ test("DB cluster runs are deterministic with a seed", () => {
   assert(JSON.stringify(a.series) === JSON.stringify(b.series) && JSON.stringify(a.log) === JSON.stringify(b.log) && a.stats().lostWrites === b.stats().lostWrites, "runs differ");
 });
 
+console.log("load balancer rate limit, delayed followers");
+test("a Load Balancer with a rate limit (Nginx limit_req) cuts the heaviest client first", () => {
+  const d = (rateLimit) => ({ nodes: [{ id: "c", type: "client", params: { botShare: 2 } }, { id: "lb", type: "lb", params: { rateLimit } }, { id: "a", type: "app", params: { replicas: 4 } }],
+    edges: [{ id: "e0", from: "c", to: "lb" }, { id: "e1", from: "lb", to: "a" }] });
+  const off = runFor(E.create(d(0), { profile: "load", targetRps: 400, seed: 1, noise: 0 }), 60).nodeView("a");
+  const on = runFor(E.create(d(600), { profile: "load", targetRps: 400, seed: 1, noise: 0 }), 60);
+  near(off.lam, 1200, 0.05, "without a limit the app gets users + bots");
+  near(on.nodeView("a").lam, 600, 0.05, "with a limit the app gets the limit");
+  assert(on.nodeView("lb").rl < 0.01, "real users were cut: " + on.nodeView("lb").rl);
+  assert(on.series.errRate[on.series.t.length - 1] < 0.02, "rejected bots counted as user errors");
+});
+
+test("DB Cluster apply delay: async followers lag at least that much; sync writes wait for it", () => {
+  const run = (replication, applyDelayS, readsFrom) => runAll(E.create(dbc({ replicasPerShard: 1, replication, applyDelayS, readsFrom }), { profile: "load", targetRps: 200, readRatio: 0.5, seed: 7 },
+    { scenario: { id: "t", settings: {}, events: [{ t: 90, type: "primaryFail", target: "db", shard: 0 }], goals: [] } }));
+  const a0 = run("async", 0), a1 = run("async", 1), s1 = run("sync", 1), p1 = run("async", 1, "primary");
+  assert(a1.series.repLag[100] >= 1 && a0.series.repLag[100] < 0.2, `lag ${a1.series.repLag[100]} / ${a0.series.repLag[100]}`);
+  near(a1.stats().lostWrites, 100 * 1, 0.25, "lost ≈ write rate × delay");
+  /* stale = lagging share of the reads (1/2) × write share (1/2) × min(1, lag) */
+  assert(a1.stats().staleReads > 15 && a1.stats().staleReads < 30 && a0.stats().staleReads < 2, `stale ${a1.stats().staleReads} / ${a0.stats().staleReads}`);
+  assert(p1.stats().staleReads === 0 && s1.stats().staleReads === 0 && s1.stats().lostWrites === 0, "primary reads / sync replication should be fresh and lose nothing");
+  assert(s1.stats().p99Write > 950 && a1.stats().p99Write < 200, `write p99 sync ${s1.stats().p99Write} vs async ${a1.stats().p99Write}`);
+});
+
+console.log("BoxOffice and case-study scenarios: the story's key outcome");
+const run2 = (sc, d, extra = {}) => runAll(E.create(d, { ...sc.settings, ...extra }, { scenario: sc }));
+const runTo = (sc, d, sec) => runFor(E.create(d, sc.settings, { scenario: sc }), sec);
+const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+const winErr = (sim, t0, t1) => mean(sim.series.errRate.filter((_, i) => sim.series.t[i] >= t0 && sim.series.t[i] < t1));
+
+test("boxoffice-onsale: the database breaks on connections; a waiting room admits ≈ 1 000 holds/s", () => {
+  const sc = SC.get("boxoffice-onsale");
+  const a = runTo(sc, sc.design, 90), b = runTo(sc, sc.solution, 90);
+  const bn = a.bottleneck();
+  assert(bn.id === "db" && bn.reason === "connections", "bottleneck " + bn.id + "/" + bn.reason);
+  near(b.nodeView("db").lam, 1000, 0.1, "admitted holds/s");
+  assert(b.nodeView("db").rho < 0.75, "database ρ with the waiting room " + b.nodeView("db").rho);
+  assert(b.nodeView("wr").backlog > 500000, "the line should hold the fans: " + b.nodeView("wr").backlog);
+});
+
+test("boxoffice-pool: the knee is the pool of 10 (≈ 450–550 req/s); 30 connections move it past 600", () => {
+  const sc = SC.get("boxoffice-pool");
+  const a = run2(sc, sc.design), b = run2(sc, sc.solution);
+  assert(a.bottleneck().id === "db" && a.bottleneck().reason === "connections", "bottleneck " + a.bottleneck().id + "/" + a.bottleneck().reason);
+  assert(a.stats().breakingPoint > 430 && a.stats().breakingPoint < 550, "breaking point " + a.stats().breakingPoint);
+  assert(b.bottleneck() === null || b.bottleneck().id === "cat", "after the fix the catalog CPU is the next limit");
+});
+
+test("boxoffice-edge: three replicas + health check survive the stop; limit_req cuts the greedy key only", () => {
+  const sc = SC.get("boxoffice-edge");
+  const b = runTo(sc, sc.solution, 100), noLimit = SC.clone(sc.solution);
+  noLimit.nodes.find((n) => n.id === "edge").params.rateLimit = 0;
+  const c = runTo(sc, noLimit, 100);
+  assert(winErr(b, 80, 100) < 0.08, "errors while catalog-2 is stopped (≈ 3 s of a third): " + winErr(b, 80, 100));
+  assert(winErr(c, 85, 100) > 0.1, "without limit_req two replicas should not carry the greedy key: " + winErr(c, 85, 100));
+  assert(b.nodeView("edge").rl < 0.01, "real fans were rate limited");
+});
+
+test("boxoffice-gateway: the login rush overloads auth (ρ > 1) only during the spike", () => {
+  const sc = SC.get("boxoffice-gateway");
+  const a = runTo(sc, sc.design, 50), rho0 = a.nodeView("auth").rho;
+  runFor(a, 25);
+  assert(rho0 < 0.95 && a.nodeView("auth").rho > 1, `auth ρ before ${rho0}, during ${a.nodeView("auth").rho}`);
+  const b = runTo(sc, sc.solution, 75);
+  assert(b.nodeView("auth").rho < 0.8, "4 auth replicas: ρ " + b.nodeView("auth").rho);
+});
+
+test("boxoffice-cache: Redis cuts DB reads to ≈ 20%; after the restart the lock keeps the database alive", () => {
+  const sc = SC.get("boxoffice-cache");
+  const b = runTo(sc, sc.solution, 95);
+  near(b.nodeView("db").lam, 0.2 * 1500 + 15, 0.15, "DB load with an 80% hit ratio");
+  const noLock = SC.clone(sc.solution);
+  noLock.nodes.find((n) => n.id === "redis").params.coalescing = false;
+  const c = runTo(sc, noLock, 110), d = runTo(sc, sc.solution, 110);
+  assert(winErr(c, 101, 110) > 0.1 && winErr(d, 101, 110) < 0.01, `errors after the flush: no lock ${winErr(c, 101, 110)}, lock ${winErr(d, 101, 110)}`);
+});
+
+test("boxoffice-read-your-writes: ≈ 100 holds lost (100 writes/s × 1 s) and stale reads; primary reads + sync fix both", () => {
+  const sc = SC.get("boxoffice-read-your-writes");
+  const a = run2(sc, sc.design).stats(), b = run2(sc, sc.solution).stats();
+  near(a.lostWrites, 100, 0.25, "lost holds");
+  assert(a.staleReads > 10, "stale reads " + a.staleReads);
+  assert(b.lostWrites === 0 && b.staleReads === 0 && b.p99Write > 1000, `solution: lost ${b.lostWrites}, stale ${b.staleReads}, write p99 ${b.p99Write}`);
+});
+
+test("boxoffice-outbox: 3 consumers leave > 60 s of lag; 6 drain it; consumers beyond the 6 partitions add nothing", () => {
+  const sc = SC.get("boxoffice-outbox");
+  const withN = (n) => { const d = SC.clone(sc.solution); d.nodes.find((x) => x.id === "nt").params.replicas = n; return run2(sc, d).stats(); };
+  const three = withN(3), six = withN(6), twelve = withN(12);
+  assert(three.consumerLag > 60 && six.consumerLag < 60, `lag 3 → ${three.consumerLag}, 6 → ${six.consumerLag}`);
+  near(twelve.consumerLag, six.consumerLag, 0.05, "12 consumers on 6 partitions");
+  assert(six.p99 < 100, "the buyer waits for the broker only: p99 " + six.p99);
+});
+
+test("boxoffice-tickets-pdf: 20 workers build ≈ 21 000 jobs of backlog; lag = backlog ÷ drain", () => {
+  const sc = SC.get("boxoffice-tickets-pdf");
+  const a = runTo(sc, sc.design, 170), q = a.nodeView("q");
+  near(q.backlog, 21000, 0.2, "backlog at the end of the burst");
+  near(q.lag, q.backlog / (20 * 2.5), 0.15, "lag ≈ backlog ÷ 50 PDFs/s");
+});
+
+test("boxoffice-payment: 60 calls in flight exhaust 50 threads; timeout + breaker + bulkhead keep browsing fast", () => {
+  const sc = SC.get("boxoffice-payment");
+  const a = runTo(sc, sc.design, 80), b = runTo(sc, sc.solution, 80);
+  assert(a.nodeView("ord").inflight >= 49 && a.nodeView("ord").q > 0, `order threads not exhausted: ${a.nodeView("ord").inflight} busy, queue ${a.nodeView("ord").q}`);
+  assert(b.nodeView("ord").inflight < 20, "order threads with the patterns: " + b.nodeView("ord").inflight);
+  assert(b.edgeView("ord-pay").cb && b.edgeView("ord-pay").cb !== "closed", "the breaker should have opened: " + b.edgeView("ord-pay").cb);
+});
+
+test("boxoffice-hpa: the HPA scales up only after the ramp; min 4 pods needs no scaling", () => {
+  const sc = SC.get("boxoffice-hpa");
+  const a = run2(sc, sc.design), b = run2(sc, sc.solution);
+  const up = a.log.filter((l) => l.type === "scale" && l.phase === "up");
+  assert(up.length && up[0].t >= 60 && up[0].t <= 80, "first scale-up at " + (up[0] && up[0].t));
+  assert(winErr(a, 60, 120) > winErr(b, 60, 120), "pre-scaling did not help");
+});
+
+test("boxoffice-canary: errors during the release ≈ share of v2 × 30%", () => {
+  const sc = SC.get("boxoffice-canary");
+  const a = runTo(sc, sc.design, 115), b = runTo(sc, sc.solution, 115);
+  near(winErr(a, 70, 115), 0.3, 0.15, "big-bang release");
+  near(winErr(b, 70, 115), 0.25 * 0.3, 0.2, "canary at 25%");
+});
+
+test("boxoffice-observability: Alerting halves the outage of the stopped database", () => {
+  const sc = SC.get("boxoffice-observability");
+  const dur = (sim) => sim.log.find((l) => l.type === "crash" && l.phase === "start").info.durationS;
+  assert(dur(runTo(sc, sc.design, 70)) === 100 && dur(runTo(sc, sc.solution, 70)) === 50, "outage durations");
+  const a = runTo(sc, sc.design, 90);
+  near(winErr(a, 65, 90), 0.2, 0.25, "only the misses (20%) fail while Redis answers the hits");
+});
+
+test("boxoffice-assistant: model calls = questions × steps; the fallback absorbs the overflow", () => {
+  const sc = SC.get("boxoffice-assistant");
+  const a = runTo(sc, sc.design, 120), b = runTo(sc, sc.solution, 120);
+  near(a.edgeView("asst-llm").rate / Math.max(a.nodeView("asst").proc, 1e-9), 4, 0.05, "calls per question");
+  assert(a.nodeView("llm").rl > 0.3, "the local model should throttle: " + a.nodeView("llm").rl);
+});
+
+test("boxoffice-shared-llm: fans get 429s while the CI batch runs; a queue in front of CI protects them", () => {
+  const sc = SC.get("boxoffice-shared-llm");
+  const a = run2(sc, sc.design), b = run2(sc, sc.solution);
+  assert(winErr(a, 120, 130) > 0.15, "fans not throttled during the batch: " + winErr(a, 120, 130));
+  assert(winErr(b, 120, 130) < 0.01, "fans throttled with the CI queue: " + winErr(b, 120, 130));
+});
+
+test("ticketing: shoppers admitted at ≈ 33/s keep ≈ 66 payment calls in flight", () => {
+  const sc = SC.get("ticketing");
+  const b = runTo(sc, sc.solution, 90);
+  near(b.nodeView("shop").proc, 33, 0.1, "admission rate");
+  near(b.edgeView("shop-psp").rate * 2.1, 70, 0.25, "calls in flight to the provider (λ × W)");
+});
+
+test("distributed-cache: 17 nodes give 1.36 M ops/s for 2 M; the database takes the 5% misses", () => {
+  const sc = SC.get("distributed-cache");
+  const a = runTo(sc, sc.design, 90), b = runTo(sc, sc.solution, 90);
+  near(a.nodeView("cache").rhoCpu, 2e6 / (17 * 80000), 0.1, "cache ρ with 17 nodes");
+  near(b.nodeView("db").lam, 0.05 * 2e6, 0.1, "misses to the database");
+});
+
 console.log("scenarios");
 const goalsOK = [];
 SC.LIST.forEach((sc) => {
@@ -508,9 +669,16 @@ test("all scenario ids of the course are implemented", () => {
   const ids = ["blank", "monolith", "scale-out", "read-heavy-cache", "cdn-static", "db-replicas", "sharding", "async-queue", "event-fanout",
     "cascading-failure", "retry-storm", "rate-limiter", "multi-region", "serverless-burst", "flash-sale", "url-shortener", "news-feed", "chat",
     "ride-sharing", "video-streaming", "notification-system", "payment-system", "search-autocomplete", "ai-assistant", "observability-stack",
-    "microservices", "k8s-node-failure", "db-failover"];
+    "microservices", "k8s-node-failure", "db-failover",
+    /* BoxOffice, chapter by chapter and lab by lab, and the case studies without a generic preset */
+    "boxoffice-onsale", "boxoffice-pool", "boxoffice-edge", "boxoffice-gateway", "boxoffice-cache", "boxoffice-read-your-writes",
+    "boxoffice-outbox", "boxoffice-tickets-pdf", "boxoffice-observability", "boxoffice-payment", "boxoffice-hpa", "boxoffice-canary",
+    "boxoffice-assistant", "boxoffice-shared-llm", "ticketing", "distributed-cache"];
   ids.forEach((id) => assert(SC.get(id), "missing " + id));
   SC.LIST.forEach((s) => assert(s.title.en && s.title.pt && s.brief.en && s.brief.pt, s.id + " texts"));
+  SC.LIST.forEach((s) => assert(/^boxoffice-/.test(s.id) === (s.group === "boxoffice"), s.id + ": group " + s.group));
+  ["ticketing", "distributed-cache", "url-shortener", "news-feed", "chat", "ride-sharing", "video-streaming", "notification-system", "payment-system", "search-autocomplete"]
+    .forEach((id) => assert(SC.get(id).group === "case", id + " is not in the case-study group"));
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

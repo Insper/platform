@@ -118,6 +118,8 @@
     var acked = mode === "async" ? 0 : mode === "sync" ? 1 : Math.floor((R + 1) / 2);
     return { S: clamp(Math.round(num(p.shards, 1)), 1, 64), R: R, mode: mode, acked: acked, lagging: R - acked, fol: p.readsFrom !== "primary" && R > 0 };
   }
+  /* followers apply the replicated log this many seconds late (0 = as soon as it arrives) */
+  function applyDelayS(n) { return clamp(num(n.p.applyDelayS, 0), 0, 3600); }
   /* replica counts drive loops (autoscaling) and must stay bounded */
   var MAX_REPLICAS = 10000;
   function reps(x, d) { return clamp(Math.round(num(x, d)), 1, MAX_REPLICAS); }
@@ -879,7 +881,7 @@
 
     /* rate limit / provider quota (LLM: only model calls count) */
     var semHit = n.type === "llmgw" ? clamp(num(p.semanticCacheHit, 0), 0, 0.95) : 0;
-    var limit = n.type === "apigw" ? num(p.rateLimit, 0) : (n.def.d.ext ? num(p.quota, 0) * n.quotaF : 0);
+    var limit = n.type === "apigw" || n.type === "lb" ? num(p.rateLimit, 0) : (n.def.d.ext ? num(p.quota, 0) * n.quotaF : 0);
     var limited = lam * (1 - semHit);
     /* token bucket: refills at `limit` per second, holds 2 s of burst */
     n.rl = 0;
@@ -891,7 +893,7 @@
       n.rl = want > 0 ? 1 - allowed / want : 0;
     }
     n.rlBot = n.rl;
-    if (n.type === "apigw" && n.rl > 0) {
+    if ((n.type === "apigw" || n.type === "lb") && n.rl > 0) {
       /* per-client token buckets: the heaviest clients (bots) are cut first */
       var excess = lam * n.rl, cutB = Math.min(F[2], excess), legit = F[0] + F[1];
       n.rlBot = F[2] > 0 ? cutB / F[2] : 0;
@@ -1032,6 +1034,8 @@
       var rw = n.rhoW || 0;
       if (rw >= 1) st.repLag += (rw - 1) * DT * 5;
       else st.repLag = Math.max(0.02 + 0.5 * Math.pow(rw, 3) / (1 - Math.min(rw, 0.97)), st.repLag - DT);
+      /* DB Cluster: followers that apply the log with a delay (e.g. a delayed standby) lag at least that much */
+      if (n.type === "dbcluster") st.repLag = Math.max(st.repLag, applyDelayS(n));
       n.repLag = st.repLag;
       /* stale reads: reads served by lagging followers, of keys written within the lag
          (a client reads back what it wrote ~1 s later) */
@@ -1105,19 +1109,22 @@
   Sim.prototype.dbReplMean = function (n) {
     var sh = dbShape(n), rtt = num(n.p.replRttMs, 2), slow = n.latF || 1;
     if (sh.mode === "async") return 0;
-    if (sh.mode === "sync") return lnMean(rtt * slow, EDGE_SIGMA);
+    /* an acknowledged write waits until the follower has applied it (remote_apply) */
+    var wait = applyDelayS(n) * 1000;
+    if (sh.mode === "sync") return lnMean(rtt * slow, EDGE_SIGMA) + wait;
     /* quorum: the acked-th fastest of R followers; the slow one (follower 1) is skipped if it can be */
     var f = sh.acked <= sh.R - 1 ? 1 : slow;
-    return lnMean(rtt * f, EDGE_SIGMA) * (sh.R >= 2 ? 0.8 : 1);
+    return lnMean(rtt * f, EDGE_SIGMA) * (sh.R >= 2 ? 0.8 : 1) + wait;
   };
   Sim.prototype.dbReplSample = function (n, R) {
     var sh = dbShape(n), rtt = num(n.p.replRttMs, 2), slow = n.latF || 1;
     if (sh.mode === "async") return 0;
-    if (sh.mode === "sync") return R.lognormal(rtt * slow, EDGE_SIGMA);
+    var wait = applyDelayS(n) * 1000;
+    if (sh.mode === "sync") return R.lognormal(rtt * slow, EDGE_SIGMA) + wait;
     var xs = [];
     for (var i = 0; i < sh.R; i++) xs.push(R.lognormal(rtt * (i === 0 ? slow : 1), EDGE_SIGMA));
     xs.sort(function (a, b) { return a - b; });
-    return xs[sh.acked - 1];
+    return xs[sh.acked - 1] + wait;
   };
   /* The primary of shard i dies. Async: the writes inside the replication
      lag are lost (RPO). Returns the failure record. */
@@ -1804,7 +1811,7 @@
       var fh = n.st.firstHot;
       if (fh && fh.reason === "cpu" && n.cluster && n.st.unsched > 0 && rho >= 0.85) { fh.reason = "pending"; fh.pending = n.st.unsched; }
       if (!n.st.firstHot && n.role !== "msg" && (rho >= 0.85 || n.pRej > 0.001 || n.rl > 0.001)) {
-        var reason = n.rl > 0.001 || n.def.d.ext ? (n.type === "apigw" ? "ratelimit" : "quota") :
+        var reason = n.rl > 0.001 || n.def.d.ext ? (n.type === "apigw" || n.type === "lb" ? "ratelimit" : "quota") :
           n.cluster && n.st.unsched > 0 ? "pending" :
           (n.rhoThr >= 0.85 && n.rhoThr >= n.rhoCpu) ? (n.type === "sql" ? "connections" : "threads") :
           (n.type === "dbcluster" && n.rhoOther !== null && n.rhoHot > 1.5 * n.rhoOther) ? "hotkey" :

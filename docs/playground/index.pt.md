@@ -10,7 +10,7 @@ Desenhe um sistema com os componentes da disciplina, coloque-o sob carga e **vej
 
 <div class="sdp" data-scenario="monolith" data-mode="full" data-height="640"></div>
 
-Escolha um cenário na barra (ou **Tela em branco**), aperte ▶ e leia os painéis abaixo da tela. O [guia de cenários](scenarios/index.md) explica o que cada cenário ensina. Seu projeto fica salvo neste navegador para cada cenário; **Restaurar o cenário** traz o original de volta.
+Escolha um cenário na barra (ou **Tela em branco**), aperte ▶ e leia os painéis abaixo da tela. O menu agrupa os cenários: blocos de construção, [BoxOffice](scenarios/index.md#boxoffice) (o sistema das aulas e dos labs de 2027.1, com seus números) e estudos de caso; o [guia de cenários](scenarios/index.md) explica o que cada um ensina. Seu projeto fica salvo neste navegador para cada cenário; **Restaurar o cenário** traz o original de volta.
 
 !!! abstract "O que o playground é (e o que não é)"
 
@@ -46,7 +46,7 @@ O tempo avança em **ticks de 0,1 s** de tempo simulado; o seletor de velocidade
 
 ### Chegadas e requisições
 
-Cada cliente gera chegadas a partir do **perfil de carga** × ruído aleatório × eventos de tráfego. O número de chegadas num tick é um sorteio de Poisson com média $\lambda \cdot \Delta t$, então mesmo um alvo constante tem variação realista. Uma requisição é uma **leitura** (parcela definida em *% leituras* na barra, ou por cliente) ou uma **escrita**; escritas costumam custar mais a jusante (uma escrita no SQL consome o equivalente a 3 leituras). Bots (parâmetro *tráfego de bots* do cliente) são carga extra que um WAF ou um rate limiter pode barrar; as metas só contam usuários reais.
+Cada cliente gera chegadas a partir do **perfil de carga** × ruído aleatório × eventos de tráfego. O número de chegadas num tick é um sorteio de Poisson com média $\lambda \cdot \Delta t$, então mesmo um alvo constante tem variação realista. Uma requisição é uma **leitura** (parcela definida em *% leituras* na barra, ou por cliente) ou uma **escrita**; escritas costumam custar mais a jusante (uma escrita no SQL consome o equivalente a 3 leituras). Bots (parâmetro *tráfego de bots* do cliente) são carga extra que um WAF ou um rate limiter pode barrar; as metas só contam usuários reais. Um *limite de taxa* num API Gateway ou num Load Balancer (um proxy reverso como o Nginx com `limit_req`) é um token bucket com 2 s de rajada que corta primeiro os clientes mais pesados (os bots) e responde 429.
 
 ### Como um nó encaminha requisições { #how-a-node-routes-requests }
 
@@ -163,7 +163,7 @@ Cada ida e volta é sorteada de uma lognormal em torno da *ida e volta da replic
 
 $$\text{atraso} \approx 0{,}02 + \frac{0{,}5\,\rho_w^3}{1 - \rho_w}\ \text{s}$$
 
-em que $\rho_w$ é a utilização de escrita do primário mais ocupado (o atraso cresce sem limite enquanto $\rho_w \ge 1$). Quando as leituras vão aos seguidores, uma parte delas é **desatualizada** (lê uma chave escrita dentro do atraso):
+em que $\rho_w$ é a utilização de escrita do primário mais ocupado (o atraso cresce sem limite enquanto $\rho_w \ge 1$). Um *atraso de aplicação* (padrão 0; ex.: 1 s, como o `REPLICA_DELAY` do lab 6) é um piso para esse atraso e escritas `sync`/`quorum` também esperam por ele: são confirmadas quando o seguidor já as aplicou, como o `remote_apply` do PostgreSQL. Quando as leituras vão aos seguidores, uma parte delas é **desatualizada** (lê uma chave escrita dentro do atraso):
 
 $$\text{leituras desatualizadas} \approx \frac{\text{seguidores atrasados}}{1 + R} \times \text{parcela de escritas} \times \min\left(1, \frac{\text{atraso}}{1\,\text{s}}\right)$$
 

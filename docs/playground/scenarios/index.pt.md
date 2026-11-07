@@ -45,6 +45,22 @@ Cada cenário do [System Design Playground](../index.md) é um pequeno laborató
 | [Microsserviços no Kubernetes: pods vs nós](#microservices) | O HPA adiciona pods, só nós trazem espaço; cada salto síncrono soma à espera do usuário |
 | [Kubernetes: perdendo um nó](#k8s-node-failure) | Planeje N+1 também para nós: um nó perdido leva vários pods de uma vez e eles só voltam se houver espaço |
 | [Failover do banco: RTO e RPO](#db-failover) | Um failover custa o tempo sem primário (RTO) e as escritas ainda não replicadas (RPO) |
+| [BoxOffice: a abertura das 10:00 em um banco](#boxoffice-onsale) | Uma sala de espera mantém o banco a ≈ 63% enquanto chegam 2 M de fãs |
+| [BoxOffice lab 2: o joelho do pool de conexões](#boxoffice-pool) | O joelho de um serviço muitas vezes é seu pool de conexões: c ÷ S consultas/s |
+| [BoxOffice lab 3: a borda (Nginx), réplicas e limit_req](#boxoffice-edge) | Réplicas, health checks passivos e um limite de taxa por chave na borda |
+| [BoxOffice lab 4: a corrida de logins no gateway](#boxoffice-gateway) | Uma corrida de logins exige o auth dimensionado para o pico; o gateway valida JWTs sozinho |
+| [BoxOffice lab 5: cache-aside no Redis](#boxoffice-cache) | Cache-aside no Redis e a avalanche após um reinício |
+| [BoxOffice lab 6: a réplica que mente](#boxoffice-read-your-writes) | Uma réplica atrasada: leituras desatualizadas e as escritas que um failover perde |
+| [BoxOffice lab 7: o outbox e o Kafka](#boxoffice-outbox) | O outbox e o Kafka desacoplam o pedido do e-mail; as partições limitam os consumidores |
+| [BoxOffice: quantos workers de PDF?](#boxoffice-tickets-pdf) | Workers atrás de uma fila: ocupados = λ × S e o backlog quando são poucos |
+| [BoxOffice lab 8: o banco para, alguém sabe?](#boxoffice-observability) | Monte OpenTelemetry → LGTM (Loki, Grafana, Tempo, Mimir); um alerta reduz a queda pela metade |
+| [BoxOffice lab 9: o payment fica lento](#boxoffice-payment) | Timeout, retries, breaker e bulkhead em volta de um serviço de pagamento lento |
+| [BoxOffice lab 10: o HPA chega atrasado](#boxoffice-hpa) | O HPA chega atrasado; escale antes de um pico conhecido |
+| [BoxOffice lab 11: uma versão ruim, de uma vez ou como canário](#boxoffice-canary) | Um canário reduz o raio de impacto de uma versão ruim |
+| [BoxOffice lab 12: o assistente de assentos](#boxoffice-assistant) | Os passos do agente decidem carga, latência e custo; os guardrails decidem a segurança |
+| [BoxOffice lab 13: os agentes de build dividem a cota de LLM dos fãs](#boxoffice-shared-llm) | Agentes em segundo plano não podem deixar os fãs sem nada: enfileire-os e limite sua concorrência |
+| [Venda de ingressos: 2 M de fãs, 60 mil assentos](#ticketing) | Consultas na borda, entradas numa sala de espera, compradores admitidos a ≈ 33/s |
+| [Cache distribuído: memória ou vazão?](#distributed-cache) | Dimensione um cache por memória e por vazão; a taxa de acerto dimensiona o banco |
 
 ## Monólito: encontre o ponto de ruptura { #monolith }
 
@@ -558,3 +574,315 @@ Checkout da venda relâmpago: 1 500 req/s, metade escritas (pedidos), num DB Clu
     1. Escritas perdidas ≈ taxa de escrita × atraso: estime-as pelo inspetor logo antes de t = 90 s.
     2. Com um seguidor lento, por que o sync sofre e o quorum com 2 seguidores não?
     3. RPO 0 e RTO de 5 s triplicam a conta do banco: para que dados vale a pena (pedidos, sessões, analytics)?
+
+## BoxOffice, capítulo a capítulo { #boxoffice }
+
+Os cenários abaixo seguem o sistema que o curso 2027.1 constrói, com os nomes e os números das páginas das aulas e do código dos labs: cada um é um capítulo da [história](../../2027.1/index.md#story) ou um lab, montado para que o problema apareça na carga que a página informa.
+
+## BoxOffice: a abertura das 10:00 em um banco { #boxoffice-onsale }
+
+Às 10:00 dois milhões de fãs tentam reservar assentos no primeiro minuto: ≈ 33 000 reservas/s contra um banco de inventário que faz 1 600/s a 100% (5 ms por reserva, 8 conexões) e ≈ 1 100/s a uns sensatos 70%. Oitenta réplicas do inventário não ajudam: toda reserva termina no mesmo banco. Mantenha as reservas abaixo de 300 ms e coloque o excesso numa fila em vez de transformá-lo em erros.
+
+- **Lição:** Estime antes de construir: demanda ÷ capacidade do único componente que toda requisição precisa alcançar. Uma diferença de 20× não se fecha com réplicas na frente do banco; uma fila (sala de espera) transforma o excesso em espera em vez de erros.
+- **Configuração:** `boxoffice-onsale` · perfil `load` · alvo 1.000 req/s · 0% leituras · semente 2027 · caos `off` · eventos programados: t = 60 s — 10:00: abre a venda (2 M de fãs em 60 s)
+- **Metas:** taxa de erro < 1% · p99 < 300 ms
+- **Tente:** Rode e leia o gargalo (inventory-db, conexões). Troque o caminho síncrono por gateway → Message Queue → workers do inventário que admitem ≈ 1 000 reservas/s.
+- **Observe:** Como está, ≈ 91% das requisições falham durante a venda e o banco é o gargalo por conexões. Com a sala de espera toda reserva dá certo em ≈ 10 ms de p99 e o banco fica em ≈ 1 000 reservas/s, mas a fila cresce ≈ 32 000 fãs por segundo: o atraso do consumidor (dezenas de minutos) é a espera que o fã vê. O simulador não modela o esgotamento: a maioria desses fãs ouviria "esgotado" bem antes da sua vez.
+- **Relacionado:** [Estimativas](../../2027.1/classes/estimation/index.md) · [O que é system design](../../2027.1/classes/intro/index.md) · [Estudo de caso: venda de ingressos](../../2027.1/classes/case-studies/ticketing/index.md)
+
+<div class="sdp" data-scenario="boxoffice-onsale" data-mode="compact" data-height="460"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Calcule a capacidade do banco com a Lei de Little (c / S) e a demanda de 2 M de fãs em 60 s. Quantos bancos seriam necessários sem fila?
+    2. Por que a fila não deixa a venda mais rápida para ninguém e mesmo assim a faz funcionar?
+    3. O que a sala de espera deveria dizer a um fã cuja posição está além do número de assentos?
+
+## BoxOffice lab 2: o joelho do pool de conexões { #boxoffice-pool }
+
+Labs 1–2: um catalog (1 CPU) e seu PostgreSQL, com o pool padrão de 10 conexões. O stress.js sobe até 600 req/s: o p99 fica plano até ≈ 300 req/s, vai a 224 ms em 400 e a 2 s em 500, enquanto a CPU está longe de cheia. Lei de Little: 10 conexões ÷ ≈ 20 ms por consulta ≈ 480 consultas/s. Encontre o joelho e depois leve-o para além de 600 req/s.
+
+- **Lição:** O joelho muitas vezes vem de um pool, não da CPU: com c conexões e S segundos por consulta um pool atende no máximo c ÷ S consultas/s (Lei de Little). Meça o joelho, explique-o e depois mova-o.
+- **Configuração:** `boxoffice-pool` · perfil `breakpoint` · alvo 150 req/s · 100% leituras · semente 2002 · caos `off`
+- **Metas:** ponto de ruptura ≥ 550 req/s · p99 < 500 ms
+- **Tente:** Aperte ▶ (perfil breakpoint, como o stress.js) e leia o ponto de ruptura e o motivo do gargalo. Aumente as conexões do catalog-db para 30 e rode de novo com a mesma semente.
+- **Observe:** Como está, a execução quebra em ≈ 530 req/s e o gargalo é o catalog-db por conexões enquanto a CPU do catalog está abaixo de 70%. Com 30 conexões a rampa chega a 600 req/s sem quebrar (p99 ≈ 70 ms) e a CPU do catalog vira o próximo limite.
+- **Relacionado:** [Estimativas](../../2027.1/classes/estimation/index.md) · [Engenharia de desempenho](../../2027.1/classes/performance/index.md) · [Lab 2](../../2027.1/hands-on/2/index.md)
+
+<div class="sdp" data-scenario="boxoffice-pool" data-mode="compact" data-height="420"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Com 10 conexões e ≈ 20 ms por consulta, que vazão a Lei de Little permite? Compare com o joelho que você mediu.
+    2. Por que aumentar demais o pool pode prejudicar o banco em vez de ajudar?
+    3. Qual métrica do lab mostra as threads esperando uma conexão?
+
+## BoxOffice lab 3: a borda (Nginx), réplicas e limit_req { #boxoffice-edge }
+
+Lab 3: Nginx na frente do catalog. 400 req/s de fãs, mais uma chave de API gananciosa que manda o dobro disso, numa única réplica do catalog (≈ 500 req/s). Em t = 80 s uma réplica é parada por 20 s (docker stop catalog-2). Mantenha o p99 abaixo de 300 ms (o critério de capacidade do lab) e os erros abaixo de 1%.
+
+- **Lição:** Réplicas atrás de um proxy reverso dão capacidade e sobrevivem a uma réplica parada só se o proxy a detecta rápido; um limite de taxa por cliente impede que um cliente ganancioso use a folga reservada para falhas.
+- **Configuração:** `boxoffice-edge` · perfil `load` · alvo 400 req/s · 95% leituras · semente 2003 · caos `off` · eventos programados: t = 80 s — docker stop catalog-2 (20 s)
+- **Metas:** taxa de erro < 1% · p99 < 300 ms
+- **Tente:** Aumente o catalog para 3 réplicas e rode: a parada em t = 80 s ainda dói. Conecte um Health Check à borda e depois defina um limite de taxa nela.
+- **Observe:** Como está, ≈ 64% das requisições falham (uma réplica para 1 200 req/s). Com 3 réplicas, o health check e um limite de 600 req/s, os erros caem para ≈ 0,7% (só os 3 s necessários para detectar a réplica parada) e o p99 para ≈ 33 ms; o limite corta só a chave gananciosa.
+- **Relacionado:** [Tráfego & borda](../../2027.1/classes/edge/index.md) · [Lab 3](../../2027.1/hands-on/3/index.md)
+
+<div class="sdp" data-scenario="boxoffice-edge" data-mode="compact" data-height="420"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Sem o limite de taxa, por que 3 réplicas falham quando uma delas para?
+    2. O Nginx conta o limit_req por chave: o que muda se o limite for contado por réplica da borda?
+    3. Quanto max_fails=3 fail_timeout=10s custa a um fã cuja requisição caiu na réplica parada?
+
+## BoxOffice lab 4: a corrida de logins no gateway { #boxoffice-gateway }
+
+Lab 4: o gateway valida JSON Web Tokens (JWTs, assinados com RS256) sozinho, então só logins chegam ao auth — e um login é caro de propósito: BCrypt custo 10, ≈ 80 ms de CPU, então uma réplica do auth faz 10 logins/s a 80% de CPU e desaba a 20/s. 200 req/s com 5% de logins; em t = 60 s todos fazem login antes da venda (3× por 30 s). O gateway espera 5 s e retenta uma vez.
+
+- **Lição:** Trabalho caro de propósito (hash de senha) precisa ser dimensionado para o pico. Um gateway que valida tokens sozinho tira o auth de toda requisição e retries após um timeout somam carga onde já dói.
+- **Configuração:** `boxoffice-gateway` · perfil `spike` · alvo 200 req/s · pico ×3 · 95% leituras · semente 2004 · caos `off`
+- **Metas:** taxa de erro < 1% · p99 < 500 ms
+- **Tente:** Rode e observe o auth durante o pico (t = 60–90 s). Aumente suas réplicas até ρ ficar abaixo de ≈ 0,7 a 30 logins/s.
+- **Observe:** Como está, o auth passa de ρ = 2 durante a corrida, os logins esperam até o timeout de 5 s e ≈ 3,8% de todas as requisições falham. Com 4 réplicas do auth nenhuma requisição falha e o p99 fica em ≈ 115 ms.
+- **Relacionado:** [Tráfego & borda](../../2027.1/classes/edge/index.md) · [Computação & serviços](../../2027.1/classes/compute/index.md) · [Lab 4](../../2027.1/hands-on/4/index.md)
+
+<div class="sdp" data-scenario="boxoffice-gateway" data-mode="compact" data-height="440"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Por que é má ideia reduzir o custo do BCrypt para sobreviver à corrida?
+    2. O que aconteceria se o gateway chamasse o auth para validar cada token?
+    3. Daria para espalhar a corrida (login antes das 10:00, TTL de token maior)? O que o JWT_TTL de 1 h do lab permite?
+
+## BoxOffice lab 5: cache-aside no Redis { #boxoffice-cache }
+
+Lab 5: as páginas de eventos são lidas ~100× mais do que mudam. 1 500 req/s (o topo da varredura do lab) pela borda e quatro réplicas do catalog: as réplicas aguentam, o catalog-db não. Adicione o Redis com cache-aside (TTL de evento de 60 s). Em t = 100 s o Redis reinicia vazio: o banco sobrevive à avalanche?
+
+- **Lição:** O cache-aside reduz a carga do banco aos misses; um cache vazio após um reinício manda toda leitura de volta de uma vez e uma trava por chave (coalescência de requisições) é o que impede essa avalanche de derrubar o banco.
+- **Configuração:** `boxoffice-cache` · perfil `load` · alvo 1.500 req/s · 99% leituras · semente 2005 · caos `off` · eventos programados: t = 100 s — o Redis reinicia vazio
+- **Metas:** p99 < 200 ms · taxa de erro < 0,5%
+- **Tente:** Adicione um Cache entre o catalog e o banco, rode e observe t = 100 s. Depois desligue e ligue a coalescência e compare os segundos após o reinício.
+- **Observe:** Como está, o catalog-db passa da capacidade: ≈ 35% de erros e p99 ≈ 2 s. Com o Redis (80% de acertos, coalescência ligada) o banco recebe ≈ 300 consultas/s, nada falha e o p99 fica em ≈ 30 ms, também após o reinício; sem coalescência o reinício traz erros de volta por vários segundos.
+- **Relacionado:** [Cache](../../2027.1/classes/caching/index.md) · [Lab 5](../../2027.1/hands-on/5/index.md)
+
+<div class="sdp" data-scenario="boxoffice-cache" data-mode="compact" data-height="440"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Como o TTL (60 s) se relaciona com a taxa de acerto e com a desatualização que um fã pode ver?
+    2. Por que o lab acrescenta um jitter de 10% ao TTL?
+    3. Que dados do BoxOffice nunca devem ir para o cache (pense nas reservas)?
+
+## BoxOffice lab 6: a réplica que mente { #boxoffice-read-your-writes }
+
+Lab 6: o inventory grava reservas no primário e as relê de uma réplica que aplica o log 1 s atrasada (REPLICA_DELAY=1s). 200 req/s, metade reservas e metade leituras de "minhas reservas": um fã que acabou de reservar um assento não o vê. Em t = 90 s o primário morre e a réplica é promovida após 30 s: as reservas ainda dentro do atraso somem.
+
+- **Lição:** Réplicas assíncronas atrasam: leituras após uma escrita podem vir desatualizadas e um failover perde as escritas dentro do atraso (≈ taxa de escrita × atraso). Ler o que escreveu no primário resolve o primeiro; replicação síncrona resolve o segundo e toda escrita passa a esperar a réplica.
+- **Configuração:** `boxoffice-read-your-writes` · perfil `load` · alvo 200 req/s · 50% leituras · semente 2006 · caos `off` · eventos programados: t = 90 s — o primário de inventory-db morre
+- **Metas:** leituras desatualizadas < 1% · escritas perdidas < 1
+- **Tente:** Rode e leia as leituras desatualizadas e as escritas perdidas no Relatório. Defina Leituras de = primary; depois troque a replicação para sync e compare o p99 de escrita.
+- **Observe:** Como está, ≈ 20% das leituras vêm desatualizadas e ≈ 105 reservas se perdem quando o primário morre (100 escritas/s × 1 s). Leituras no primário com replicação sync levam os dois a 0, mas o p99 de escrita vai de ≈ 35 ms para ≈ 1 s e durante o failover de 30 s as leituras também falham (disponibilidade ≈ 80% em vez de 90%): consistência custa latência e disponibilidade.
+- **Relacionado:** [Bancos de dados](../../2027.1/classes/databases/index.md) · [Lab 6](../../2027.1/hands-on/6/index.md)
+
+<div class="sdp" data-scenario="boxoffice-read-your-writes" data-mode="compact" data-height="440"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Por que o atraso de aplicação (REPLICA_DELAY no lab) torna o problema visível e o que causa atraso em produção?
+    2. Quais leituras do BoxOffice podem vir desatualizadas (páginas de eventos) e quais não (minhas reservas, o assento que acabei de pagar)?
+    3. Daria para ler do primário só por pouco tempo após cada escrita? Quanto custa?
+
+## BoxOffice lab 7: o outbox e o Kafka { #boxoffice-outbox }
+
+Lab 7: hoje o order chama o notification de forma síncrona e o notification envia cada e-mail em 50 ms com 3 consumidores: no máximo 60 e-mails/s. O orders-load.js manda 50 pedidos/s; em t = 60 s uma rajada de 200/s dura 30 s. O comprador espera o e-mail e falha quando ele não pode ser enviado. Mantenha os pedidos abaixo de 200 ms e deixe os e-mails se atualizarem em até um minuto.
+
+- **Lição:** Uma chamada síncrona faz o comprador esperar (e falhar com) o consumidor mais lento. Com um outbox e o Kafka o pedido responde após sua própria transação; os consumidores drenam no seu ritmo e seu paralelismo é limitado pelo número de partições.
+- **Configuração:** `boxoffice-outbox` · perfil `spike` · alvo 50 req/s · pico ×4 · 0% leituras · semente 2007 · caos `off`
+- **Metas:** taxa de erro < 0,5% · p99 < 200 ms · atraso do consumidor < 60 s
+- **Tente:** Troque order → notification por order → Kafka (6 partições) → notification e rode com 3 consumidores; depois experimente 6 e 12.
+- **Observe:** Como está, a rajada sobrecarrega o notification: ≈ 35% dos pedidos falham e o p99 chega a ≈ 4 s. Com Kafka e 6 consumidores nada falha, o p99 fica em ≈ 40 ms e os e-mails se atualizam com ≈ 30 s de atraso; com 3 consumidores o atraso passa de 60 s e 12 consumidores atrasam exatamente como 6.
+- **Relacionado:** [Mensageria](../../2027.1/classes/messaging/index.md) · [Lab 7](../../2027.1/hands-on/7/index.md)
+
+<div class="sdp" data-scenario="boxoffice-outbox" data-mode="compact" data-height="440"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Por que o pedido grava o evento numa tabela de outbox em vez de publicar no Kafka dentro da requisição?
+    2. Com entrega pelo menos uma vez, o que impede um fã de receber o mesmo e-mail duas vezes?
+    3. Injete uma queda no notification (⚡): o que acontece com o backlog e com os compradores?
+
+## BoxOffice: quantos workers de PDF? { #boxoffice-tickets-pdf }
+
+Depois da abertura, 30 000 pedidos chegam em 3 minutos (≈ 167/s). Cada ingresso vira um PDF em 0,4 s num worker que tira jobs de uma fila. Com 20 workers (50 PDFs/s) o backlog chega a ≈ 21 000 jobs e drena em ≈ 7 minutos: os fãs esperam seus ingressos. Lei de Little: workers ocupados = 167 × 0,4 ≈ 67. Entregue todo ingresso em até um minuto.
+
+- **Lição:** Workers atrás de uma fila são dimensionados com a Lei de Little: workers ocupados = λ × S, mais folga. Workers de menos não fazem requisições falharem; viram um backlog que os usuários sentem como atraso.
+- **Configuração:** `boxoffice-tickets-pdf` · perfil `load` · alvo 167 req/s · 0% leituras · semente 2008 · caos `off`
+- **Metas:** atraso do consumidor < 60 s · p99 < 300 ms · taxa de erro < 0,5%
+- **Tente:** Rode e observe o backlog de ticket-jobs e o atraso do consumidor. Calcule os workers para ρ ≈ 0,7 e defina-os.
+- **Observe:** Como está, o backlog passa de 19 000 jobs e o atraso de ≈ 380 s, enquanto os pedidos continuam rápidos (p99 ≈ 32 ms). Com 95 workers o atraso fica perto de 0 e a conta vai de ≈ 2 800 para ≈ 8 900 USD/mês: um autoscaler pelo atraso pagaria por eles só durante a rajada.
+- **Relacionado:** [Computação & serviços](../../2027.1/classes/compute/index.md) · [Mensageria](../../2027.1/classes/messaging/index.md)
+
+<div class="sdp" data-scenario="boxoffice-tickets-pdf" data-mode="compact" data-height="420"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Quanto tempo o backlog leva para drenar após a rajada com 20 workers?
+    2. Qual é um atraso aceitável para o PDF de um ingresso e como isso muda o número de workers?
+    3. Por que o atraso do consumidor é um sinal de autoscaling melhor que a CPU aqui?
+
+## BoxOffice lab 8: o banco para, alguém sabe? { #boxoffice-observability }
+
+Lab 8: 200 req/s no catalog (SLO de 99,5% em 28 dias). Em t = 60 s o banco é parado; o Redis ainda responde os acertos, todo miss falha. Ninguém vê: nenhum serviço manda métricas (a utilização aparece como "?"), não há traces nem alerta, então o reparo leva 100 s. Monte a pilha de observabilidade que o lab instala (OpenTelemetry → LGTM) e deixe um alerta encurtar o reparo.
+
+- **Lição:** Não se repara o que não se vê: métricas em todo serviço, traces e logs mostram onde dói e um alerta no sinal certo encurta o reparo — que é o que muda a disponibilidade.
+- **Configuração:** `boxoffice-observability` · perfil `load` · alvo 200 req/s · 99% leituras · semente 2012 · caos `off` · eventos programados: t = 60 s — docker compose stop db
+- **Metas:** serviços medidos ≥ 100% · tracing ≥ 1 · disponibilidade ≥ 90%
+- **Tente:** Rode com o modo deus desligado: as utilizações aparecem como "?". Adicione Metrics e conecte-o a todo serviço, adicione Tracing e Logs ao catalog e conecte Alerting ao Metrics.
+- **Observe:** Como está, o banco parado faz os misses (≈ 20% das leituras) falharem por 100 s: disponibilidade ≈ 87%. Com a pilha e o alerta a queda dura 50 s e a disponibilidade fica em ≈ 93,5%; ainda longe do SLO de 99,5% e é por isso que o próximo capítulo (confiabilidade) é necessário.
+- **Relacionado:** [Observabilidade](../../2027.1/classes/observability/index.md) · [Lab 8](../../2027.1/hands-on/8/index.md)
+
+<div class="sdp" data-scenario="boxoffice-observability" data-mode="compact" data-height="440"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Quanto do orçamento de erros de 28 dias de um SLO de 99,5% esta queda consome?
+    2. Por que o lab alerta pela taxa de consumo (14,4× e 6×) e não por "taxa de erro > 1%"?
+    3. Que sinal mostraria primeiro o banco parado: erros do catalog, misses do Redis ou conexões do banco?
+
+## BoxOffice lab 9: o payment fica lento { #boxoffice-payment }
+
+Lab 9: o pay-under-chaos.js manda 20 pagamentos/s e 20 requisições de navegação/s ao order, que tem 50 threads do Tomcat. Em t = 60 s o Toxiproxy acrescenta 3 s a toda chamada ao payment (o provedor está lento, como às 10:02 na história). Nada caiu, mas 20 pagamentos/s × 3 s = 60 chamadas em andamento > 50 threads: a navegação, que nunca toca o provedor, morre junto. Proteja o order como o lab faz.
+
+- **Lição:** Uma dependência lenta é pior que uma morta: toda chamada esperando segura uma thread (Lei de Little) e o pool se esgota para requisições que nem a usam. Timeouts, um circuit breaker e um bulkhead confinam o dano às chamadas que precisam da dependência.
+- **Configuração:** `boxoffice-payment` · perfil `load` · alvo 40 req/s · 50% leituras · semente 2009 · caos `off` · eventos programados: t = 60 s — Toxiproxy: +3 s em toda chamada ao payment
+- **Metas:** p99 < 1.500 ms · taxa de erro < 25%
+- **Tente:** Rode e observe as threads do order durante o incidente. Configure a aresta order → payment com os valores do lab, um padrão por vez.
+- **Observe:** Como está, as 50 threads do order ficam cheias a partir de t ≈ 60 s, a navegação espera tanto quanto o pagamento e o p99 chega a ≈ 24 s. Com timeout, retries, breaker e bulkhead o breaker abre em segundos, os pagamentos falham rápido (≈ 21% da execução), a navegação continua rápida e o p99 fica em ≈ 0,8 s.
+- **Relacionado:** [Confiabilidade](../../2027.1/classes/reliability/index.md) · [Lab 9](../../2027.1/hands-on/9/index.md)
+
+<div class="sdp" data-scenario="boxoffice-payment" data-mode="compact" data-height="460"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Calcule as chamadas em andamento com a Lei de Little antes e durante o incidente.
+    2. Por que 3 tentativas com timeout de 1 s não pioram as coisas aqui e quando piorariam (veja retry-storm)?
+    3. Em vez de falhar, o pedido poderia responder "pagamento pendente, confirmaremos por e-mail": o que isso exigiria?
+
+## BoxOffice lab 10: o HPA chega atrasado { #boxoffice-hpa }
+
+Lab 10: o catalog roda no kind (2 workers) com 2 pods e um HPA: mín. 2, máx. 8, alvo de 60% de CPU; um pod faz ≈ 500 req/s e precisa de ≈ 40 s para ficar pronto. 300 req/s antes da venda; em t = 60 s o catalog-hpa.js empurra 1 000 req/s. O HPA olha a cada 15 s, os pods novos sobem 40 s depois e enquanto isso 2 pods a 100% descartam requisições.
+
+- **Lição:** O autoscaling reativo chega depois do período de decisão mais o tempo de subida; para uma carga que vem em hora conhecida, escale antes (um mínimo maior ou um agendamento) e deixe o HPA cuidar das surpresas.
+- **Configuração:** `boxoffice-hpa` · perfil `load` · alvo 300 req/s · 99% leituras · semente 2010 · caos `off` · eventos programados: t = 60 s — a rampa da venda: 1 000 req/s
+- **Metas:** taxa de erro < 0,5% · p99 < 500 ms
+- **Tente:** Rode e observe os pods do catalog e a aba Eventos (decisões de escala). Aumente o mínimo do HPA para 4 e compare.
+- **Observe:** Como está, 2 pods estão a 100% quando a rampa chega; o HPA adiciona pods a partir de t = 75 s, eles atendem 40 s depois e o p99 chega a ≈ 960 ms. Com mínimo de 4 o catalog fica em ≈ 50% e o p99 em ≈ 24 ms, com o mesmo custo ilustrativo (os nós do kind são pagos de qualquer forma).
+- **Relacionado:** [Plataformas cloud-native](../../2027.1/classes/cloud-native/index.md) · [Lab 10](../../2027.1/hands-on/10/index.md)
+
+<div class="sdp" data-scenario="boxoffice-hpa" data-mode="compact" data-height="460"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Some o período de decisão e o tempo de subida: quantos segundos de sobrecarga a rampa causa?
+    2. O que uma subida de 120 s (uma imagem JVM pesada) faria?
+    3. Quando um mínimo maior é desperdício e o que você usaria no lugar?
+
+## BoxOffice lab 11: uma versão ruim, de uma vez ou como canário { #boxoffice-canary }
+
+Lab 11: a versão v2 do catalog tem um bug: 30% das respostas falham. Hoje ela substitui os 4 pods de uma vez; o Argo CD não percebe nada e a análise a reverte depois de cerca de um minuto. 600 req/s; a v2 entra em t = 60 s. Publique-a de modo que o mesmo bug custe uma fração dos erros.
+
+- **Lição:** Um canário não impede uma versão ruim; ele limita quem a vê. Erros ≈ fatia da nova versão × sua taxa de erro × tempo até o rollback, então um primeiro passo pequeno e uma análise automática rápida importam.
+- **Configuração:** `boxoffice-canary` · perfil `load` · alvo 600 req/s · 95% leituras · semente 2011 · caos `off` · eventos programados: t = 60 s — a v2 entra (30% de erros) até o rollback
+- **Metas:** taxa de erro < 5% · p99 < 300 ms
+- **Tente:** Rode e leia os erros após t = 60 s. Desenhe o canário: um nó "catalog v1" com 3 pods ao lado da v2 com 1 pod, ambos atrás do ingress.
+- **Observe:** Como está, ≈ 30% das requisições falham por um minuto (≈ 12% da execução). Com 25% do tráfego na v2, ≈ 7,5% falham pelo mesmo minuto (≈ 3% da execução). Um primeiro passo de 5% reduziria de novo.
+- **Relacionado:** [Plataformas cloud-native](../../2027.1/classes/cloud-native/index.md) · [Lab 11](../../2027.1/hands-on/11/index.md)
+
+<div class="sdp" data-scenario="boxoffice-canary" data-mode="compact" data-height="440"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Quanto tempo a análise do lab (a cada 30 s, failureLimit 1) leva para abortar o rollout?
+    2. Por que o curso congela mudanças 30 minutos antes de uma abertura de vendas?
+    3. Que tipo de bug um canário de 25% não pegaria em 2 minutos?
+
+## BoxOffice lab 12: o assistente de assentos { #boxoffice-assistant }
+
+Lab 12: fãs perguntam "dois assentos abaixo de R$ 300 no sábado?". O assistente faz até MAX_STEPS = 4 chamadas ao modelo por pergunta, lê o catálogo e o mapa de assentos por ferramentas e recupera 5 trechos do pgvector. O modelo local responde uma chamada em ≈ 3 s e aceita ≈ 1 chamada/s; com 0,5 pergunta/s o laço do agente já precisa de 2 chamadas/s e nada filtra o que os fãs digitam.
+
+- **Lição:** Num agente, chamadas ao modelo = perguntas × passos: os passos decidem latência, custo e se o provedor te limita. Menos passos, um cache semântico e um modelo reserva o mantêm de pé; guardrails no caminho o mantêm seguro.
+- **Configuração:** `boxoffice-assistant` · perfil `load` · alvo 0,5 req/s · 100% leituras · semente 2013 · caos `off`
+- **Metas:** taxa de erro < 1% · p99 < 25.000 ms · respostas inseguras < 0,1%
+- **Tente:** Rode e leia o gargalo (a cota do modelo). Reduza os passos, ligue o cache semântico e o modelo reserva e coloque um Safety Mesh na frente do assistente.
+- **Observe:** Como está, ≈ 97% das perguntas falham na cota, o p99 fica em ≈ 27 s e 2% das respostas são inseguras. Com 2 passos, 20% de acertos no cache, o fallback e os guardrails, os erros ficam em ≈ 0,25%, o p99 em ≈ 20 s e as respostas inseguras em ≈ 0,04%.
+- **Relacionado:** [Sistemas de IA](../../2027.1/classes/ai-systems/index.md) · [Lab 12](../../2027.1/hands-on/12/index.md)
+
+<div class="sdp" data-scenario="boxoffice-assistant" data-mode="compact" data-height="460"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Quantas chamadas ao modelo por segundo 0,5 pergunta/s precisa com 4 passos e com 2?
+    2. Quanto custa o fallback para um modelo hospedado maior, comparado ao modelo local?
+    3. Quais ferramentas o assistente pode chamar e por que só as de leitura?
+
+## BoxOffice lab 13: os agentes de build dividem a cota de LLM dos fãs { #boxoffice-shared-llm }
+
+Lab 13 e aula 14: o mesmo LLM gateway (10 chamadas/s) atende o assistente dos fãs (1 pergunta/s × 3 passos) e os agentes de integração contínua (CI, continuous integration): um lote de 100 revisões de pull request e agentes de correção (6 turnos cada) começa a cada 2 minutos em 10 s: 600 chamadas ao modelo em 10 s. Quando o lote chega, os fãs recebem 429. Mantenha os erros dos fãs abaixo de 1% sem comprar uma cota maior.
+
+- **Lição:** Uma cota de LLM compartilhada é infraestrutura compartilhada: um lote de agentes em segundo plano pode deixar os usuários interativos sem nada. Enfileire o trabalho que pode esperar e limite sua concorrência (ou dê a ele sua própria cota): um bulkhead para chamadas ao modelo.
+- **Configuração:** `boxoffice-shared-llm` · perfil `load` · alvo 1 req/s · 100% leituras · semente 2014 · caos `off`
+- **Metas:** taxa de erro < 1% · atraso do consumidor < 300 s
+- **Tente:** Rode e veja os erros quando cada lote da CI começa (t = 0 e 120 s). Coloque uma Message Queue entre o agendador e os agentes de CI e limite as threads dos agentes.
+- **Observe:** Como está, os fãs recebem 429 enquanto cada lote roda: ≈ 3,8% das perguntas falham. Com a fila e 6 agentes simultâneos os fãs veem ≈ 0,02% de erros e o lote da CI termina dentro de ≈ 160 s de atraso.
+- **Relacionado:** [Entrega assistida por IA](../../2027.1/classes/ai-delivery/index.md) · [Lab 13](../../2027.1/hands-on/13/index.md)
+
+<div class="sdp" data-scenario="boxoffice-shared-llm" data-mode="compact" data-height="440"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Quantas chamadas ao modelo por segundo o lote precisa se começar em 10 s? E espalhado em 2 minutos?
+    2. Quem deve ter prioridade quando a cota é curta e como o gateway garantiria isso?
+    3. O que os limites do lab (25 turnos, US$ 1,50 por agente de correção) protegem?
+
+## Mais estudos de caso { #more-case-studies }
+
+Dois estudos de caso do curso que não têm um cenário genérico acima.
+
+## Venda de ingressos: 2 M de fãs, 60 mil assentos { #ticketing }
+
+O estudo de caso: 2 milhões de fãs chegam em 120 s para 60 000 assentos. Cada fã entra na fila (≈ 17 000 entradas/s) e depois consulta sua posição a cada 10 s (≈ 200 000 consultas/s); o provedor de pagamento leva 2 s. Sem fila, ≈ 200 000 req/s atingem 40 servidores de venda e um banco de inventário. Mantenha o p99 da reserva abaixo de 300 ms.
+
+- **Lição:** Uma venda de ingressos é um problema de fila: responda as consultas de posição pela borda, coloque as entradas numa sala de espera e admita compradores na taxa que o inventário e o provedor de pagamento aguentam.
+- **Configuração:** `ticketing` · perfil `load` · alvo 217.000 req/s · 92% leituras · semente 2015 · caos `off`
+- **Metas:** taxa de erro < 1% · p99 < 300 ms
+- **Tente:** Rode e depois construa a solução em dois passos: uma CDN para as consultas (filtro read para um serviço de status) e uma sala de espera para as entradas (filtro write) drenada por workers de compradores.
+- **Observe:** Como está, ≈ 99% das requisições falham e o banco de inventário é o gargalo. Com a CDN (98% de acertos em consultas de 1 KB) e a sala de espera, nada falha e o p99 fica em ≈ 40 ms; ≈ 33 compradores/s chegam ao banco e ≈ 70 chamadas de pagamento ficam em andamento. O custo extrapola o pico para um mês inteiro, então fica bem acima do que custa uma venda de 2 minutos.
+- **Relacionado:** [Estudo de caso: venda de ingressos](../../2027.1/classes/case-studies/ticketing/index.md) · [Mensageria](../../2027.1/classes/messaging/index.md) · [Tráfego & borda](../../2027.1/classes/edge/index.md)
+
+<div class="sdp" data-scenario="ticketing" data-mode="compact" data-height="480"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Deduza a taxa de admissão a partir de 10 000 compradores ativos e 300 s por comprador.
+    2. Quanto tempo espera o último dos 2 M de fãs e o que a página deveria dizer a quem está além dos 60 000 assentos?
+    3. O que impede bots de entrar na fila muitas vezes?
+
+## Cache distribuído: memória ou vazão? { #distributed-cache }
+
+O estudo de caso: 1 bilhão de itens de 1 KB, 2 milhões de leituras/s, 95% de acertos. 1,1 TB cabe em 17 nós de 64 GB — mas um nó atende 80 000 ops/s, então 17 nós dão 1,36 M ops/s. Atrás do cache, o banco recebe os misses: 100 000 req/s a 95%, o dobro a 90%. Atenda 2 M leituras/s com p99 abaixo de 10 ms.
+
+- **Lição:** Um cluster de cache é dimensionado pelo maior entre memória e vazão, com folga e cópias; sua taxa de acerto dimensiona o banco atrás dele.
+- **Configuração:** `distributed-cache` · perfil `load` · alvo 2.000.000 req/s · 100% leituras · semente 2016 · caos `off`
+- **Metas:** taxa de erro < 0,5% · p99 < 10 ms
+- **Tente:** Rode com 17 nós (dimensionado por memória) e depois aumente os nós. Por fim reduza a taxa de acerto para 0,90 e observe o banco.
+- **Observe:** Como está, o cache roda a ρ ≈ 1,5: ≈ 32% de erros e p99 ≈ 580 ms. Com 50 nós nada falha, o p99 fica em ≈ 5 ms e o banco recebe ≈ 100 000 req/s (os 5% de misses).
+- **Relacionado:** [Estudo de caso: cache distribuído](../../2027.1/classes/case-studies/distributed-cache/index.md) · [Cache](../../2027.1/classes/caching/index.md)
+
+<div class="sdp" data-scenario="distributed-cache" data-mode="compact" data-height="420"></div>
+
+??? question "Perguntas para discutir"
+
+    1. Quantos nós são necessários por memória e por vazão e por que o caso termina com 50?
+    2. Perder 1 de 25 nós acrescenta ≈ 80 000 misses/s: o banco aguenta?
+    3. Por que o hashing consistente importa quando um nó entra ou sai?

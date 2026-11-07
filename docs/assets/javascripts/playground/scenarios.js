@@ -648,6 +648,372 @@
     solution: derive(dbf, { set: [["db", { shards: 2, replicasPerShard: 2, replication: "quorum", failoverS: 5 }]] })
   });
 
+  /* ════════════════════════════════════════════════════════════════════
+     BoxOffice (2027.1): the course's system, chapter by chapter and lab by
+     lab, with the names and numbers of the class pages and of the lab code
+     (docs/2027.1/hands-on/<n>/code/). group "boxoffice" puts them together
+     in the scenario menu.
+     ════════════════════════════════════════════════════════════════════ */
+  function BO(s) { s.group = "boxoffice"; add(s); }
+  function CASE(s) { s.group = "case"; add(s); }
+
+  /* ═══ boxoffice-onsale (class 2, estimation) ═══ */
+  var boOn = D([N("fans", "client", 80, 220, "fans"), N("gw", "apigw", 280, 220, "gateway", { replicas: 4 }),
+    N("inv", "app", 500, 220, "inventory", { replicas: 80 }),
+    N("db", "sql", 740, 220, "inventory-db", { capacity: 1600, latencyMs: 5, threads: 8, writeCost: 1 })],
+  [E("fans", "gw"), E("gw", "inv"), E("inv", "db")]);
+  BO({
+    id: "boxoffice-onsale",
+    title: T("BoxOffice: the 10:00 on-sale on one database", "BoxOffice: a abertura das 10:00 em um banco"),
+    brief: T("At 10:00 two million fans try to hold seats in the first minute: ≈ 33 000 holds/s against an inventory database that does 1 600/s at 100% (5 ms per hold, 8 connections) and ≈ 1 100/s at a sane 70%. Eighty inventory replicas do not help: every hold ends in the same database. Keep holds under 300 ms and put the excess in a line instead of turning it into errors.",
+      "Às 10:00 dois milhões de fãs tentam reservar assentos no primeiro minuto: ≈ 33 000 reservas/s contra um banco de inventário que faz 1 600/s a 100% (5 ms por reserva, 8 conexões) e ≈ 1 100/s a uns sensatos 70%. Oitenta réplicas do inventário não ajudam: toda reserva termina no mesmo banco. Mantenha as reservas abaixo de 300 ms e coloque o excesso numa fila em vez de transformá-lo em erros."),
+    settings: { profile: "load", targetRps: 1000, readRatio: 0, seed: 2027, chaos: "off" },
+    design: boOn,
+    events: [{ t: 60, type: "viral", factor: 33, durationS: 60, label: T("10:00: the sale opens (2 M fans in 60 s)", "10:00: abre a venda (2 M de fãs em 60 s)") }],
+    goals: [G("errorRate", "<", 1), G("p99", "<", 300)],
+    hints: [
+      T("Capacity of the database: c / S = 8 / 5 ms = 1 600 holds/s. Demand: 2 000 000 / 60 s ≈ 33 000/s. No number of replicas in front closes a 20× gap.", "Capacidade do banco: c / S = 8 / 5 ms = 1 600 reservas/s. Demanda: 2 000 000 / 60 s ≈ 33 000/s. Nenhuma quantidade de réplicas na frente fecha uma diferença de 20×."),
+      T("A waiting room: gateway → Message Queue → inventory workers that admit ≈ 1 000 holds/s (ρ ≈ 0.63 on the database). The consumer lag is how long a fan waits in line.", "Uma sala de espera: gateway → Message Queue → workers do inventário que admitem ≈ 1 000 reservas/s (ρ ≈ 0,63 no banco). O atraso do consumidor é quanto o fã espera na fila.")
+    ],
+    solution: derive(boOn, {
+      dropEdges: ["gw-inv"], dropNodes: ["inv"], move: [["db", 960, 220]],
+      nodes: [N("wr", "queue", 500, 220, "waiting room", { capacity: 50000 }), N("inv", "worker", 730, 220, "inventory", { replicas: 10, capacity: 100, latencyMs: 2, threads: 20 })],
+      edges: [E("gw", "wr"), E("wr", "inv"), E("inv", "db")]
+    })
+  });
+
+  /* ═══ boxoffice-pool (labs 1–2) ═══ */
+  var boPool = D([N("fans", "client", 80, 200, "k6 (stress.js)"), N("cat", "app", 320, 200, "catalog", { capacity: 800 }),
+    N("db", "sql", 580, 200, "catalog-db", { threads: 10, latencyMs: 18 })],
+  [E("fans", "cat"), E("cat", "db")]);
+  BO({
+    id: "boxoffice-pool",
+    title: T("BoxOffice lab 2: the knee of the connection pool", "BoxOffice lab 2: o joelho do pool de conexões"),
+    brief: T("Labs 1–2: one catalog (1 CPU) and its PostgreSQL, with the default pool of 10 connections. stress.js ramps up to 600 req/s: p99 is flat up to ≈ 300 req/s, 224 ms at 400 and 2 s at 500, while the CPU is far from full. Little's Law: 10 connections ÷ ≈ 20 ms per query ≈ 480 queries/s. Find the knee, then move it past 600 req/s.",
+      "Labs 1–2: um catalog (1 CPU) e seu PostgreSQL, com o pool padrão de 10 conexões. O stress.js sobe até 600 req/s: o p99 fica plano até ≈ 300 req/s, vai a 224 ms em 400 e a 2 s em 500, enquanto a CPU está longe de cheia. Lei de Little: 10 conexões ÷ ≈ 20 ms por consulta ≈ 480 consultas/s. Encontre o joelho e depois leve-o para além de 600 req/s."),
+    settings: { profile: "breakpoint", targetRps: 150, readRatio: 1, seed: 2002, chaos: "off" },
+    design: boPool,
+    goals: [G("breakingPoint", ">=", 550), G("p99", "<", 500)],
+    hints: [
+      T("Open the Report: the bottleneck is catalog-db, and the reason is connections, not CPU. Threads waiting for a connection (db_pending in the lab) queue behind 10 slots.", "Abra o Relatório: o gargalo é o catalog-db e o motivo são as conexões, não a CPU. Threads esperando uma conexão (db_pending no lab) fazem fila atrás de 10 vagas."),
+      T("Select catalog-db and raise its connections to 30, as the lab does with DB_POOL_SIZE=30: the knee moves to ≈ 1 400 queries/s and the catalog CPU (800 req/s) becomes the limit.", "Selecione o catalog-db e aumente as conexões para 30, como o lab faz com DB_POOL_SIZE=30: o joelho vai para ≈ 1 400 consultas/s e a CPU do catalog (800 req/s) vira o limite.")
+    ],
+    solution: derive(boPool, { set: [["db", { threads: 30 }]] })
+  });
+
+  /* ═══ boxoffice-edge (lab 3) ═══ */
+  var boEdge = D([N("fans", "client", 80, 200, "fans + a greedy key", { botShare: 2 }), N("edge", "lb", 290, 200, "edge (nginx)"),
+    N("cat", "app", 500, 200, "catalog"), N("db", "sql", 740, 200, "catalog-db", { threads: 30 })],
+  [E("fans", "edge"), E("edge", "cat"), E("cat", "db")]);
+  BO({
+    id: "boxoffice-edge",
+    title: T("BoxOffice lab 3: the edge (Nginx), replicas and limit_req", "BoxOffice lab 3: a borda (Nginx), réplicas e limit_req"),
+    brief: T("Lab 3: Nginx in front of the catalog. 400 req/s of fans, plus one greedy API key that sends twice that, on a single catalog replica (≈ 500 req/s). At t = 80 s a replica is stopped for 20 s (docker stop catalog-2). Keep p99 under 300 ms (the lab's capacity criterion) and errors under 1%.",
+      "Lab 3: Nginx na frente do catalog. 400 req/s de fãs, mais uma chave de API gananciosa que manda o dobro disso, numa única réplica do catalog (≈ 500 req/s). Em t = 80 s uma réplica é parada por 20 s (docker stop catalog-2). Mantenha o p99 abaixo de 300 ms (o critério de capacidade do lab) e os erros abaixo de 1%."),
+    settings: { profile: "load", targetRps: 400, readRatio: 0.95, seed: 2003, chaos: "off" },
+    design: boEdge,
+    events: [{ t: 80, type: "crash", target: "cat", durationS: 20, label: T("docker stop catalog-2 (20 s)", "docker stop catalog-2 (20 s)") }],
+    goals: [G("errorRate", "<", 1), G("p99", "<", 300)],
+    hints: [
+      T("Three catalog replicas (catalog-1/2/3 in the lab's compose) behind the edge. With max_fails=3 fail_timeout=10s Nginx stops sending to a dead replica after a few failures: connect a Health Check to the edge (3 s instead of 30 s).", "Três réplicas do catalog (catalog-1/2/3 no compose do lab) atrás da borda. Com max_fails=3 fail_timeout=10s o Nginx para de mandar para uma réplica morta após poucas falhas: conecte um Health Check à borda (3 s em vez de 30 s)."),
+      T("Replicas alone are not enough: with one stopped, 2 × 500 req/s cannot carry 1 200 req/s. The lab limits each key (limit_req 20 r/s, burst 40, 429): set a rate limit of 600 req/s on the edge. The heaviest client is cut first.", "Só réplicas não bastam: com uma parada, 2 × 500 req/s não aguentam 1 200 req/s. O lab limita cada chave (limit_req 20 r/s, burst 40, 429): defina um limite de 600 req/s na borda. O cliente mais pesado é cortado primeiro.")
+    ],
+    solution: derive(boEdge, { set: [["cat", { replicas: 3 }], ["edge", { rateLimit: 600 }]], nodes: [N("hc", "healthcheck", 290, 340, "max_fails")], edges: [E("hc", "edge")] })
+  });
+
+  /* ═══ boxoffice-gateway (lab 4) ═══ */
+  var boGw = D([N("fans", "client", 80, 220, "fans"), N("edge", "lb", 250, 220, "edge (nginx)"), N("gw", "apigw", 430, 220, "gateway"),
+    N("cat", "app", 650, 120, "catalog", { replicas: 3 }), N("db", "sql", 880, 120, "catalog-db", { threads: 30 }),
+    N("auth", "auth", 650, 330, "auth (BCrypt)", { capacity: 12.5, latencyMs: 80 })],
+  [E("fans", "edge"), E("edge", "gw"), E("gw", "cat", { filter: "read" }), E("cat", "db"),
+    E("gw", "auth", { filter: "write", timeoutMs: 5000, retries: 1 })]);
+  BO({
+    id: "boxoffice-gateway",
+    title: T("BoxOffice lab 4: the login rush at the gateway", "BoxOffice lab 4: a corrida de logins no gateway"),
+    brief: T("Lab 4: the gateway validates JSON Web Tokens (JWTs, signed with RS256) by itself, so only logins reach auth — and a login is expensive on purpose: BCrypt cost 10, ≈ 80 ms of CPU, so one auth replica does 10 logins/s at 80% CPU and collapses at 20/s. 200 req/s with 5% logins; at t = 60 s everybody logs in before the sale (3× for 30 s). The gateway waits 5 s and retries once.",
+      "Lab 4: o gateway valida JSON Web Tokens (JWTs, assinados com RS256) sozinho, então só logins chegam ao auth — e um login é caro de propósito: BCrypt custo 10, ≈ 80 ms de CPU, então uma réplica do auth faz 10 logins/s a 80% de CPU e desaba a 20/s. 200 req/s com 5% de logins; em t = 60 s todos fazem login antes da venda (3× por 30 s). O gateway espera 5 s e retenta uma vez."),
+    settings: { profile: "spike", targetRps: 200, readRatio: 0.95, seed: 2004, chaos: "off", spikeFactor: 3 },
+    design: boGw,
+    goals: [G("errorRate", "<", 1), G("p99", "<", 500)],
+    hints: [
+      T("ρ(auth) = 30 logins/s ÷ 12.5 per replica = 2.4 during the rush: size auth for the peak, not for the average (4 replicas → ρ ≈ 0.6).", "ρ(auth) = 30 logins/s ÷ 12.5 por réplica = 2,4 durante a corrida: dimensione o auth para o pico, não para a média (4 réplicas → ρ ≈ 0,6)."),
+      T("Look at the edge gateway → auth: a retry after a 5 s timeout lands on the same overloaded auth. Do not lower the BCrypt cost to go faster: it is what makes stolen hashes slow to crack.", "Observe a aresta gateway → auth: um retry após um timeout de 5 s cai no mesmo auth sobrecarregado. Não reduza o custo do BCrypt para ganhar velocidade: é ele que torna hashes roubados lentos de quebrar.")
+    ],
+    solution: derive(boGw, { set: [["auth", { replicas: 4 }]] })
+  });
+
+  /* ═══ boxoffice-cache (lab 5) ═══ */
+  var boCa = D([N("fans", "client", 80, 200, "fans"), N("edge", "lb", 270, 200, "edge (nginx)"), N("cat", "app", 470, 200, "catalog", { replicas: 4 }),
+    N("db", "sql", 740, 200, "catalog-db", { capacity: 1000, threads: 30 })],
+  [E("fans", "edge"), E("edge", "cat"), E("cat", "db")]);
+  BO({
+    id: "boxoffice-cache",
+    title: T("BoxOffice lab 5: cache-aside on Redis", "BoxOffice lab 5: cache-aside no Redis"),
+    brief: T("Lab 5: event pages are read ~100× more than they change. 1 500 req/s (the top of the lab's sweep) through the edge and four catalog replicas: the replicas are fine, catalog-db is not. Add Redis with cache-aside (event TTL 60 s). At t = 100 s Redis restarts empty: does the database survive the stampede?",
+      "Lab 5: as páginas de eventos são lidas ~100× mais do que mudam. 1 500 req/s (o topo da varredura do lab) pela borda e quatro réplicas do catalog: as réplicas aguentam, o catalog-db não. Adicione o Redis com cache-aside (TTL de evento de 60 s). Em t = 100 s o Redis reinicia vazio: o banco sobrevive à avalanche?"),
+    settings: { profile: "load", targetRps: 1500, readRatio: 0.99, seed: 2005, chaos: "off" },
+    design: boCa,
+    events: [{ t: 100, type: "flush", targetType: "cache", label: T("Redis restarts empty", "o Redis reinicia vazio") }],
+    goals: [G("p99", "<", 200), G("errorRate", "<", 0.5)],
+    hints: [
+      T("catalog → Cache (redis) → catalog-db. DB reads = reads × (1 − hit ratio): with the lab's ≈ 80% hits, 1 500 req/s become ≈ 300 queries/s. The cache refills within one TTL (60 s).", "catalog → Cache (redis) → catalog-db. Leituras no banco = leituras × (1 − taxa de acerto): com os ≈ 80% de acertos do lab, 1 500 req/s viram ≈ 300 consultas/s. O cache se reenche em um TTL (60 s)."),
+      T("After the restart every key misses at once. Turn on coalescing: it is the lab's stampede lock (SET NX PX 2000), so one request per key goes to the database while the others wait for it.", "Depois do reinício toda chave erra ao mesmo tempo. Ligue a coalescência: é a trava contra stampede do lab (SET NX PX 2000), então uma requisição por chave vai ao banco enquanto as outras esperam por ela.")
+    ],
+    solution: derive(boCa, { dropEdges: ["cat-db"], move: [["db", 960, 200]], nodes: [N("redis", "cache", 720, 200, "redis", { hitRatio: 0.8, cacheWarmS: 60, coalescing: true })], edges: [E("cat", "redis"), E("redis", "db")] })
+  });
+
+  /* ═══ boxoffice-read-your-writes (lab 6) ═══ */
+  var boRyw = D([N("fans", "client", 80, 200, "fans"), N("gw", "apigw", 280, 200, "gateway"), N("inv", "app", 480, 200, "inventory", { replicas: 2 }),
+    N("db", "dbcluster", 720, 200, "inventory-db", { replicasPerShard: 1, replication: "async", readsFrom: "followers", applyDelayS: 1, failoverS: 30 })],
+  [E("fans", "gw"), E("gw", "inv"), E("inv", "db")]);
+  BO({
+    id: "boxoffice-read-your-writes",
+    title: T("BoxOffice lab 6: the replica that lies", "BoxOffice lab 6: a réplica que mente"),
+    brief: T("Lab 6: inventory writes holds to the primary and reads them back from a replica that applies the log 1 s late (REPLICA_DELAY=1s). 200 req/s, half holds and half \"my holds\" reads: a fan who has just held a seat does not see it. At t = 90 s the primary dies and the replica is promoted after 30 s: the holds still inside the lag are gone.",
+      "Lab 6: o inventory grava reservas no primário e as relê de uma réplica que aplica o log 1 s atrasada (REPLICA_DELAY=1s). 200 req/s, metade reservas e metade leituras de \"minhas reservas\": um fã que acabou de reservar um assento não o vê. Em t = 90 s o primário morre e a réplica é promovida após 30 s: as reservas ainda dentro do atraso somem."),
+    settings: { profile: "load", targetRps: 200, readRatio: 0.5, seed: 2006, chaos: "off" },
+    design: boRyw,
+    events: [{ t: 90, type: "primaryFail", target: "db", shard: 0, label: T("the primary of inventory-db dies", "o primário de inventory-db morre") }],
+    goals: [G("staleReads", "<", 1), G("lostWrites", "<", 1)],
+    hints: [
+      T("Read your writes: send the reads that follow a write to the primary (Reads from = primary), as the lab does for \"my holds\".", "Leia o que escreveu: mande ao primário as leituras que seguem uma escrita (Leituras de = primary), como o lab faz em \"minhas reservas\"."),
+      T("Lost holds ≈ write rate × lag. Replication sync (remote_apply in the lab) acknowledges a hold only after the replica has applied it: nothing is lost, and every hold now waits the 1 s delay — compare the write p99 in the Report (the lab measured 2 s per iteration).", "Reservas perdidas ≈ taxa de escrita × atraso. Replicação sync (remote_apply no lab) só confirma uma reserva depois que a réplica a aplicou: nada se perde e toda reserva passa a esperar o atraso de 1 s — compare o p99 de escrita no Relatório (o lab mediu 2 s por iteração).")
+    ],
+    solution: derive(boRyw, { set: [["db", { replication: "sync", readsFrom: "primary" }]] })
+  });
+
+  /* ═══ boxoffice-outbox (lab 7) ═══ */
+  var boOb = D([N("fans", "client", 80, 200, "fans"), N("gw", "apigw", 260, 200, "gateway"), N("ord", "app", 460, 200, "order"),
+    N("db", "sql", 700, 100, "order-db", { threads: 10 }),
+    N("nt", "notifications", 700, 300, "notification", { replicas: 3, capacity: 20, latencyMs: 50, threads: 1, queueLimit: 5 })],
+  [E("fans", "gw"), E("gw", "ord"), E("ord", "db"), E("ord", "nt")]);
+  BO({
+    id: "boxoffice-outbox",
+    title: T("BoxOffice lab 7: the outbox and Kafka", "BoxOffice lab 7: o outbox e o Kafka"),
+    brief: T("Lab 7: today order calls notification synchronously, and notification sends each e-mail in 50 ms with 3 consumers: at most 60 e-mails/s. orders-load.js sends 50 orders/s; at t = 60 s a burst of 200/s lasts 30 s. The buyer waits for the e-mail and fails when it cannot be sent. Keep orders under 200 ms and let the e-mails catch up within a minute.",
+      "Lab 7: hoje o order chama o notification de forma síncrona e o notification envia cada e-mail em 50 ms com 3 consumidores: no máximo 60 e-mails/s. O orders-load.js manda 50 pedidos/s; em t = 60 s uma rajada de 200/s dura 30 s. O comprador espera o e-mail e falha quando ele não pode ser enviado. Mantenha os pedidos abaixo de 200 ms e deixe os e-mails se atualizarem em até um minuto."),
+    settings: { profile: "spike", targetRps: 50, readRatio: 0, seed: 2007, chaos: "off", spikeFactor: 4 },
+    design: boOb,
+    goals: [G("errorRate", "<", 0.5), G("p99", "<", 200), G("consumerLag", "<", 60)],
+    hints: [
+      T("Write the order and an OrderPlaced row in the same transaction (the outbox); the relay publishes it to Kafka (order → kafka order-events, 6 partitions) and notification consumes it (kafka → notification). The buyer no longer waits for the e-mail.", "Grave o pedido e uma linha OrderPlaced na mesma transação (o outbox); o relay a publica no Kafka (order → kafka order-events, 6 partições) e o notification a consome (kafka → notification). O comprador não espera mais o e-mail."),
+      T("Lag = backlog ÷ drain rate. With 3 consumers × 20/s the burst leaves ≈ 4 000 messages (≈ 70 s of lag). Raise the consumers to 6 — the number of partitions: more than 6 would sit idle.", "Atraso = backlog ÷ taxa de drenagem. Com 3 consumidores × 20/s a rajada deixa ≈ 4 000 mensagens (≈ 70 s de atraso). Aumente os consumidores para 6 — o número de partições: mais de 6 ficariam ociosos.")
+    ],
+    solution: derive(boOb, {
+      dropEdges: ["ord-nt"], set: [["nt", { replicas: 6 }]], move: [["nt", 920, 300]],
+      nodes: [N("k", "kafka", 700, 300, "order-events", { replicas: 1, partitions: 6 })], edges: [E("ord", "k"), E("k", "nt")]
+    })
+  });
+
+  /* ═══ boxoffice-tickets-pdf (classes 5 and 8: workers behind a queue) ═══ */
+  var boPdf = D([N("fans", "client", 80, 200, "buyers"), N("gw", "apigw", 260, 200, "gateway"), N("ord", "app", 450, 200, "order", { replicas: 2 }),
+    N("q", "queue", 650, 200, "ticket-jobs"), N("pdf", "worker", 850, 200, "ticket-pdf", { replicas: 20, capacity: 2.5, latencyMs: 350, sigma: 0.3, threads: 1, queueLimit: 2 }),
+    N("obj", "objstore", 1060, 200, "tickets (PDF)")],
+  [E("fans", "gw"), E("gw", "ord"), E("ord", "q"), E("q", "pdf"), E("pdf", "obj")]);
+  BO({
+    id: "boxoffice-tickets-pdf",
+    title: T("BoxOffice: how many PDF workers?", "BoxOffice: quantos workers de PDF?"),
+    brief: T("After the on-sale, 30 000 orders arrive in 3 minutes (≈ 167/s). Each ticket is rendered to a PDF in 0.4 s by a worker that takes jobs from a queue. With 20 workers (50 PDFs/s) the backlog reaches ≈ 21 000 jobs and drains in ≈ 7 minutes: fans wait for their tickets. Little's Law: busy workers = 167 × 0.4 ≈ 67. Deliver every ticket within a minute.",
+      "Depois da abertura, 30 000 pedidos chegam em 3 minutos (≈ 167/s). Cada ingresso vira um PDF em 0,4 s num worker que tira jobs de uma fila. Com 20 workers (50 PDFs/s) o backlog chega a ≈ 21 000 jobs e drena em ≈ 7 minutos: os fãs esperam seus ingressos. Lei de Little: workers ocupados = 167 × 0,4 ≈ 67. Entregue todo ingresso em até um minuto."),
+    settings: { profile: "load", targetRps: 167, readRatio: 0, seed: 2008, chaos: "off" },
+    design: boPdf,
+    goals: [G("consumerLag", "<", 60), G("p99", "<", 300), G("errorRate", "<", 0.5)],
+    hints: [
+      T("Backlog grows at (167 − 50) jobs/s; lag = backlog ÷ drain rate. The buyer does not wait for the PDF (the queue answers in ms): only the lag fails.", "O backlog cresce a (167 − 50) jobs/s; atraso = backlog ÷ taxa de drenagem. O comprador não espera o PDF (a fila responde em ms): só o atraso falha."),
+      T("Size for ρ ≈ 0.7: 67 busy ÷ 0.7 ≈ 95 workers. (The compute class does the same with 100 orders/s × 0.8 s = 80 workers busy.)", "Dimensione para ρ ≈ 0,7: 67 ocupados ÷ 0,7 ≈ 95 workers. (A aula de computação faz o mesmo com 100 pedidos/s × 0,8 s = 80 workers ocupados.)")
+    ],
+    solution: derive(boPdf, { set: [["pdf", { replicas: 95 }]] })
+  });
+
+  /* ═══ boxoffice-payment (lab 9) ═══ */
+  var boPay = D([N("fans", "client", 80, 220, "fans (pay + browse)"), N("gw", "apigw", 260, 220, "gateway"),
+    N("ord", "app", 460, 220, "order", { threads: 50 }), N("db", "sql", 700, 110, "order-db"),
+    N("pay", "app", 700, 330, "payment", { latencyMs: 10 }), N("psp", "payment", 930, 330, "psp", { latencyMs: 200 })],
+  [E("fans", "gw"), E("gw", "ord"), E("ord", "db"), E("ord", "pay", { filter: "write" }), E("pay", "psp", { timeoutMs: 2000 })]);
+  BO({
+    id: "boxoffice-payment",
+    title: T("BoxOffice lab 9: payment turns slow", "BoxOffice lab 9: o payment fica lento"),
+    brief: T("Lab 9: pay-under-chaos.js sends 20 payments/s and 20 browse requests/s to order, which has 50 Tomcat threads. At t = 60 s Toxiproxy adds 3 s to every call to payment (the provider is slow, as at 10:02 in the story). Nothing is down, but 20 payments/s × 3 s = 60 calls in flight > 50 threads: browsing, which never touches the provider, dies too. Protect order the way the lab does.",
+      "Lab 9: o pay-under-chaos.js manda 20 pagamentos/s e 20 requisições de navegação/s ao order, que tem 50 threads do Tomcat. Em t = 60 s o Toxiproxy acrescenta 3 s a toda chamada ao payment (o provedor está lento, como às 10:02 na história). Nada caiu, mas 20 pagamentos/s × 3 s = 60 chamadas em andamento > 50 threads: a navegação, que nunca toca o provedor, morre junto. Proteja o order como o lab faz."),
+    settings: { profile: "load", targetRps: 40, readRatio: 0.5, seed: 2009, chaos: "off" },
+    design: boPay,
+    events: [{ t: 60, type: "slow", target: "pay", factor: 300, durationS: 60, label: T("Toxiproxy: +3 s on every call to payment", "Toxiproxy: +3 s em toda chamada ao payment") }],
+    goals: [G("p99", "<", 1500), G("errorRate", "<", 25)],
+    hints: [
+      T("Select the edge order → payment and set the lab's timeout (1 000 ms), 2 retries (3 attempts) with exponential backoff and jitter, and the circuit breaker (it stays open 10 s, as in the lab).", "Selecione a aresta order → payment e defina o timeout do lab (1 000 ms), 2 retries (3 tentativas) com backoff exponencial e jitter, e o circuit breaker (fica aberto 10 s, como no lab)."),
+      T("Add the bulkhead: 0.2 of the threads (10 of 50, as in the lab). Payments then fail fast during the incident (half the requests for 60 s, ≈ 20% of the run: the price of failing fast), and browsing keeps its threads: p99 drops from seconds to under 1.5 s.", "Adicione o bulkhead: 0,2 das threads (10 de 50, como no lab). Os pagamentos então falham rápido durante o incidente (metade das requisições por 60 s, ≈ 20% da execução: o preço de falhar rápido) e a navegação mantém suas threads: o p99 cai de segundos para menos de 1,5 s.")
+    ],
+    solution: derive(boPay, { edgeParams: [["ord-pay", { timeoutMs: 1000, retries: 2, backoff: "exp+jitter", circuitBreaker: true, bulkhead: 0.2 }]] })
+  });
+
+  /* ═══ boxoffice-hpa (lab 10) ═══ */
+  var boHpa = D([N("fans", "client", 80, 220, "fans"), N("ing", "ingress", 290, 220, "traefik", { replicas: 1 }),
+    N("cat", "microservice", 500, 220, "catalog", { replicas: 2, capacity: 500, autoscale: true, minReplicas: 2, maxReplicas: 8, targetUtil: 0.6, warmupS: 40 }),
+    N("redis", "cache", 700, 160, "redis", { hitRatio: 0.9 }), N("db", "sql", 700, 300, "db (StatefulSet)", { threads: 30 })],
+  [E("fans", "ing"), E("ing", "cat"), E("cat", "redis"), E("redis", "db")],
+  [K("kind", 400, 90, 400, 280, "kind", { nodes: 2, podsPerNode: 6 })]);
+  BO({
+    id: "boxoffice-hpa",
+    title: T("BoxOffice lab 10: the HPA arrives late", "BoxOffice lab 10: o HPA chega atrasado"),
+    brief: T("Lab 10: the catalog runs on kind (2 workers) with 2 pods and an HPA: min 2, max 8, target 60% CPU; a pod does ≈ 500 req/s and needs ≈ 40 s to become ready. 300 req/s before the sale; at t = 60 s catalog-hpa.js pushes 1 000 req/s. The HPA looks every 15 s, the new pods start 40 s later, and meanwhile 2 pods at 100% drop requests.",
+      "Lab 10: o catalog roda no kind (2 workers) com 2 pods e um HPA: mín. 2, máx. 8, alvo de 60% de CPU; um pod faz ≈ 500 req/s e precisa de ≈ 40 s para ficar pronto. 300 req/s antes da venda; em t = 60 s o catalog-hpa.js empurra 1 000 req/s. O HPA olha a cada 15 s, os pods novos sobem 40 s depois e enquanto isso 2 pods a 100% descartam requisições."),
+    settings: { profile: "load", targetRps: 300, readRatio: 0.99, seed: 2010, chaos: "off" },
+    design: boHpa,
+    events: [{ t: 60, type: "viral", factor: 3.33, durationS: 90, label: T("the sale ramp: 1 000 req/s", "a rampa da venda: 1 000 req/s") }],
+    goals: [G("errorRate", "<", 0.5), G("p99", "<", 500)],
+    hints: [
+      T("Reactive autoscaling is late by the decision period plus the startup time (15 s + 40 s here, minutes in the lab). The load arrives at a known time: scale before it.", "O autoscaling reativo atrasa o período de decisão mais o tempo de subida (15 s + 40 s aqui, minutos no lab). A carga chega numa hora conhecida: escale antes dela."),
+      T("Raise the HPA minimum to 4 pods (a scheduled pre-scale at 09:45, as the course recommends): 1 000 req/s ÷ (4 × 500) = 50%, below the 60% target. The kind cluster has room: 2 nodes × 6 pods.", "Aumente o mínimo do HPA para 4 pods (um pré-escalonamento agendado às 09:45, como o curso recomenda): 1 000 req/s ÷ (4 × 500) = 50%, abaixo do alvo de 60%. O cluster kind tem espaço: 2 nós × 6 pods.")
+    ],
+    solution: derive(boHpa, { set: [["cat", { replicas: 4, minReplicas: 4 }]] })
+  });
+
+  /* ═══ boxoffice-canary (lab 11) ═══ */
+  var boCn = D([N("fans", "client", 80, 220, "fans"), N("ing", "ingress", 290, 220, "ingress"),
+    N("catalog", "microservice", 540, 220, "catalog v2", { replicas: 4 }), N("db", "sql", 800, 220, "catalog-db")],
+  [E("fans", "ing"), E("ing", "catalog"), E("catalog", "db")],
+  [K("prod", 410, 100, 480, 300, "prod", { nodes: 3, podsPerNode: 4 })]);
+  BO({
+    id: "boxoffice-canary",
+    title: T("BoxOffice lab 11: a bad release, all at once or as a canary", "BoxOffice lab 11: uma versão ruim, de uma vez ou como canário"),
+    brief: T("Lab 11: release v2 of the catalog has a bug: 30% of its answers fail. Today it replaces all 4 pods at once; Argo CD notices nothing and the analysis rolls it back after about a minute. 600 req/s; v2 goes live at t = 60 s. Ship it so that the same bug costs a fraction of the errors.",
+      "Lab 11: a versão v2 do catalog tem um bug: 30% das respostas falham. Hoje ela substitui os 4 pods de uma vez; o Argo CD não percebe nada e a análise a reverte depois de cerca de um minuto. 600 req/s; a v2 entra em t = 60 s. Publique-a de modo que o mesmo bug custe uma fração dos erros."),
+    settings: { profile: "load", targetRps: 600, readRatio: 0.95, seed: 2011, chaos: "off" },
+    design: boCn,
+    events: [{ t: 60, type: "badDeploy", target: "catalog", factor: 0.3, durationS: 60, label: T("v2 goes live (30% errors) until the rollback", "a v2 entra (30% de erros) até o rollback") }],
+    goals: [G("errorRate", "<", 5), G("p99", "<", 300)],
+    hints: [
+      T("Argo Rollouts' first step sends 25% of the traffic to v2 and pauses 2 minutes while the analysis (error ratio < 1%, p99 < 0.5 s, every 30 s) decides. Draw it: the ingress splits by capacity, so 3 pods of v1 (a node \"catalog v1\") and 1 pod of v2 give 25%.", "O primeiro passo do Argo Rollouts manda 25% do tráfego para a v2 e pausa 2 minutos enquanto a análise (taxa de erro < 1%, p99 < 0,5 s, a cada 30 s) decide. Desenhe isso: o ingress divide pela capacidade, então 3 pods da v1 (um nó \"catalog v1\") e 1 pod da v2 dão 25%."),
+      T("Errors ≈ share of v2 × 30% × time until the rollback: the canary does not prevent the bug, it shrinks its blast radius.", "Erros ≈ fatia da v2 × 30% × tempo até o rollback: o canário não impede o bug, ele reduz o raio de impacto.")
+    ],
+    solution: derive(boCn, {
+      set: [["catalog", { replicas: 1 }]], move: [["catalog", 540, 300]],
+      nodes: [N("stable", "microservice", 540, 150, "catalog v1", { replicas: 3 })], edges: [E("ing", "stable"), E("stable", "db")]
+    })
+  });
+
+  /* ═══ boxoffice-observability (lab 8) ═══ */
+  var boObs = D([N("fans", "client", 80, 200, "k6 (catalog-otel.js)"), N("edge", "lb", 260, 200, "edge (nginx)"), N("gw", "apigw", 440, 200, "gateway"),
+    N("cat", "app", 630, 200, "catalog", { replicas: 3 }), N("redis", "cache", 820, 120, "redis", { hitRatio: 0.8 }), N("db", "sql", 1020, 200, "catalog-db", { threads: 30 })],
+  [E("fans", "edge"), E("edge", "gw"), E("gw", "cat"), E("cat", "redis"), E("redis", "db", { timeoutMs: 1000 })]);
+  BO({
+    id: "boxoffice-observability",
+    title: T("BoxOffice lab 8: the database stops, does anybody know?", "BoxOffice lab 8: o banco para, alguém sabe?"),
+    brief: T("Lab 8: 200 req/s on the catalog (SLO 99.5% over 28 days). At t = 60 s the database is stopped; Redis still answers the hits, every miss fails. Nobody sees it: no service sends metrics (utilization shows \"?\"), there are no traces and no alert, so the repair takes 100 s. Wire the observability stack the lab installs (OpenTelemetry → LGTM) and let an alert shorten the repair.",
+      "Lab 8: 200 req/s no catalog (SLO de 99,5% em 28 dias). Em t = 60 s o banco é parado; o Redis ainda responde os acertos, todo miss falha. Ninguém vê: nenhum serviço manda métricas (a utilização aparece como \"?\"), não há traces nem alerta, então o reparo leva 100 s. Monte a pilha de observabilidade que o lab instala (OpenTelemetry → LGTM) e deixe um alerta encurtar o reparo."),
+    settings: { profile: "load", targetRps: 200, readRatio: 0.99, seed: 2012, chaos: "off" },
+    godMode: false,
+    design: boObs,
+    events: [{ t: 60, type: "crash", target: "db", durationS: 100, label: T("docker compose stop db", "docker compose stop db") }],
+    goals: [G("observed", ">=", 100), G("tracing", ">=", 1), G("availability", ">=", 90)],
+    hints: [
+      T("The OpenTelemetry agent runs in every service: connect Metrics to the edge, the gateway, the catalog, Redis and the database, and add Tracing and Logs to the catalog.", "O agente OpenTelemetry roda em todo serviço: conecte o Metrics à borda, ao gateway, ao catalog, ao Redis e ao banco, e adicione Tracing e Logs ao catalog."),
+      T("Connect Alerting to Metrics (the lab's burn-rate rules, 14.4× and 6×): people start repairing sooner and the outage is halved. Availability ≈ 1 − miss share × outage ÷ run.", "Conecte o Alerting ao Metrics (as regras de burn rate do lab, 14,4× e 6×): as pessoas começam a reparar antes e a queda cai pela metade. Disponibilidade ≈ 1 − fração de misses × queda ÷ execução.")
+    ],
+    solution: derive(boObs, {
+      nodes: [N("m", "metrics", 630, 360, "metrics (Prometheus)"), N("tr", "tracing", 630, 60, "traces (Tempo)"), N("lg", "logs", 820, 300, "logs (Loki)"), N("al", "alerting", 440, 360, "alerts (Grafana)")],
+      edges: [E("edge", "m"), E("gw", "m"), E("cat", "m"), E("redis", "m"), E("db", "m"), E("cat", "tr"), E("cat", "lg"), E("al", "m")]
+    })
+  });
+
+  /* ═══ boxoffice-assistant (lab 12) ═══ */
+  var boAi = D([N("fans", "client", 80, 220, "fans"), N("gw", "apigw", 260, 220, "gateway"), N("asst", "orchestrator", 460, 220, "assistant", { steps: 4 }),
+    N("llm", "llmgw", 700, 90, "LiteLLM → local model", { quota: 1, latencyMs: 3000, tokensPerReq: 900, pricePer1k: 0.003 }),
+    N("tools", "toolreg", 700, 220, "tools"), N("cat", "app", 920, 170, "catalog"), N("inv", "app", 920, 270, "inventory"),
+    N("mem", "memory", 700, 360, "retrieval (k = 5)"), N("vec", "vectordb", 920, 380, "pgvector")],
+  [E("fans", "gw"), E("gw", "asst"), E("asst", "llm"), E("asst", "tools"), E("tools", "cat"), E("tools", "inv"), E("asst", "mem"), E("mem", "vec")]);
+  BO({
+    id: "boxoffice-assistant",
+    title: T("BoxOffice lab 12: the seat assistant", "BoxOffice lab 12: o assistente de assentos"),
+    brief: T("Lab 12: fans ask \"two seats under R$ 300 on Saturday?\". The assistant runs up to MAX_STEPS = 4 model calls per question, reads the catalog and the seat map through tools and retrieves 5 passages from pgvector. The local model answers one call in ≈ 3 s and takes ≈ 1 call/s; at 0.5 questions/s the agent loop already needs 2 calls/s, and nothing screens what fans type.",
+      "Lab 12: fãs perguntam \"dois assentos abaixo de R$ 300 no sábado?\". O assistente faz até MAX_STEPS = 4 chamadas ao modelo por pergunta, lê o catálogo e o mapa de assentos por ferramentas e recupera 5 trechos do pgvector. O modelo local responde uma chamada em ≈ 3 s e aceita ≈ 1 chamada/s; com 0,5 pergunta/s o laço do agente já precisa de 2 chamadas/s e nada filtra o que os fãs digitam."),
+    settings: { profile: "load", targetRps: 0.5, readRatio: 1, seed: 2013, chaos: "off" },
+    design: boAi,
+    goals: [G("errorRate", "<", 1), G("p99", "<", 25000), G("unsafeRate", "<", 0.1)],
+    hints: [
+      T("Calls to the model = questions × steps. Fewer steps (retrieve first, then answer: 2 calls) and a semantic cache for repeated questions lower the load; LiteLLM's fallback sends the overflow to the second model instead of failing.", "Chamadas ao modelo = perguntas × passos. Menos passos (recuperar primeiro e depois responder: 2 chamadas) e um cache semântico para perguntas repetidas reduzem a carga; o fallback do LiteLLM manda o excesso para o segundo modelo em vez de falhar."),
+      T("Put a Safety Mesh between the gateway and the assistant: the lab caps the input (MAX_INPUT_CHARS = 2 000) and allows only read-only tools; the mesh is where those checks run on every prompt.", "Coloque um Safety Mesh entre o gateway e o assistente: o lab limita a entrada (MAX_INPUT_CHARS = 2 000) e só permite ferramentas de leitura; o mesh é onde essas verificações rodam em todo prompt.")
+    ],
+    solution: derive(boAi, {
+      dropEdges: ["gw-asst"], set: [["asst", { steps: 2 }], ["llm", { semanticCacheHit: 0.2, fallbackModel: true }]],
+      move: [["asst", 590, 220], ["llm", 800, 90], ["tools", 800, 220], ["cat", 1010, 170], ["inv", 1010, 270], ["mem", 800, 360], ["vec", 1010, 380]],
+      nodes: [N("safe", "safety", 420, 220, "guardrails")], edges: [E("gw", "safe"), E("safe", "asst")]
+    })
+  });
+
+  /* ═══ boxoffice-shared-llm (lab 13, class 14) ═══ */
+  var boSh = D([N("fans", "client", 80, 140, "fans"), N("ci", "scheduler", 80, 320, "PR reviews + fix agents", { jobs: 100, everyS: 120, spreadS: 10 }),
+    N("asst", "orchestrator", 320, 140, "assistant", { steps: 3 }), N("rev", "orchestrator", 320, 320, "CI agents", { steps: 6 }),
+    N("llm", "llmgw", 580, 230, "LLM gateway", { quota: 10 })],
+  [E("fans", "asst"), E("ci", "rev"), E("asst", "llm"), E("rev", "llm")]);
+  BO({
+    id: "boxoffice-shared-llm",
+    title: T("BoxOffice lab 13: build agents share the fans' LLM quota", "BoxOffice lab 13: os agentes de build dividem a cota de LLM dos fãs"),
+    brief: T("Lab 13 and class 14: the same LLM gateway (10 calls/s) serves the fans' assistant (1 question/s × 3 steps) and the continuous integration (CI) agents: a batch of 100 pull-request reviews and fix agents (6 turns each) starts every 2 minutes within 10 s: 600 model calls in 10 s. When the batch lands, fans get 429s. Keep the fans' errors under 1% without buying a bigger quota.",
+      "Lab 13 e aula 14: o mesmo LLM gateway (10 chamadas/s) atende o assistente dos fãs (1 pergunta/s × 3 passos) e os agentes de integração contínua (CI, continuous integration): um lote de 100 revisões de pull request e agentes de correção (6 turnos cada) começa a cada 2 minutos em 10 s: 600 chamadas ao modelo em 10 s. Quando o lote chega, os fãs recebem 429. Mantenha os erros dos fãs abaixo de 1% sem comprar uma cota maior."),
+    settings: { profile: "load", targetRps: 1, readRatio: 1, seed: 2014, chaos: "off" },
+    design: boSh,
+    goals: [G("errorRate", "<", 1), G("consumerLag", "<", 300)],
+    hints: [
+      T("CI does not need an answer in seconds: put a Message Queue in front of the CI agents (scheduler → queue → CI agents) and give the agents a fixed concurrency, so they drain the batch at the pace the quota leaves free.", "A CI não precisa de resposta em segundos: coloque uma Message Queue antes dos agentes de CI (scheduler → fila → agentes de CI) e dê aos agentes uma concorrência fixa, para que drenem o lote no ritmo que a cota deixa livre."),
+      T("The lab caps each fix agent (25 turns, US$ 1.50): fewer turns per job is the other lever. A separate key and quota per workload is the gateway's version of a bulkhead.", "O lab limita cada agente de correção (25 turnos, US$ 1,50): menos turnos por job é a outra alavanca. Uma chave e uma cota separadas por carga de trabalho são a versão de bulkhead do gateway.")
+    ],
+    solution: derive(boSh, {
+      dropEdges: ["ci-rev"], set: [["rev", { replicas: 1, threads: 6 }]], move: [["rev", 420, 320]],
+      nodes: [N("q", "queue", 240, 320, "ci-jobs")], edges: [E("ci", "q"), E("q", "rev")]
+    })
+  });
+
+  /* ═══ ticketing (case study) ═══ */
+  var tk = D([N("fans", "client", 80, 220, "fans"), N("lb", "lb", 270, 220), N("sale", "app", 470, 220, "sale", { replicas: 40 }),
+    N("db", "sql", 720, 140, "inventory-db"), N("psp", "payment", 720, 320, "psp", { latencyMs: 2000 })],
+  [E("fans", "lb"), E("lb", "sale"), E("sale", "db"), E("sale", "psp", { filter: "write" })]);
+  CASE({
+    id: "ticketing",
+    title: T("Ticketing: 2 M fans, 60 k seats", "Venda de ingressos: 2 M de fãs, 60 mil assentos"),
+    brief: T("The case study: 2 million fans arrive in 120 s for 60 000 seats. Each fan joins (≈ 17 000 joins/s) and then polls its position every 10 s (≈ 200 000 polls/s); the payment provider takes 2 s. With no line, ≈ 200 000 req/s hit 40 sale servers and one inventory database. Keep the hold p99 under 300 ms.",
+      "O estudo de caso: 2 milhões de fãs chegam em 120 s para 60 000 assentos. Cada fã entra na fila (≈ 17 000 entradas/s) e depois consulta sua posição a cada 10 s (≈ 200 000 consultas/s); o provedor de pagamento leva 2 s. Sem fila, ≈ 200 000 req/s atingem 40 servidores de venda e um banco de inventário. Mantenha o p99 da reserva abaixo de 300 ms."),
+    settings: { profile: "load", targetRps: 217000, readRatio: 0.92, seed: 2015, chaos: "off" },
+    design: tk,
+    goals: [G("errorRate", "<", 1), G("p99", "<", 300)],
+    hints: [
+      T("Polls are the same answer for everybody in a second: a CDN with a 1 s micro-cache (hit ≈ 98%) in front of a small status service takes them.", "As consultas de posição são a mesma resposta para todos durante um segundo: uma CDN com micro-cache de 1 s (acerto ≈ 98%) na frente de um pequeno serviço de status as absorve."),
+      T("Joins go to a waiting room (gateway → Message Queue, filter = write); shoppers are admitted at ≈ 33 fans/s (10 000 active × 300 s each). Each admitted shopper holds seats and pays: ≈ 33/s × 2 s ≈ 70 calls in flight to the provider.", "As entradas vão para uma sala de espera (gateway → Message Queue, filtro = write); compradores são admitidos a ≈ 33 fãs/s (10 000 ativos × 300 s cada). Cada comprador admitido reserva assentos e paga: ≈ 33/s × 2 s ≈ 70 chamadas em andamento no provedor.")
+    ],
+    solution: D([
+      N("fans", "client", 80, 220, "fans"), N("cdn", "cdn", 260, 220, "", { hitRatio: 0.98, respKB: 1 }), N("gw", "apigw", 440, 220, "gateway", { replicas: 3 }),
+      N("st", "app", 650, 110, "position status", { replicas: 12 }), N("cache", "cache", 860, 110, "queue state"),
+      N("wr", "queue", 650, 330, "waiting room"), N("shop", "worker", 860, 330, "shoppers", { replicas: 4, capacity: 8.3, latencyMs: 5, threads: 40 }),
+      N("db", "sql", 1080, 220, "inventory-db"), N("psp", "payment", 1080, 400, "psp", { latencyMs: 2000 })
+    ], [
+      E("fans", "cdn"), E("cdn", "gw"), E("gw", "st", { filter: "read" }), E("st", "cache"),
+      E("gw", "wr", { filter: "write" }), E("wr", "shop"), E("shop", "db"), E("shop", "psp")
+    ])
+  });
+
+  /* ═══ distributed-cache (case study) ═══ */
+  var dc = D([N("apps", "client", 80, 200, "app servers", { zipfS: 0 }), N("cache", "cache", 340, 200, "cache cluster", { replicas: 17, capacity: 80000, hitRatio: 0.95, cacheWarmS: 600 }),
+    N("db", "nosql", 620, 200, "database", { replicas: 32 })],
+  [E("apps", "cache"), E("cache", "db")]);
+  CASE({
+    id: "distributed-cache",
+    title: T("Distributed cache: memory or throughput?", "Cache distribuído: memória ou vazão?"),
+    brief: T("The case study: 1 billion items of 1 KB, 2 million reads/s, 95% hits. 1.1 TB fits in 17 nodes of 64 GB — but one node serves 80 000 ops/s, so 17 nodes give 1.36 M ops/s. Behind the cache, the database takes the misses: 100 000 req/s at 95%, twice that at 90%. Serve 2 M reads/s with p99 under 10 ms.",
+      "O estudo de caso: 1 bilhão de itens de 1 KB, 2 milhões de leituras/s, 95% de acertos. 1,1 TB cabe em 17 nós de 64 GB — mas um nó atende 80 000 ops/s, então 17 nós dão 1,36 M ops/s. Atrás do cache, o banco recebe os misses: 100 000 req/s a 95%, o dobro a 90%. Atenda 2 M leituras/s com p99 abaixo de 10 ms."),
+    settings: { profile: "load", targetRps: 2000000, readRatio: 1, seed: 2016, chaos: "off" },
+    design: dc,
+    goals: [G("errorRate", "<", 0.5), G("p99", "<", 10)],
+    hints: [
+      T("Size by the larger of the two: memory (1.1 TB ÷ 64 GB ≈ 17 nodes) and throughput (2 M ÷ 80 k = 25 nodes at 100%). Keep headroom and a copy of every shard: the case ends with 50 nodes (25 shards × 2).", "Dimensione pelo maior dos dois: memória (1,1 TB ÷ 64 GB ≈ 17 nós) e vazão (2 M ÷ 80 mil = 25 nós a 100%). Mantenha folga e uma cópia de cada shard: o caso termina com 50 nós (25 shards × 2)."),
+      T("Try a hit ratio of 0.90: the database load doubles to 200 000 req/s. The hit ratio sizes the database as much as the cache.", "Experimente uma taxa de acerto de 0,90: a carga no banco dobra para 200 000 req/s. A taxa de acerto dimensiona o banco tanto quanto o cache.")
+    ],
+    solution: derive(dc, { set: [["cache", { replicas: 50 }]] })
+  });
+
+  /* the classic interview problems (case-study pages) form their own group in the menu */
+  ["url-shortener", "news-feed", "chat", "ride-sharing", "video-streaming", "notification-system", "payment-system", "search-autocomplete"]
+    .forEach(function (id) { LIST.forEach(function (s) { if (s.id === id) s.group = "case"; }); });
+
   var BY_ID = {};
   LIST.forEach(function (s) { BY_ID[s.id] = s; });
 
