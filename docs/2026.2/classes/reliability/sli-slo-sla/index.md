@@ -7,24 +7,12 @@
 | **SLO** | Service Level Objective | An internal target for that metric |
 | **SLA** | Service Level Agreement | A contractual commitment to customers |
 
-``` mermaid-sim
-flowchart LR
-    telemetry["Telemetry<br/>(logs, metrics, traces)"]
-    sli["SLI<br/>Raw measurement"]
-    slo["SLO<br/>Internal target"]
-    sla["SLA<br/>External contract"]
-    budget["Error Budget<br/>Engineering lever"]
+The three terms form a ladder, and the simulator climbs it over one 28-day window of the order service: the telemetry counts requests and failures; the **SLI** turns them into a percentage; the **SLO** says how much failure is allowed (the **error budget**, below); the **SLA**, looser, says when customers are owed money. The error budget policy turns where the SLI sits into a decision: ship, freeze or pay.
 
-    telemetry e1@-->|aggregated into| sli
-    sli e2@-->|evaluated against| slo
-    slo e3@-->|informs| sla
-    slo e4@-->|remainder becomes| budget
+<div class="csim" data-sim="slo-month" data-who="order" data-scenario="deploy"></div>
 
-    e1@{ animate: true }
-    e2@{ animate: true }
-    e3@{ animate: true }
-    e4@{ animate: true }
-```
+!!! tip "Try it"
+    The **bad deploy** of day 9 (20,000 failed requests) drops the SLI to **99.92%**: the 99.9% SLO holds, but **81%** of the budget is spent and only **5,200** failed requests are left — not enough for another deploy like it. Pick **deploy + failover**: the failover of day 19 (3% for 12 h, 15,000 more) empties the budget on **day 19 · 11h** and the window ends at **99.87%** — freeze deploys, yet the SLA still has **102,200** failed requests of margin, so no credits. The **region outage** (4 h with every request failing) ends at **99.39%**, below the SLA: customers are owed credits. Now set the SLO to **99.5%**, the SLA itself: the budget and the contract break in the same hour, **day 14 · 13h** — without a gap there is no warning. With **99.95%**, the bad deploy alone freezes deploys (**163%** of the budget).
 
 ---
 

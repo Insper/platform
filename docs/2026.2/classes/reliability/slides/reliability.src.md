@@ -29,7 +29,7 @@ Outline: (1) overview: availability, the nines, composite availability, failure 
 failures; (2) SLI / SLO / SLA: measuring, targets, error budget, burn rate and multiwindow alerts,
 contracts; (3) resilience patterns: timeout and its budget, retry, circuit breaker, fallback, bulkhead,
 rate limiting, health checks, layering; (4) chaos engineering: proving that the patterns work.
-Two simulators: error-budget-burn (SLI / SLO / SLA) and slow-dependency (Resilience Patterns).
+Three simulators: slo-month and error-budget-burn (SLI / SLO / SLA), slow-dependency (Resilience Patterns).
 -->
 
 ---
@@ -168,7 +168,15 @@ Pitfalls: **no timeout**; **retrying blindly**; **one shared pool** for every de
 | **SLO** | Service Level Objective | an internal target for that metric |
 | **SLA** | Service Level Agreement | a contractual commitment to customers |
 
-**telemetry** → aggregated into an **SLI** → evaluated against the **SLO** → informs the **SLA**; the remainder of the SLO becomes the **error budget**. (Google's site reliability engineering, SRE, practice.)
+<div class="flow">
+<div class="box">telemetry<small>37,800 of 28 M failed</small></div><div class="arrow">→</div>
+<div class="box accent">SLI<small>99.87%</small></div><div class="arrow">→</div>
+<div class="box orange">SLO ≥ 99.9%<small>missed · 135% of budget</small></div><div class="arrow">→</div>
+<div class="box green">SLA ≥ 99.5%<small>kept · no credits</small></div><div class="arrow">→</div>
+<div class="box orange">freeze deploys</div>
+</div>
+
+<p class="small">One 28-day window of the order service: bad deploy + database failover (simulator <code>slo-month</code>). Google's site reliability engineering (SRE) practice.</p>
 
 ---
 

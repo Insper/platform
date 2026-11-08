@@ -7,14 +7,12 @@
 | **Error budget** | — | A falha que o SLO permite: 1 − SLO | 0,1% das reservas podem falhar ou ser lentas |
 | **SLA** | Service Level Agreement | Um contrato com clientes, com penalidades | Prometido às casas de show parceiras: 99,5% ao mês, ou créditos |
 
-``` diagram-sim
-flowchart LR
-    tel["Telemetria<br/>(métricas, logs, traces)"] -->|"agregada em"| sli["SLI<br/>eventos bons / válidos"]
-    sli -->|"comparado com"| slo["SLO<br/>meta interna"]
-    slo -->|"a diferença é"| budget["Error budget<br/>licença para correr risco"]
-    slo -->|"versão mais folgada"| sla["SLA<br/>contrato externo"]
-    budget -->|"orienta"| decisions["Lançar ou congelar?<br/>Acionar ou abrir chamado?"]
-```
+As quatro linhas formam uma escada e o simulador a percorre ao longo de uma janela de 28 dias do caminho de compra: a telemetria conta requisições e falhas; o **SLI** as transforma em uma porcentagem; o **SLO** fixa o **error budget**; o **SLA** com as casas de show, mais folgado, diz quando elas têm direito a créditos. A política de error budget transforma a posição do SLI em uma decisão: lançar, congelar ou pagar. (Acionar o plantão é papel dos alertas de burn rate, [mais abaixo](#alerting-on-burn-rate).)
+
+<div class="csim" data-sim="slo-month" data-who="purchase" data-scenario="deploy"></div>
+
+!!! tip "Experimente"
+    O **deploy ruim** do dia 9 (20.000 requisições com falha) derruba o SLI para **99,92%**: o SLO de 99,9% se mantém, mas **81%** do orçamento já foi gasto e restam só **5.200** requisições com falha — não cabe outro deploy como aquele. Escolha **deploy + failover**: o failover do dia 19 (3% por 12 h, mais 15.000) esgota o orçamento no **dia 19 · 11h** e a janela termina em **99,87%** — congele os deploys, mas o SLA ainda tem **102.200** requisições com falha de margem, então não há créditos. A **queda da região** (4 h com todas as requisições falhando) termina em **99,39%**, abaixo do SLA: os clientes têm direito a créditos. Agora ponha o SLO em **99,5%**, o próprio SLA: o orçamento e o contrato quebram na mesma hora, **dia 14 · 13h** — sem folga não há aviso. Com **99,95%**, só o deploy ruim já congela os deploys (**163%** do orçamento).
 
 ---
 

@@ -7,14 +7,12 @@
 | **Error budget** | — | The failure the SLO allows: 1 − SLO | 0.1% of seat-hold requests may fail or be slow |
 | **SLA** | Service Level Agreement | A contract with customers, with penalties | Promised to partner venues: 99.5% monthly, or service credits |
 
-``` diagram-sim
-flowchart LR
-    tel["Telemetry<br/>(metrics, logs, traces)"] -->|"aggregated into"| sli["SLI<br/>good / valid events"]
-    sli -->|"compared with"| slo["SLO<br/>internal target"]
-    slo -->|"the gap is"| budget["Error budget<br/>licence to take risk"]
-    slo -->|"looser version"| sla["SLA<br/>external contract"]
-    budget -->|"drives"| decisions["Ship or freeze?<br/>Page or ticket?"]
-```
+The four rows form a ladder, and the simulator climbs it over one 28-day window of the purchase path: the telemetry counts requests and failures; the **SLI** turns them into a percentage; the **SLO** fixes the **error budget**; the **SLA** to partner venues, looser, says when they are owed credits. The error budget policy turns where the SLI sits into a decision: ship, freeze or pay. (Paging is the job of the burn-rate alerts, [below](#alerting-on-burn-rate).)
+
+<div class="csim" data-sim="slo-month" data-who="purchase" data-scenario="deploy"></div>
+
+!!! tip "Try it"
+    The **bad deploy** of day 9 (20,000 failed requests) drops the SLI to **99.92%**: the 99.9% SLO holds, but **81%** of the budget is spent and only **5,200** failed requests are left — not enough for another deploy like it. Pick **deploy + failover**: the failover of day 19 (3% for 12 h, 15,000 more) empties the budget on **day 19 · 11h** and the window ends at **99.87%** — freeze deploys, yet the SLA still has **102,200** failed requests of margin, so no credits. The **region outage** (4 h with every request failing) ends at **99.39%**, below the SLA: customers are owed credits. Now set the SLO to **99.5%**, the SLA itself: the budget and the contract break in the same hour, **day 14 · 13h** — without a gap there is no warning. With **99.95%**, the bad deploy alone freezes deploys (**163%** of the budget).
 
 ---
 

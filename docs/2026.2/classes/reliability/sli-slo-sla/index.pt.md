@@ -6,24 +6,12 @@
 | **SLO** | Service Level Objective | Uma meta interna para essa métrica |
 | **SLA** | Service Level Agreement | Um compromisso contratual com os clientes |
 
-``` mermaid-sim
-flowchart LR
-    telemetry["Telemetria<br/>(logs, métricas, traces)"]
-    sli["SLI<br/>Medição bruta"]
-    slo["SLO<br/>Meta interna"]
-    sla["SLA<br/>Contrato externo"]
-    budget["Error Budget<br/>Alavanca de engenharia"]
+Os três termos formam uma escada e o simulador a percorre ao longo de uma janela de 28 dias do serviço de pedidos: a telemetria conta requisições e falhas; o **SLI** as transforma em uma porcentagem; o **SLO** diz quanta falha é permitida (o **error budget**, ou orçamento de erro, mais abaixo); o **SLA**, mais folgado, diz quando os clientes têm direito a dinheiro de volta. A política de error budget transforma a posição do SLI em uma decisão: entregar, congelar ou pagar.
 
-    telemetry e1@-->|agregada em| sli
-    sli e2@-->|avaliado contra| slo
-    slo e3@-->|embasa| sla
-    slo e4@-->|o restante vira| budget
+<div class="csim" data-sim="slo-month" data-who="order" data-scenario="deploy"></div>
 
-    e1@{ animate: true }
-    e2@{ animate: true }
-    e3@{ animate: true }
-    e4@{ animate: true }
-```
+!!! tip "Experimente"
+    O **deploy ruim** do dia 9 (20.000 requisições com falha) derruba o SLI para **99,92%**: o SLO de 99,9% se mantém, mas **81%** do orçamento já foi gasto e restam só **5.200** requisições com falha — não cabe outro deploy como aquele. Escolha **deploy + failover**: o failover do dia 19 (3% por 12 h, mais 15.000) esgota o orçamento no **dia 19 · 11h** e a janela termina em **99,87%** — congele os deploys, mas o SLA ainda tem **102.200** requisições com falha de margem, então não há créditos. A **queda da região** (4 h com todas as requisições falhando) termina em **99,39%**, abaixo do SLA: os clientes têm direito a créditos. Agora ponha o SLO em **99,5%**, o próprio SLA: o orçamento e o contrato quebram na mesma hora, **dia 14 · 13h** — sem folga não há aviso. Com **99,95%**, só o deploy ruim já congela os deploys (**163%** do orçamento).
 
 ---
 

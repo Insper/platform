@@ -278,7 +278,14 @@ Em menos de um minuto o gateway para de responder <strong>tudo</strong>: login, 
 </tr>
 </tbody>
 </table>
-<p><strong>telemetria</strong> → agregada num <strong>SLI</strong> → avaliado contra o <strong>SLO</strong> → que embasa o <strong>SLA</strong>; o que sobra do SLO vira o <strong>error budget</strong>. (A prática de engenharia de confiabilidade de sites, SRE, do Google.)</p>
+<div class="flow">
+<div class="box">telemetria<small>37.800 de 28 mi falharam</small></div><div class="arrow">→</div>
+<div class="box accent">SLI<small>99,87%</small></div><div class="arrow">→</div>
+<div class="box orange">SLO ≥ 99,9%<small>violado · 135% do orçamento</small></div><div class="arrow">→</div>
+<div class="box green">SLA ≥ 99,5%<small>respeitado · sem créditos</small></div><div class="arrow">→</div>
+<div class="box orange">congelar deploys</div>
+</div>
+<p class="small">Uma janela de 28 dias do serviço de pedidos: deploy ruim + failover do banco (simulador <code>slo-month</code>). A prática de engenharia de confiabilidade de sites (SRE, <em>site reliability engineering</em>) do Google.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-class="tight" data-lang="pt-BR" data-theme="platform" lang="pt-BR" class="tight" data-marpit-pagination="9" style="--paginate:true;--class:tight;--lang:pt-BR;--theme:platform;" data-marpit-pagination-total="36">
 <h2 id="sli-a-medi%C3%A7%C3%A3o-bruta">SLI: a medição bruta</h2>
@@ -1018,7 +1025,7 @@ Em menos de um minuto o gateway para de responder <strong>tudo</strong>: login, 
 em cascata; (2) SLI / SLO / SLA: medição, metas, error budget, burn rate e alertas com várias janelas,
 contratos; (3) padrões de resiliência: timeout e seu orçamento, retry, circuit breaker, fallback,
 bulkhead, rate limiting, health checks, camadas; (4) engenharia do caos: provar que os padrões funcionam.
-Dois simuladores: error-budget-burn (SLI / SLO / SLA) e slow-dependency (Padrões de Resiliência).</p></div><div class="bespoke-marp-note" data-index="1" tabindex="0"><p>Confiabilidade: a probabilidade de um sistema executar sua função sem falhar, sob condições
+Três simuladores: slo-month e error-budget-burn (SLI / SLO / SLA), slow-dependency (Padrões de Resiliência).</p></div><div class="bespoke-marp-note" data-index="1" tabindex="0"><p>Confiabilidade: a probabilidade de um sistema executar sua função sem falhar, sob condições
 definidas, por um período. Roteiro: visão geral → SLI/SLO/SLA → padrões de resiliência → engenharia do caos.</p></div><div class="bespoke-marp-note" data-index="4" tabindex="0"><p>O exemplo resolvido da página: reduza primeiro a parte em paralelo e depois multiplique a série. O
 Hands-on 7 roda todas as réplicas num notebook só: um host, então não são independentes.</p></div><div class="bespoke-marp-note" data-index="10" tabindex="0"><p>Exemplo de negociação da página: &quot;restam 12 minutos de orçamento na janela; um deploy que cause 30
 minutos de degradação viola o SLO — espere.&quot;</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */

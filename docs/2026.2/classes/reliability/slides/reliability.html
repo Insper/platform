@@ -278,7 +278,14 @@ Within a minute the gateway stops answering <strong>everything</strong>: login, 
 </tr>
 </tbody>
 </table>
-<p><strong>telemetry</strong> → aggregated into an <strong>SLI</strong> → evaluated against the <strong>SLO</strong> → informs the <strong>SLA</strong>; the remainder of the SLO becomes the <strong>error budget</strong>. (Google's site reliability engineering, SRE, practice.)</p>
+<div class="flow">
+<div class="box">telemetry<small>37,800 of 28 M failed</small></div><div class="arrow">→</div>
+<div class="box accent">SLI<small>99.87%</small></div><div class="arrow">→</div>
+<div class="box orange">SLO ≥ 99.9%<small>missed · 135% of budget</small></div><div class="arrow">→</div>
+<div class="box green">SLA ≥ 99.5%<small>kept · no credits</small></div><div class="arrow">→</div>
+<div class="box orange">freeze deploys</div>
+</div>
+<p class="small">One 28-day window of the order service: bad deploy + database failover (simulator <code>slo-month</code>). Google's site reliability engineering (SRE) practice.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="9" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="36">
 <h2 id="sli-the-raw-measurement">SLI: the raw measurement</h2>
@@ -1018,7 +1025,7 @@ Within a minute the gateway stops answering <strong>everything</strong>: login, 
 failures; (2) SLI / SLO / SLA: measuring, targets, error budget, burn rate and multiwindow alerts,
 contracts; (3) resilience patterns: timeout and its budget, retry, circuit breaker, fallback, bulkhead,
 rate limiting, health checks, layering; (4) chaos engineering: proving that the patterns work.
-Two simulators: error-budget-burn (SLI / SLO / SLA) and slow-dependency (Resilience Patterns).</p></div><div class="bespoke-marp-note" data-index="1" tabindex="0"><p>Reliability: the probability that a system performs its function without failure, under stated
+Three simulators: slo-month and error-budget-burn (SLI / SLO / SLA), slow-dependency (Resilience Patterns).</p></div><div class="bespoke-marp-note" data-index="1" tabindex="0"><p>Reliability: the probability that a system performs its function without failure, under stated
 conditions, for a period. Roadmap: overview → SLI/SLO/SLA → resilience patterns → chaos engineering.</p></div><div class="bespoke-marp-note" data-index="4" tabindex="0"><p>The page's worked example: reduce the parallel part first, then multiply the series. Hands-on 7 runs
 every replica on one laptop: one host, so not independent.</p></div><div class="bespoke-marp-note" data-index="10" tabindex="0"><p>Negotiation example from the page: &quot;12 minutes of budget left in the window; a deploy that causes 30
 minutes of degradation misses the SLO — wait.&quot;</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */

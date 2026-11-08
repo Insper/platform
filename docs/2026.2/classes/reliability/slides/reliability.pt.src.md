@@ -29,7 +29,7 @@ Roteiro: (1) visão geral: disponibilidade, os noves, disponibilidade composta, 
 em cascata; (2) SLI / SLO / SLA: medição, metas, error budget, burn rate e alertas com várias janelas,
 contratos; (3) padrões de resiliência: timeout e seu orçamento, retry, circuit breaker, fallback,
 bulkhead, rate limiting, health checks, camadas; (4) engenharia do caos: provar que os padrões funcionam.
-Dois simuladores: error-budget-burn (SLI / SLO / SLA) e slow-dependency (Padrões de Resiliência).
+Três simuladores: slo-month e error-budget-burn (SLI / SLO / SLA), slow-dependency (Padrões de Resiliência).
 -->
 
 ---
@@ -168,7 +168,15 @@ Armadilhas: **sem timeout**; **retry às cegas**; **um pool compartilhado** por 
 | **SLO** | Service Level Objective | uma meta interna para essa métrica |
 | **SLA** | Service Level Agreement | um compromisso contratual com clientes |
 
-**telemetria** → agregada num **SLI** → avaliado contra o **SLO** → que embasa o **SLA**; o que sobra do SLO vira o **error budget**. (A prática de engenharia de confiabilidade de sites, SRE, do Google.)
+<div class="flow">
+<div class="box">telemetria<small>37.800 de 28 mi falharam</small></div><div class="arrow">→</div>
+<div class="box accent">SLI<small>99,87%</small></div><div class="arrow">→</div>
+<div class="box orange">SLO ≥ 99,9%<small>violado · 135% do orçamento</small></div><div class="arrow">→</div>
+<div class="box green">SLA ≥ 99,5%<small>respeitado · sem créditos</small></div><div class="arrow">→</div>
+<div class="box orange">congelar deploys</div>
+</div>
+
+<p class="small">Uma janela de 28 dias do serviço de pedidos: deploy ruim + failover do banco (simulador <code>slo-month</code>). A prática de engenharia de confiabilidade de sites (SRE, <em>site reliability engineering</em>) do Google.</p>
 
 ---
 
