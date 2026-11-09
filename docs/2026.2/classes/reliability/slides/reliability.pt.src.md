@@ -56,6 +56,8 @@ definidas, por um período. Roteiro: visão geral → SLI/SLO/SLA → padrões d
 
 ## Disponibilidade: duas alavancas
 
+Confiabilidade é quão raramente o sistema falha; **disponibilidade** é a fração do tempo em que ele funciona — cair 1 s a cada minuto: pouco confiável, mas ~98% disponível.
+
 | Termo | Nome completo | Significado |
 |---|---|---|
 | **MTTF** | Mean Time To Failure | tempo médio de operação até uma falha |
@@ -177,6 +179,23 @@ Armadilhas: **sem timeout**; **retry às cegas**; **um pool compartilhado** por 
 </div>
 
 <p class="small">Uma janela de 28 dias do serviço de pedidos: deploy ruim + failover do banco (simulador <code>slo-month</code>). A prática de engenharia de confiabilidade de sites (SRE, <em>site reliability engineering</em>) do Google.</p>
+
+---
+
+## Simulador: um mês contra o SLO e o SLA
+
+<div class="q">
+
+O serviço de pedidos ao longo de 28 dias: **28 mi** de requisições, SLO 99,9% (orçamento de **28.000** falhas), SLA 99,5%.
+
+</div>
+
+- **Deploy ruim** (dia 9, 20.000 falhas): SLI **99,92%** — SLO mantido, mas **81%** do orçamento já se foi e restam só **5.200** falhas.
+- **+ failover** (dia 19, 3% por 12 h): orçamento esgotado no **dia 19 · 11h**, janela em **99,87%** — congelar deploys; o SLA ainda tem **102.200** falhas de margem.
+- **Queda da região** (4 h, todas as requisições falham): **99,39%**, abaixo do SLA — os clientes têm direito a créditos.
+- **SLO = SLA** (99,5%): orçamento e contrato quebram juntos, **dia 14 · 13h** — sem aviso. **SLO 99,95%**: só o deploy ruim já é **163%** do orçamento.
+
+<p class="small">Página SLI / SLO / SLA → início, simulador <code>slo-month</code>.</p>
 
 ---
 
@@ -730,4 +749,4 @@ Armadilhas: caos **sem hipótese** é só quebrar coisas; **começar em produç�
 3. Dependências **lentas** esgotam threads e provocam **falhas em cascata**.
 4. **SLI** mede, **SLO** define a meta, **SLA** é contrato (mais frouxo que o SLO); o **error budget** (≈ 40,3 min a cada 28 dias com 99,9%) e os **alertas de burn rate com várias janelas** decidem entre funcionalidades e confiabilidade.
 5. Timeout (dentro do orçamento de quem chama), retry + full jitter (só idempotentes), circuit breaker (limite de chamada lenta abaixo do timeout) + fallback seguro, bulkhead, rate limit, health checks — **em camadas projetadas**; um retry sem breaker pode ser pior do que nada.
-6. A **engenharia do caos** prova que os padrões funcionam: uma hipótese, raio de impacto pequeno, observabilidade primeiro.
+6. A **engenharia do caos** prova que os padrões funcionam: uma hipótese, raio de impacto pequeno, observabilidade primeiro — e uma cultura sem culpados.

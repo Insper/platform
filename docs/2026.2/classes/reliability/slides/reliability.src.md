@@ -56,6 +56,8 @@ conditions, for a period. Roadmap: overview → SLI/SLO/SLA → resilience patte
 
 ## Availability: two levers
 
+Reliability is how rarely it fails; **availability** is the fraction of time it works — down 1 s every minute: unreliable, yet ~98% available.
+
 | Term | Full name | Meaning |
 |---|---|---|
 | **MTTF** | Mean Time To Failure | average time running before a failure |
@@ -177,6 +179,23 @@ Pitfalls: **no timeout**; **retrying blindly**; **one shared pool** for every de
 </div>
 
 <p class="small">One 28-day window of the order service: bad deploy + database failover (simulator <code>slo-month</code>). Google's site reliability engineering (SRE) practice.</p>
+
+---
+
+## Simulator: one month against the SLO and the SLA
+
+<div class="q">
+
+The order service over 28 days: **28 M** requests, SLO 99.9% (budget **28,000** failed), SLA 99.5%.
+
+</div>
+
+- **Bad deploy** (day 9, 20,000 failed): SLI **99.92%** — SLO kept, but **81%** of the budget is gone and only **5,200** failures are left.
+- **+ failover** (day 19, 3% for 12 h): budget gone on **day 19 · 11h**, window at **99.87%** — freeze deploys; the SLA still has **102,200** failures of margin.
+- **Region outage** (4 h, every request fails): **99.39%**, below the SLA — customers are owed credits.
+- **SLO = SLA** (99.5%): budget and contract break together, **day 14 · 13h** — no warning. **SLO 99.95%**: the bad deploy alone is **163%** of the budget.
+
+<p class="small">SLI / SLO / SLA page → top, simulator <code>slo-month</code>.</p>
 
 ---
 
@@ -730,4 +749,4 @@ Pitfalls: chaos **without a hypothesis** is just breaking things; **starting in 
 3. **Slow** dependencies exhaust threads and **cascade** upstream.
 4. **SLI** measures, **SLO** targets, **SLA** contracts (looser than the SLO); the **error budget** (≈ 40.3 min per 28 days at 99.9%) and **multiwindow burn-rate alerts** decide between features and reliability.
 5. Timeout (inside the caller's budget), retry + full jitter (idempotent only), circuit breaker (slow-call threshold below the timeout) + safe fallback, bulkhead, rate limit, health checks — **in designed layers**; a retry without a breaker can be worse than nothing.
-6. **Chaos engineering** proves the patterns work: a hypothesis, a small blast radius, observability first.
+6. **Chaos engineering** proves the patterns work: a hypothesis, a small blast radius, observability first — and a blameless culture.
