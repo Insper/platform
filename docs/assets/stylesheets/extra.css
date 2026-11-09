@@ -405,6 +405,139 @@
     line-height: 1.5;
 }
 
+/* Roadmap of each class overview (2026.2, 2027.1): the list right after `## Roadmap { #roadmap }`
+   (pt `## Roteiro { #roadmap }`) as a trail of numbered steps on a rail. Each step is a card, the whole
+   card links to its page; "this page" (the item whose title is bold, not a link) is filled and tagged
+   "you are here"; the quiz step closes the trail with a check mark. roadmap.js puts each description on
+   its own line. Theme colors only, as the objectives. */
+.md-typeset h2#roadmap + ol {
+    --rm: var(--md-typeset-a-color);
+    position: relative;
+    margin: .9rem 0 1.4rem;
+    padding: 0;
+    list-style: none;
+    counter-reset: rm;
+}
+.md-typeset h2#roadmap + ol > li {
+    position: relative;
+    margin: 0 0 .45rem 2.3rem;
+    padding: .5rem .8rem .55rem;
+    border: .05rem solid color-mix(in srgb, var(--rm) 22%, transparent);
+    border-radius: .45rem;
+    background: var(--md-default-bg-color);
+    line-height: 1.45;
+    counter-increment: rm;
+    transition: border-color .15s, background-color .15s;
+}
+.md-typeset h2#roadmap + ol > li:last-child {
+    margin-bottom: 0;
+}
+/* the rail: from each circle down to the next one */
+.md-typeset h2#roadmap + ol > li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: -1.6rem;
+    top: 1.95rem;
+    bottom: -.9rem;
+    width: .1rem;
+    background: color-mix(in srgb, var(--rm) 28%, transparent);
+}
+.md-typeset h2#roadmap + ol > li::before {
+    content: counter(rm);
+    position: absolute;
+    left: -2.3rem;
+    top: .45rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: .1rem solid var(--rm);
+    border-radius: 50%;
+    background: var(--md-default-bg-color);
+    color: var(--rm);
+    font-size: .62rem;
+    font-weight: 800;
+    line-height: 1.3rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+/* the title: the link stretches over the whole card */
+.md-typeset h2#roadmap + ol > li > a:first-child,
+.md-typeset h2#roadmap + ol > li > strong:first-child {
+    color: var(--md-default-fg-color);
+    font-weight: 700;
+    text-decoration: none;
+}
+.md-typeset h2#roadmap + ol > li > a:first-child::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+.md-typeset h2#roadmap + ol > li:has(> a:first-child):hover {
+    border-color: var(--rm);
+    background: color-mix(in srgb, var(--rm) 5%, var(--md-default-bg-color));
+}
+.md-typeset h2#roadmap + ol > li:has(> a:first-child):hover > a:first-child {
+    color: var(--rm);
+}
+.md-typeset h2#roadmap + ol .rm-desc {
+    display: block;
+    margin-top: .15rem;
+    color: var(--md-default-fg-color--light);
+    font-size: .7rem;
+}
+.md-typeset h2#roadmap + ol .rm-desc a {
+    position: relative;
+    z-index: 1;
+}
+/* this page: you are here */
+.md-typeset h2#roadmap + ol > li:has(> strong:first-child) {
+    padding-right: 7.5rem;
+    border-color: color-mix(in srgb, var(--rm) 45%, transparent);
+    background: color-mix(in srgb, var(--rm) 8%, var(--md-default-bg-color));
+}
+.md-typeset h2#roadmap + ol > li:has(> strong:first-child)::before {
+    background: var(--rm);
+    color: var(--md-default-bg-color);
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--rm) 20%, transparent);
+}
+.md-typeset h2#roadmap + ol > li > strong:first-child::after {
+    content: "you are here";
+    position: absolute;
+    top: .6rem;
+    right: .7rem;
+    padding: 0 .4rem;
+    border-radius: .6rem;
+    background: color-mix(in srgb, var(--rm) 16%, transparent);
+    color: var(--rm);
+    font-size: .56rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+    line-height: 1.6;
+    text-transform: uppercase;
+}
+html[lang^="pt"] .md-typeset h2#roadmap + ol > li > strong:first-child::after {
+    content: "você está aqui";
+}
+/* phones: the tag goes back to the title line */
+@media screen and (max-width: 44.9375em) {
+    .md-typeset h2#roadmap + ol > li:has(> strong:first-child) {
+        padding-right: .8rem;
+    }
+    .md-typeset h2#roadmap + ol > li > strong:first-child::after {
+        position: static;
+        display: inline-block;
+        margin-left: .45rem;
+    }
+}
+/* the quiz closes the trail */
+.md-typeset h2#roadmap + ol > li:has(> a:first-child[href*="quiz"]) {
+    border-style: dashed;
+}
+.md-typeset h2#roadmap + ol > li:has(> a:first-child[href*="quiz"])::before {
+    content: "✓";
+    border-style: dashed;
+}
+
 /* Tables with many columns: <div class="compact-table" markdown>. Material's 5rem minimum per header
    would push them past the page even when the cells are short. */
 .md-typeset .compact-table table:not([class]) {

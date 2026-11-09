@@ -25,7 +25,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Roteiro
+## Roteiro { #roadmap }
 
 Leia as páginas nesta ordem — cada uma se apoia na anterior:
 

@@ -29,7 +29,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 ---
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Visão geral** (esta página) — autenticação vs. autorização, o que o Hands-on 3 construiu, o que o JWT sozinho não resolve e o mapa das camadas de segurança da loja.
 2. [OAuth 2.0 e OpenID Connect](oauth/index.md) — papéis, tokens e escopos, tipos de grant (Authorization Code + PKCE, Client Credentials), OIDC e o ID Token, e como o gateway valida tokens (JWKS vs. introspecção).

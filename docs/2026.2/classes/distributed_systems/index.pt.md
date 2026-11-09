@@ -16,7 +16,7 @@ Essa arquitetura sustenta as plataformas de nuvem modernas (AWS, Google Cloud, A
     - **Descrever** como o Raft elege um líder e replica um log com quóruns de maioria e dimensionar um cluster para um dado número de falhas.
     - **Comparar** consistência forte (quóruns, consenso) com consistência eventual (LWW, relógios vetoriais, CRDTs).
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — o que é um sistema distribuído, por que os construímos, quanto eles custam e os três problemas de raiz (falha parcial, rede não confiável, ausência de relógio global).
 2. [Teorema CAP](cap/index.md) — a escolha entre consistência e disponibilidade durante uma partição de rede e sua extensão PACELC.

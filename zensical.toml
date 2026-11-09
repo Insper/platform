@@ -32,6 +32,8 @@ extra_javascript = [
   "assets/javascripts/diagram.js",
   # quizzes (2026.2, 2027.1 and the appendix): compact question cards built from the Markdown
   "assets/javascripts/quiz.js",
+  # roadmaps of the class overviews (## Roadmap { #roadmap }): description on its own line
+  "assets/javascripts/roadmap.js",
   # concept simulators (2027.1): the core loads each page's modules (csim/<name>.js) on demand
   "assets/javascripts/csim/core.js",
   # circles today in the edition calendars (.calendar-wrap)

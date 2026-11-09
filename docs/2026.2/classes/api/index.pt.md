@@ -29,7 +29,7 @@ flowchart LR
     - **Distinguir** uma mudança incompatível (breaking change) de uma retrocompatível e versionar uma API quando necessário.
     - **Documentar** um serviço Spring Boot com OpenAPI e Swagger UI e **decidir** onde a documentação pode ser exposta.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta página** — o que é um contrato de API, por que ele importa, os principais estilos de API e quão RESTful uma API é.
 2. [Design de APIs REST](rest/index.md) — recursos, métodos, idempotência, códigos de status, erros, paginação e versionamento.

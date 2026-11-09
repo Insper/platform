@@ -39,7 +39,7 @@ A **containerização** resolve isso empacotando a aplicação junto com todas a
     - **Compor** uma stack com vários serviços (serviço + PostgreSQL) com `compose.yaml`, arquivos `.env` e health checks.
     - **Diagnosticar** erros comuns: `localhost` entre containers, dados perdidos sem volume, segredos commitados no `.env`, tags `latest` sem versão fixa.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — por que containers, containers versus VMs, o que um container realmente é e o ciclo de vida da imagem.
 2. [Docker](docker/index.md) — Dockerfiles, builds multi-stage, cache de camadas, comandos, redes e volumes.

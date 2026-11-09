@@ -15,7 +15,7 @@ O estilo de microsserviços é uma resposta a esse problema específico: à medi
     - **Aplicar** o Domain-Driven Design (bounded contexts, agregados, mapas de contexto) para encontrar as fronteiras dos serviços.
     - **Descrever** os componentes de infraestrutura de uma plataforma de microsserviços e acompanhar uma requisição pela arquitetura do curso.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta página** — por que e quando dividir, Lei de Conway, princípios, posse dos dados, comunicação síncrona vs. assíncrona, os serviços da loja.
 2. [Domain-Driven Design](ddd/index.md) — o vocabulário e as técnicas para encontrar boas fronteiras entre serviços.

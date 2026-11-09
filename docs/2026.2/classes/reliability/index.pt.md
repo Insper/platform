@@ -14,7 +14,7 @@ Um sistema confiável não é aquele que nunca falha. É aquele que **falha de f
     - **Escolher e configurar** padrões de resiliência — timeout, retry com backoff e jitter, circuit breaker, bulkhead, rate limiting, health checks — para uma chamada entre dois serviços.
     - **Projetar** um experimento de caos com uma hipótese de estado estável e um raio de impacto controlado.
 
-## Roteiro
+## Roteiro { #roadmap }
 
 1. **Esta visão geral** — disponibilidade, os "noves", disponibilidade composta, modos de falha e falhas em cascata.
 2. [SLI / SLO / SLA](sli-slo-sla/index.md) — como medir a confiabilidade, definir metas e transformar a diferença em um error budget.
