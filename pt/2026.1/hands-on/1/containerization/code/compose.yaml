@@ -1,0 +1,23 @@
+name: store
+
+services:
+
+  db:
+    image: postgres:17
+    ports:
+      - 5432:5432
+    volumes:
+      - ${VOLUME_DB}:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER:-store}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpass}
+      POSTGRES_DB: ${DB_NAME:-store}
+
+  account:
+    build:
+      context: ./account-service
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    depends_on:
+      - db

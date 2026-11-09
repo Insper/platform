@@ -1,0 +1,41 @@
+# The environment Argo CD deploys (lab 11). CI changes only the "images" entry below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: boxoffice
+resources:
+  - ../../base
+  - catalog-services.yaml
+  - catalog-rollout.yaml
+  - catalog-analysis.yaml
+images:
+  - name: boxoffice/catalog
+    newName: ghcr.io/your-user/boxoffice-catalog   # your GitHub user, lowercase
+    newTag: sha-0000000000000000000000000000000000000000   # written by .github/workflows/deploy.yaml
+secretGenerator:
+  - name: db-credentials             # lab only: use Sealed Secrets / External Secrets in real projects
+    namespace: boxoffice
+    literals:
+      - DB_USER=boxoffice
+      - DB_PASSWORD=boxoffice
+patches:
+  # the Rollout runs the pods from now on: the Deployment only lends it its pod template
+  - target: { kind: Deployment, name: catalog }
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 0
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value: [{ name: ghcr-pull }]
+      - op: add                      # expose /actuator/prometheus for the canary analysis
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE, value: "health,info,metrics,prometheus" }
+      - op: add                      # publish the latency buckets (_bucket) that the p99 analysis needs
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS, value: "true" }
+  # the HPA now scales the Rollout
+  - target: { kind: HorizontalPodAutoscaler, name: catalog }
+    patch: |-
+      - op: replace
+        path: /spec/scaleTargetRef
+        value: { apiVersion: argoproj.io/v1alpha1, kind: Rollout, name: catalog }

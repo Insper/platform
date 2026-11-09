@@ -1,0 +1,28 @@
+name: myapp
+
+services:
+
+  web:
+    build:
+      dockerfile_inline: |
+        FROM nginx:latest
+        RUN apt update
+        RUN apt install -y net-tools iputils-ping
+    ports:
+      - 80:80
+
+  app:
+    image: eclipse-temurin:25-jdk
+    depends_on:
+      - db
+
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydb
+    volumes:
+      - ${VOLUME}/db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432

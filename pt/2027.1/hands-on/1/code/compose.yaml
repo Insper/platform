@@ -1,0 +1,48 @@
+name: boxoffice
+
+services:
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${DB_NAME:-boxoffice}
+      POSTGRES_USER: ${DB_USER:-boxoffice}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-boxoffice}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  catalog:
+    build: ./services/catalog
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-boxoffice}
+      DB_USER: ${DB_USER:-boxoffice}
+      DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}  # HikariCP pool size (lab 2 experiments with it)
+    ports:
+      - "8082:8082"
+    depends_on:
+      db:
+        condition: service_healthy   # wait until PostgreSQL accepts connections
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"                # one core per replica: makes scaling visible in lab 3
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+volumes:
+  db-data:

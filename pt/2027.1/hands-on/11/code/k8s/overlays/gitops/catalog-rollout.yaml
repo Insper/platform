@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: catalog
+spec:
+  # no "replicas": the HPA owns it
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: catalog
+  workloadRef:                       # reuse the pod template of the Deployment in base/
+    apiVersion: apps/v1
+    kind: Deployment
+    name: catalog
+    scaleDown: never                 # Git already sets the Deployment to 0 replicas
+  strategy:
+    canary:
+      stableService: catalog-stable
+      canaryService: catalog-canary
+      analysis:                      # runs in the background from the first step
+        templates:
+          - templateName: catalog-slo
+        startingStep: 1
+      steps:
+        - setWeight: 25
+        - pause: { duration: 2m }
+        - setWeight: 50
+        - pause: { duration: 2m }
+        # after the last step the canary becomes the new stable

@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: boxoffice
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-user/boxoffice.git
+    targetRevision: main
+    path: k8s/overlays/gitops
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boxoffice
+  syncPolicy:
+    automated:
+      prune: true                    # delete what was removed from Git
+      selfHeal: true                 # revert manual changes in the cluster
+    syncOptions:
+      - CreateNamespace=true

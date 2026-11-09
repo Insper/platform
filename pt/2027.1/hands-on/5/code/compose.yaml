@@ -1,0 +1,141 @@
+name: boxoffice
+
+# settings shared by the three catalog replicas (a YAML anchor)
+x-catalog: &catalog
+  build: ./services/catalog
+  image: boxoffice-catalog
+  environment:
+    DB_HOST: db
+    DB_PORT: 5432
+    DB_NAME: ${DB_NAME:-boxoffice}
+    DB_USER: ${DB_USER:-boxoffice}
+    DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+    DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    CACHE_ENABLED: ${CACHE_ENABLED:-true}
+    CACHE_TTL_EVENT: ${CACHE_TTL_EVENT:-60s}
+    CACHE_TTL_LIST: ${CACHE_TTL_LIST:-10s}
+    CACHE_STAMPEDE_PROTECTION: ${CACHE_STAMPEDE_PROTECTION:-false}
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 768M
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health/readiness || exit 1"]
+    interval: 10s
+    timeout: 3s
+    start_period: 40s
+    retries: 3
+
+services:
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${DB_NAME:-boxoffice}
+      POSTGRES_USER: ${DB_USER:-boxoffice}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-boxoffice}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    # a pure cache: bounded memory, evict least-recently-used keys, no persistence
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru",
+              "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # three identical replicas; no "ports:" — only the edge is reachable from outside
+  catalog-1:
+    <<: *catalog
+    hostname: catalog-1
+  catalog-2:
+    <<: *catalog
+    hostname: catalog-2
+  catalog-3:
+    <<: *catalog
+    hostname: catalog-3
+
+  auth:
+    build: ./services/auth
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-boxoffice}
+      DB_USER: ${DB_USER:-boxoffice}
+      DB_PASSWORD: ${DB_PASSWORD:-boxoffice}
+      JWT_ISSUER: ${JWT_ISSUER:-boxoffice-auth}
+      JWT_TTL: ${JWT_TTL:-PT1H}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@boxoffice.dev}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-boxoffice-admin}
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+  gateway:
+    build: ./services/gateway
+    environment:
+      AUTH_URL: http://auth:8081
+      AUTH_JWKS_URI: http://auth:8081/auth/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER:-boxoffice-auth}
+    ports:
+      - "8080:8080"          # published for experiments; clients use the edge (port 80)
+    depends_on:
+      - auth
+      - catalog-1
+      - catalog-2
+      - catalog-3
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 40s
+      retries: 3
+
+  edge:
+    image: nginx:1.30-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway
+
+volumes:
+  db-data:

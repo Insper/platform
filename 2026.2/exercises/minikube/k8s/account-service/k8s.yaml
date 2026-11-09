@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: account-secrets
+type: Opaque
+data:
+  DATABASE_USERNAME: c3RvcmU=   # echo -n "store" | base64
+  DATABASE_PASSWORD: c3RvcmU=
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: account-configmap
+data:
+  DATABASE_HOST: postgres       # name of the Postgres Service
+  DATABASE_PORT: "5432"
+  DATABASE_DB: store
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account
+  template:
+    metadata:
+      labels:
+        app: account
+    spec:
+      containers:
+        - name: account
+          image: <your-dockerhub-user>/account-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:                # every key becomes an environment variable
+            - configMapRef:
+                name: account-configmap
+            - secretRef:
+                name: account-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: account
+spec:
+  type: ClusterIP               # internal: only the gateway is exposed
+  selector:
+    app: account
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080

@@ -1,0 +1,38 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:boxoffice}
+    username: ${DB_USER:boxoffice}
+    password: ${DB_PASSWORD:boxoffice}
+  flyway:
+    schemas: auth
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  mvc:
+    problemdetails:
+      enabled: true
+
+jwt:
+  issuer: ${JWT_ISSUER:boxoffice-auth}
+  audience: boxoffice
+  ttl: ${JWT_TTL:PT1H}              # ISO-8601 duration: 1 hour
+
+admin:
+  email: ${ADMIN_EMAIL:admin@boxoffice.dev}
+  password: ${ADMIN_PASSWORD:boxoffice-admin}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

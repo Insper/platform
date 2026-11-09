@@ -1,0 +1,35 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: catalog
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: catalog
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60     # % of the CPU *request* (250m): scale when pods average > 150m
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0  # react at once to load
+      selectPolicy: Max
+      policies:
+        - type: Percent
+          value: 100                 # at most double...
+          periodSeconds: 15
+        - type: Pods
+          value: 2                   # ...or +2 pods, whichever is more, every 15 s
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 120  # wait 2 min of lower load before removing pods
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 30
