@@ -117,7 +117,7 @@ empty `services/assistant/`, or download the files below):
 mkdir -p services/assistant && cd services/assistant
 uv init --app --name assistant --python 3.12 --no-readme --vcs none .
 rm main.py
-uv add "fastapi>=0.146" "uvicorn[standard]>=0.54" "litellm>=1.106" "psycopg[binary,pool]>=3.3" \
+uv add "fastapi>=0.146" "uvicorn[standard]>=0.54" "litellm>=1.108.3" "psycopg[binary,pool]>=3.3" \
   "pgvector>=0.5" "numpy>=2.3" "httpx>=0.28" "pydantic>=2.14" "mcp>=1.20" \
   "opentelemetry-sdk>=1.45" "opentelemetry-exporter-otlp-proto-http>=1.45"
 cd ../..

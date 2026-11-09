@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.146",
     "httpx>=0.28",
-    "litellm>=1.106",
+    "litellm>=1.108.3",
     "mcp>=1.20",
     "numpy>=2.3",
     "opentelemetry-exporter-otlp-proto-http>=1.45",
