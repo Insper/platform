@@ -157,7 +157,9 @@
   font-size: .64rem;
 }
 .md-typeset .qz-card.is-shown .qz-exp { display: block; }
-.md-typeset .qz-exp-tag { color: var(--qz-info); margin-right: .25em; }
+.md-typeset .qz-exp-tag,
+.md-typeset .qz-exp > p:first-of-type > strong:first-child { color: var(--qz-info); }
+.md-typeset .qz-exp-tag { margin-right: .25em; }
 .md-typeset .qz-exp > p:first-of-type { display: inline; }
 .md-typeset .qz-exp p { margin: .35em 0 0; }
 .md-typeset .qz-exp pre,

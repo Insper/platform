@@ -18,8 +18,8 @@
  * Each `##` section becomes one box (the layout of the AI course's quizzes): a header with the section
  * title and the count of answered questions; one row per question, its number in its own column, which
  * turns green, red or amber (unanswered) after Check; options as radio rows with a lettered circle, very
- * short options four per row, short ones two, long ones one; the explanations open after Check, the score
- * replaces the count. A question without options is an open one: it shows its answer after Check and does
+ * short options four per row, short ones two, long ones one (fewer when one would wrap); the explanations
+ * open after Check, the score replaces the count. A question without options is an open one: it shows its answer after Check and does
  * not count in the score. Choices and checked boxes are remembered in this browser (localStorage,
  * optional). Colors: assets/stylesheets/quiz.css (the page theme; status colors as the simulators').
  */
@@ -80,11 +80,32 @@
     return { qid: qid, parts: parts, ul: ul, det: det, opts: opts, right: right };
   }
 
+  /* the columns come from the option lengths; an option that still wraps sends its grid to fewer columns */
+  var grids = [];
+  function fit() {
+    grids.forEach(function (grid) {
+      if (!grid.isConnected) return;
+      if (!grid.dataset.cols) grid.dataset.cols = grid.classList.contains("four") ? "four" : grid.classList.contains("two") ? "two" : "";
+      grid.classList.remove("four", "two");
+      if (grid.dataset.cols) grid.classList.add(grid.dataset.cols);
+      ["four", "two"].forEach(function (c) {
+        if (!grid.classList.contains(c)) return;
+        var wraps = Array.prototype.some.call(grid.querySelectorAll(".qz-o"), function (o) {
+          return o.getBoundingClientRect().height > 1.6 * parseFloat(getComputedStyle(o).lineHeight);
+        });
+        if (wraps) { grid.classList.remove(c); if (c === "four") grid.classList.add("two"); }
+      });
+    });
+  }
+  var resized;
+  window.addEventListener("resize", function () { clearTimeout(resized); resized = setTimeout(fit, 150); });
+
   function build(article) {
     var dets = Array.prototype.filter.call(article.querySelectorAll(":scope > details"), isAnswer);
     if (dets.length < 2) return;
     var qs = dets.map(parse).filter(Boolean);
     if (!qs.length) return;
+    grids = [];
     var key = "quiz2:" + location.pathname;
     var state = load(key);   /* { picks: {qid: letter}, checked: [box index] } */
     state.picks = state.picks || {};
@@ -163,6 +184,7 @@
           });
           q.ul.remove();
           body.appendChild(grid);
+          grids.push(grid);
         }
 
         var exp = el("div", "qz-exp");
@@ -242,6 +264,7 @@
       if (state.checked.indexOf(gi) >= 0) verify(true);
     });
     article.classList.add("qz-page");
+    fit();
   }
 
   function init() {
