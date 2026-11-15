@@ -4,7 +4,7 @@ Rode todos os comandos a partir da pasta `pgcluster/`, com o cluster no ar (`doc
 
 !!! tip "Experimente"
 
-    Sem Docker à mão ou quer ver o estado entre dois comandos? O simulador roda esta página. O simulador começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás. Em **Replicação 5 (sync)**, com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava; com `ANY 1`, webcam retorna na hora. Em **Escrita perdida**, after-failover recebe o id 34 e o `pg_rewind` descarta lost-write. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
+    Sem Docker à mão ou quer ver o estado entre dois comandos? O simulador roda os experimentos 1 a 4 desta página, começando onde o lab começa (`orders` com keyboard e mouse, as duas réplicas recebendo o WAL); play ou → roda os comandos e os botões funcionam a qualquer momento. A réplica recusa o `INSERT` de monitor; com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás em `pg_stat_replication`; retome o replay e a linha aparece. `read-write` acha o pg-primary e `standby` sorteia uma réplica. Para o experimento 5, escolha **Replicação 5 (sync)**: com `FIRST 1` e a réplica dele parada o `INSERT` trava, com `ANY 1` ele retorna na hora. Experimente também `synchronous_commit = remote_apply` com o replay pausado: o commit espera a réplica reexecutar.
 
 ## 1. Escrever no primário, ler nas réplicas
 

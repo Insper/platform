@@ -56,7 +56,7 @@ Este hands-on usa **replicação física por streaming**: a base da alta disponi
 
 ## Assíncrona ou síncrona?
 
-A pergunta é *quando* o primário responde `COMMIT ok`:
+A pergunta é *quando* o primário responde `COMMIT ok` e a resposta define o RPO (*recovery point objective*, objetivo de ponto de recuperação): quanto dado confirmado um crash pode perder.
 
 | | **Assíncrona** (padrão) | **Síncrona** |
 |---|---|---|
@@ -64,6 +64,7 @@ A pergunta é *quando* o primário responde `COMMIT ok`:
 | **Latência de escrita** | baixa | + uma ida e volta na rede |
 | **Se o primário morre** | ⚠️ os últimos commits podem não ter chegado a nenhuma réplica: **escritas perdidas** (RPO > 0) | ✅ nenhuma transação confirmada é perdida (RPO = 0) |
 | **Se a réplica morre** | ✅ nada muda | ⚠️ os commits **bloqueiam** até uma réplica voltar (ou a configuração mudar) |
+
 ``` mermaid-sim
 sequenceDiagram
     participant App as Serviço
@@ -91,7 +92,7 @@ Este é o [teorema CAP](../../classes/distributed_systems/cap/index.md) na prát
 
 !!! tip "Experimente"
 
-    Antes do lab, o mesmo cluster no navegador: aqui ele abre no experimento 5 de Replicação. O simulador começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás. Em **Replicação 5 (sync)**, com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava; com `ANY 1`, webcam retorna na hora. Em **Escrita perdida**, after-failover recebe o id 34 e o `pg_rewind` descarta lost-write. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
+    Antes do lab, o mesmo cluster no navegador, aberto no experimento 5 de Replicação. Ele começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava (1 commit travado); com `ANY 1`, webcam retorna na hora e as duas réplicas aparecem como `quorum`. Troque a página do lab para ver as outras: em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás; em **Escrita perdida**, after-failover recebe o id 34. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
 
 ## Arquitetura
 

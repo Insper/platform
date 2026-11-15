@@ -99,6 +99,9 @@ one table, or a short code block — split otherwise; `<!-- _class: tight -->` f
 `-` lists, `*` only to reveal an answer one item at a time; boxes `.q` (question), `.ok`
 (takeaway), `.warn` (pitfall); `.cols` for two columns; no Mermaid (Marp does not render it);
 speaker notes as HTML comments; last slide `## Takeaways`.
+**Visuals over text** (the global slide rule in `~/.claude/CLAUDE.md`): here that means each `mermaid-sim`/`diagram`
+of the page redrawn in diagram.css boxes, a slide per csim the page embeds with its numbers, and a look at the
+render (Marp `--images png`) before calling a deck done.
 Diagrams in a deck are HTML boxes with the generic classes of `scripts/slides/diagram.css` (`.box`, `.chip`,
 `.matrix`, `.flow`, `.group`, `.arrow`; tones `.accent`/`.orange`/`.green`/`.red`/`.muted`), included in the first
 slide with `<style>{{INCLUDE:scripts/slides/diagram.css}}</style>` (that file has no blank lines nor tag names).

@@ -56,7 +56,7 @@ This hands-on uses **physical streaming replication**: the basis of high availab
 
 ## Asynchronous or synchronous?
 
-The question is *when* the primary answers `COMMIT ok`:
+The question is *when* the primary answers `COMMIT ok`, and the answer sets the RPO (*recovery point objective*): how much committed data a crash may lose.
 
 | | **Asynchronous** (default) | **Synchronous** |
 |---|---|---|
@@ -64,6 +64,7 @@ The question is *when* the primary answers `COMMIT ok`:
 | **Write latency** | low | + one network round trip |
 | **If the primary dies** | ⚠️ the last commits may not have reached any replica: **lost writes** (RPO > 0) | ✅ no committed transaction is lost (RPO = 0) |
 | **If the replica dies** | ✅ nothing changes | ⚠️ commits **block** until a replica is back (or the configuration changes) |
+
 ``` mermaid-sim
 sequenceDiagram
     participant App as Service
@@ -91,7 +92,7 @@ This is the [CAP theorem](../../classes/distributed_systems/cap/index.md) in pra
 
 !!! tip "Try it"
 
-    Before the lab, the same cluster in the browser: here it opens on experiment 5 of Replication. The simulator starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands, and the buttons work at any time. In **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind. In **Replication 5 (sync)**, with `FIRST 1 ("pg-replica1")` and that replica stopped, the `INSERT` of headset hangs; with `ANY 1`, webcam returns at once. In **Lost write**, after-failover gets id 34 and `pg_rewind` discards lost-write. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
+    Before the lab, the same cluster in the browser, opened on experiment 5 of Replication. It starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands and the buttons work at any time. With `FIRST 1 ("pg-replica1")` and that replica stopped, the headset `INSERT` hangs (1 commit hung); with `ANY 1`, webcam returns at once and both replicas show `quorum`. Switch the lab page to see the others: in **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind; in **Lost write**, after-failover gets id 34. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
 
 ## Architecture
 

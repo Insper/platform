@@ -4,7 +4,7 @@ Run every command from the `pgcluster/` folder, with the cluster up (`docker com
 
 !!! tip "Try it"
 
-    No Docker at hand, or want to see the state between two commands? The simulator runs this page. The simulator starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands, and the buttons work at any time. In **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind. In **Replication 5 (sync)**, with `FIRST 1 ("pg-replica1")` and that replica stopped, the `INSERT` of headset hangs; with `ANY 1`, webcam returns at once. In **Lost write**, after-failover gets id 34 and `pg_rewind` discards lost-write. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
+    No Docker at hand, or want to see the state between two commands? The simulator runs experiments 1 to 4 of this page, starting where the lab starts (`orders` with keyboard and mouse, both replicas streaming); play or → runs the commands and the buttons work at any time. The replica refuses the monitor `INSERT`; with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind in `pg_stat_replication`; resume the replay and the row appears. `read-write` finds pg-primary and `standby` picks a random replica. For experiment 5, pick **Replication 5 (sync)**: with `FIRST 1` and its replica stopped the `INSERT` hangs, with `ANY 1` it returns at once. Also try `synchronous_commit = remote_apply` with the replay paused: the commit waits for the replica to replay.
 
 ## 1. Write on the primary, read on the replicas
 

@@ -10,7 +10,7 @@ docker compose exec pg-primary psql -U store -c "CREATE TABLE orders (id serial 
 
 !!! tip "Try it"
 
-    The simulator runs this page: here it opens on the planned failover. The simulator starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands, and the buttons work at any time. In **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind. In **Replication 5 (sync)**, with `FIRST 1 ("pg-replica1")` and that replica stopped, the `INSERT` of headset hangs; with `ANY 1`, webcam returns at once. In **Lost write**, after-failover gets id 34 and `pg_rewind` discards lost-write. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
+    The simulator runs this page: here it opens on the planned failover. With the primary stopped, a `read-write` client finds no server; `pg_promote()` takes pg-replica1 to timeline 2 and the same connection string now finds it; the re-pointed pg-replica2 gets after-failover; the old primary's rejoin answers *no rewind required*. At the end: 1 primary up and 0 writes lost. In **free** mode, skip `pg_rewind`: start the old primary straight away and watch two primaries appear.
 
 ## 1. Planned failover
 
@@ -232,7 +232,7 @@ flowchart LR
 
 !!! tip "Try it"
 
-    The simulator replays this section: here it opens on the lost write. The simulator starts where the lab starts: `orders` with keyboard and mouse, both replicas streaming; play or → runs the page's commands, and the buttons work at any time. In **Replication 1–4**, with the replay paused, pg-replica1 shows 2 rows and pg-replica2 3, 184 bytes behind. In **Replication 5 (sync)**, with `FIRST 1 ("pg-replica1")` and that replica stopped, the `INSERT` of headset hangs; with `ANY 1`, webcam returns at once. In **Lost write**, after-failover gets id 34 and `pg_rewind` discards lost-write. In **free** mode, try what the lab does not: start the old primary without `pg_rewind` and watch two primaries appear.
+    The simulator replays this section: here it opens on the lost write. With both replicas stopped, the lost-write `INSERT` answers `INSERT 0 1`; the primary dies, pg-replica1 is promoted and after-failover gets id 34 (ids 1, 2, 34). The old primary's `pg_rewind` discards lost-write: the writes-lost counter goes to 1. Compare with the planned failover, where the same rejoin has nothing to discard.
 
 !!! question "Would synchronous replication have saved `lost-write`?"
 

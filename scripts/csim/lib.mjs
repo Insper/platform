@@ -53,10 +53,11 @@ export function pagesOf(sim) {
   return out.sort();
 }
 
-/* the "Try it" / "Experimente" box right after the simulator in a page, as plain text */
-export function tipText(sim, page) {
+/* the "Try it" / "Experimente" box right after the simulator in a page, as plain text; `also`
+   picks one of several embeds of the same simulator (e.g. 'data-script="lost-write"') */
+export function tipText(sim, page, also = "") {
   const lines = readFileSync(page, "utf8").split("\n");
-  const at = lines.findIndex(l => l.includes(`data-sim="${sim}"`));
+  const at = lines.findIndex(l => l.includes(`data-sim="${sim}"`) && l.includes(also));
   if (at < 0) return "";
   let i = at + 1;
   while (i < lines.length && !lines[i].trim()) i++;
@@ -73,7 +74,8 @@ export function fmt(x, decimals = 0, lang = "en") {
 
 /*
  * Asserts that the simulator's tip on every page quotes these texts. `texts` is a function of the
- * language ("en" | "pt") returning strings, so numbers can be formatted per language:
+ * language ("en" | "pt") and of the page (repo-relative) returning strings, so numbers can be
+ * formatted per language and a simulator embedded on several pages can be held to each page's numbers:
  *   tipHas("cache", lang => [fmt(hit * 100, 0, lang) + "%", "60 s"]);
  */
 export function tipHas(sim, texts) {
@@ -83,7 +85,7 @@ export function tipHas(sim, texts) {
     const lang = page.endsWith(".pt.md") ? "pt" : "en";
     const tip = tipText(sim, page);
     if (!tip) throw new Error(`${path.relative(ROOT, page)}: no tip box after the simulator`);
-    for (const s of texts(lang)) {
+    for (const s of texts(lang, path.relative(ROOT, page))) {
       if (!tip.includes(s)) throw new Error(`${path.relative(ROOT, page)}: the tip does not say "${s}" (the model now gives it) — rewrite the tip`);
     }
   }

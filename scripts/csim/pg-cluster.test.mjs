@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { load, test, eq, ok, tipHas, ROOT } from "./lib.mjs";
+import { load, test, eq, ok, tipHas, tipText, ROOT } from "./lib.mjs";
 
 const M = load("pg-cluster");
 const LAB = "docs/2026.2/hands-on/9";
@@ -70,8 +70,24 @@ test("every step of every script has a caption in both languages", () => {
   for (const [name, steps] of Object.entries(M.SCRIPTS)) steps.forEach((s, i) => ok(s.en && s.pt, `${name} step ${i + 1}`));
 });
 
-test("the tips", () => {
-  tipHas("pg-cluster", lang => lang === "en"
-    ? ["pg-replica1 shows 2 rows and pg-replica2 3", `${M.BYTES} bytes`, "id 34"]
-    : ["pg-replica1 mostra 2 linhas e pg-replica2 3", `${M.BYTES} bytes`, "id 34"]);
+test("the tips: each page quotes the numbers of the script it opens on", () => {
+  const rp = play => play.out.filter(x => x.cmd.includes("SELECT id")).map(x => x.count);
+  const [, paused, other] = rp(M.play("replication"));
+  const lw = last(M.play("lost-write"), "SELECT id").ids.join(", ");
+  const f = M.play("failover");
+  const sync = M.play("sync");
+  const blocked = `${sync.st.blocked} commit`;
+  tipHas("pg-cluster", (lang, page) => {
+    const en = lang === "en";
+    const rows = en ? `pg-replica1 shows ${paused} rows and pg-replica2 ${other}` : `pg-replica1 mostra ${paused} linhas e pg-replica2 ${other}`;
+    if (page.includes("/replication/")) return [rows, `${M.BYTES} bytes`, "remote_apply"];
+    if (page.includes("/failover/")) return ["no rewind required", en ? `${M.primaries(f.st).length} primary up and ${f.st.lost.length} writes lost` : `${M.primaries(f.st).length} primário no ar e ${f.st.lost.length} escritas perdidas`];
+    return [rows, `${M.BYTES} bytes`, "id 34", blocked, "quorum"];
+  });
+  for (const lang of ["en", "pt"]) {
+    const page = path.join(ROOT, LAB, lang === "en" ? "failover/index.md" : "failover/index.pt.md");
+    const tip = tipText("pg-cluster", page, 'data-script="lost-write"');
+    for (const s of [`ids ${lw}`, "INSERT 0 1", lang === "en" ? "writes-lost counter goes to 1" : "contador de escritas perdidas vai a 1"])
+      ok(tip.includes(s), `${lang} lost-write tip: "${s}"`);
+  }
 });

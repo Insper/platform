@@ -10,7 +10,7 @@ docker compose exec pg-primary psql -U store -c "CREATE TABLE orders (id serial 
 
 !!! tip "Experimente"
 
-    O simulador roda esta página: aqui ele abre no failover planejado. O simulador começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás. Em **Replicação 5 (sync)**, com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava; com `ANY 1`, webcam retorna na hora. Em **Escrita perdida**, after-failover recebe o id 34 e o `pg_rewind` descarta lost-write. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
+    O simulador roda esta página: aqui ele abre no failover planejado. Com o primário parado, um cliente `read-write` não acha nenhum servidor; `pg_promote()` leva a pg-replica1 à timeline 2 e a mesma string de conexão passa a achá-la; a pg-replica2 reapontada recebe after-failover; o rejoin do primário antigo responde *no rewind required*. No fim: 1 primário no ar e 0 escritas perdidas. No modo **livre**, pule o `pg_rewind`: inicie o primário antigo direto e veja aparecerem dois primários.
 
 ## 1. Failover planejado
 
@@ -232,7 +232,7 @@ flowchart LR
 
 !!! tip "Experimente"
 
-    O simulador refaz esta seção: aqui ele abre na escrita perdida. O simulador começa onde o lab começa: `orders` com keyboard e mouse, as duas réplicas recebendo o WAL; play ou → roda os comandos da página e os botões funcionam a qualquer momento. Em **Replicação 1–4**, com o replay pausado, pg-replica1 mostra 2 linhas e pg-replica2 3, 184 bytes atrás. Em **Replicação 5 (sync)**, com `FIRST 1 ("pg-replica1")` e essa réplica parada, o `INSERT` de headset trava; com `ANY 1`, webcam retorna na hora. Em **Escrita perdida**, after-failover recebe o id 34 e o `pg_rewind` descarta lost-write. No modo **livre**, tente o que o lab não faz: inicie o primário antigo sem `pg_rewind` e veja aparecerem dois primários.
+    O simulador refaz esta seção: aqui ele abre na escrita perdida. Com as duas réplicas paradas, o `INSERT` de lost-write responde `INSERT 0 1`; o primário morre, a pg-replica1 é promovida e after-failover recebe o id 34 (ids 1, 2, 34). O `pg_rewind` do primário antigo descarta lost-write: o contador de escritas perdidas vai a 1. Compare com o failover planejado, em que o mesmo rejoin não tem nada a descartar.
 
 !!! question "A replicação síncrona teria salvado o `lost-write`?"
 
