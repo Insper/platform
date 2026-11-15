@@ -97,7 +97,7 @@ $$
 
     !!! warning "Requisitos da documentação"
 
-        :fontawesome-regular-calendar: Prazo de entrega: ==**16 de novembro de 2026**==.
+        :fontawesome-regular-calendar: Prazo de entrega: ==**20 de novembro de 2026, 23h59**==.
 
         :material-github: A documentação DEVE ser hospedada no GitHub Pages (pública).
 
@@ -134,7 +134,7 @@ $$
 |     |    | <span class='q1'>26</span> |    |    |    | 30 |    |
 | Nov |    |    |    |    |    | 06 |    |
 |     |    | 09 |    |    |    | 13 |    |
-|     |    | <span class='project'>16</span> |    |    |    |    |    |
+|     |    | 16 |    |    |    | <span class='project'>20</span> |    |
 |     |    | 23 |    |    |    | <span class='fexam'>27</span> |    |
 | Dez |    | <span class='sexam'>07</span> | <span class='sexam'>08</span> | <span class='sexam'>09</span> |.  |    |    |
 

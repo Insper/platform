@@ -98,7 +98,7 @@ $$
 
     !!! warning "Documentation Requirements"
 
-        :fontawesome-regular-calendar: Deadline to deliver: ==**November 16th, 2026**==.
+        :fontawesome-regular-calendar: Deadline to deliver: ==**November 20th, 2026, 23:59**==.
 
         :material-github: Documentation MUST be hosted on GitHub Pages (public).
 
@@ -135,7 +135,7 @@ $$
 |     |    | <span class='q1'>26</span> |    |    |    | 30 |    |
 | Nov |    |    |    |    |    | 06 |    |
 |     |    | 09 |    |    |    | 13 |    |
-|     |    | <span class='project'>16</span> |    |    |    |    |    |
+|     |    | 16 |    |    |    | <span class='project'>20</span> |    |
 |     |    | 23 |    |    |    | <span class='fexam'>27</span> |    |
 | Dec |    | <span class='sexam'>07</span> | <span class='sexam'>08</span> | <span class='sexam'>09</span> |.  |    |    |
 
