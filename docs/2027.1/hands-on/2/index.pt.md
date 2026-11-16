@@ -7,6 +7,10 @@
 
 "Meça primeiro" é o hábito mais útil em design de sistemas. Antes de acrescentar um cache, uma réplica ou mais dez servidores, você precisa saber **quanta carga o sistema atual aguenta, onde ele quebra e por quê**. Chutar é como times passam um mês construindo um cache para um serviço cujo limite real era um pool de 10 conexões. Neste lab você trata o `catalog` como uma caixa-preta, com um gerador de carga na frente (o k6) e alguns medidores dentro (o Actuator), e produz o gráfico mais importante da disciplina: **latência contra throughput**.
 
+!!! quote "A história até aqui"
+
+    Capítulos 2 e 3 da [história da disciplina](../../index.md#story). O [lab 1](../1/index.md) construiu o `catalog` e mediu o seu tempo de serviço com um usuário: alguns milissegundos para um detalhe, dezenas para uma listagem (na execução de exemplo do lab 1, ~11 ms e ~42 ms no percentil 95). A [aula 2](../../classes/estimation/index.md) fez a conta das 10:00: **~33.000 holds/s** de demanda contra **~1.100** que um banco sustenta numa utilização sensata — uma estimativa feita sobre um tempo de serviço *suposto*. **Este lab** escreve testes de carga, de estresse e de varredura com o k6, mede o joelho de uma instância do `catalog` e nomeia o seu gargalo com medidores de dentro do serviço: o número que substitui a suposição.
+
 ## Antes de começar { #before-you-start }
 
 | | |
@@ -49,8 +53,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 !!! info "Conexão com a teoria"
 
-    - Na [história da disciplina](../../index.md#story), este lab fecha o capítulo 2 e abre o capítulo 3: ele troca o tempo de serviço *suposto* na [verificação de capacidade](../../classes/estimation/index.md) da aula por um joelho *medido* e mostra que uma instância sai da meta de latência com algumas centenas de requisições por segundo — longe da demanda da abertura de vendas; por isso o BoxOffice precisa de [mais máquinas](../../classes/distributed/index.md).
-    - Aula 2, [Estimativas](../../classes/estimation/index.md): [filas e Lei de Little](../../classes/estimation/queueing/index.md), [percentis e latência de cauda](../../classes/estimation/percentiles/index.md).
+    - Aula 2, [Estimativas](../../classes/estimation/index.md): o joelho *medido* substitui o tempo de serviço *suposto* da [verificação de capacidade](../../classes/estimation/index.md) da aula; [filas e Lei de Little](../../classes/estimation/queueing/index.md), [percentis e latência de cauda](../../classes/estimation/percentiles/index.md).
     - Aula 15, [Engenharia de desempenho](../../classes/performance/index.md): [tipos de teste de carga](../../classes/performance/load-testing/index.md), [encontrando gargalos](../../classes/performance/bottlenecks/index.md).
 
 ## Antes de medir: uma hipótese { #before-you-measure-a-hypothesis }
@@ -332,7 +335,9 @@ boxoffice/
 
 Nenhum serviço mudou: a stack ainda é `db` + `catalog`.
 
-Próximo: [Lab 3 — Borda](../3/index.md), em que uma réplica vira três.
+## O que quebra em seguida { #what-breaks-next }
+
+Uma instância sai da meta de latência com algumas centenas de requisições por segundo — na execução de exemplo da página, o p99 é de 224 ms a 400 req/s e de 2.056 ms a 500 — e um pool maior não a salva quando o que está cheio é o PostgreSQL. Às 10:00:00 a borda recebe cerca de 100.000 requisições/s e só os holds são ~33.000/s: uma diferença de 30× que nenhum ajuste de uma máquina fecha. O BoxOffice precisa de muitas máquinas e, entre elas, de uma rede que perde, atrasa e duplica mensagens ([aula 3 — Sistemas Distribuídos](../../classes/distributed/index.md)). O [Lab 3 — Borda](../3/index.md) dá o primeiro passo: três réplicas do `catalog` atrás do Nginx, medidas contra o joelho que você acabou de encontrar ([aula 4 — Tráfego e Borda](../../classes/edge/index.md)).
 
 [^1]: Documentação do Grafana k6, [Open and closed models](https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/open-vs-closed/){target="_blank"} e [Arrival-rate executors](https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/){target="_blank"}.
 [^2]: John D. C. Little, "A Proof for the Queuing Formula: L = λW", *Operations Research* 9(3), 1961.

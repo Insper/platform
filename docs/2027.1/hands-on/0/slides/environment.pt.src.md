@@ -31,6 +31,28 @@ Roteiro: (1) o que o BoxOffice vira em 13 labs; (2) as ferramentas; (3) a tabela
 
 ---
 
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">antes<small>uma promessa, nenhuma medição</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 1 · lab 0<small>ferramentas, nomes, o primeiro número</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 1<small>catalog, o primeiro serviço de verdade</small></div>
+</div>
+
+<div class="q">
+
+À venda às 10:00: **2 M de fãs, 60 mil lugares**, p99 abaixo de 300 ms. Quantas requisições por segundo a *sua* máquina atende quando o servidor quase não faz nada?
+
+</div>
+
+- Todo número seguinte da disciplina é comparado com este.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): todo capítulo abre com o número que o anterior deixou.
+-->
+
+---
+
 ## BoxOffice, um lab de cada vez
 
 <div class="q">
@@ -233,6 +255,18 @@ O k6 roda nos mesmos núcleos: a dezenas de milhares de RPS você também está 
 - `results/lab0.md`: tabela de referência (1, 10, 50 VUs) + verificação da Lei de Little.
 - Hipótese do playground anotada.
 - Quiz.
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 0 · o teto<small>Nginx de fábrica, uma página estática: dezenas de milhares de req/s</small></div><div class="arrow">→</div>
+<div class="box orange">trabalho de verdade<small>código Java, uma transação no banco, um salto de rede</small></div><div class="arrow">→</div>
+<div class="box accent">lab 1 · catalog<small>o mesmo script do k6: quanto menos, e onde?</small></div>
+</div>
+
+- A distância entre o número do lab 1 e este é o preço do trabalho de verdade.
 
 ---
 

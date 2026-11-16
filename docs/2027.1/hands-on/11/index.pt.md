@@ -14,12 +14,15 @@ o checkout: uma query lenta, uma biblioteca vulnerável, uma versão que falha 3
 consegue revisar toda mudança à mão nesse ritmo — o pipeline precisa responder *"esta mudança é segura
 para entregar a 2 milhões de fãs?"* automaticamente e limitar o estrago quando a resposta estava errada.
 Este lab é o lado prático da [página de entrega](../../classes/cloud-native/delivery/index.md) da aula
-de cloud native e fecha o capítulo 11 da [história da disciplina](../../index.md#story) — fazer rollback
-de uma release ruim sem um humano: ele implementa
+de cloud native: ele implementa
 [integração contínua](../../classes/cloud-native/delivery/index.md#continuous-integration) com um
 [orçamento de desempenho](../../classes/performance/capacity-planning/index.md#performance-budgets),
 [GitOps](../../classes/cloud-native/delivery/index.md#gitops) e um
 [canary julgado por métricas](../../classes/cloud-native/delivery/index.md#canary-with-automated-metrics-analysis).
+
+!!! quote "A história até aqui"
+
+    Capítulo 11 da [história da disciplina](../../index.md#story), com a cadeia de suprimentos do capítulo 12 e o portão de desempenho do capítulo 15. O [lab 10](../10/index.md) pôs o BoxOffice num cluster que se cura e escala sozinho: na execução de teste, um rolling update com readiness e `preStop` perdeu **0** de cerca de 11.900 requisições. Mas toda release ainda começa com `kubectl` num laptop e troca todos os pods por uma imagem que ninguém testou, escaneou ou mediu: uma release que falha 30% das requisições chegaria aos 2 milhões de fãs sem nada que a desfizesse ([aula 11 — Cloud-Native](../../classes/cloud-native/index.md)) e toda imagem carrega bibliotecas que ninguém revisou ([aula 12 — Rede e Segurança](../../classes/network-security/index.md)). **Este lab** constrói o pipeline que responde sozinho *"esta mudança é segura?"* — CI com Testcontainers e um orçamento de desempenho no k6 ([aula 15 — Engenharia de Desempenho](../../classes/performance/index.md)), um scan do Trivy, um SBOM e proveniência assinada, GitOps com o Argo CD e um canary julgado pelo Prometheus — e mede onde o pipeline gasta o seu tempo, o lead time do `git push` até os usuários, se o orçamento pega uma regressão e quão rápido um canary ruim aborta.
 
 ## Slides
 
@@ -205,5 +208,9 @@ Faça o commit e a tag: `git add -A && git commit -m "lab 11: delivery" && git t
     IA, geração de testes verificada por testes de mutação, um agente que propõe uma correção quando o
     `CI` falha, release notes por IA e um veredito de canary explicado — com a mesma disciplina de
     permissões, orçamentos e medições.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O pipeline agora responde por toda mudança: na execução de teste, o orçamento manteve o p95 perto de **7 ms** contra 300 ms e deixou o pull request vermelho com um sleep de 400 ms; o canary que falhava 30% das requisições abortou sozinho **cerca de um minuto** depois do sync do Argo CD — só os fãs que caíram nele viram erros. A plataforma já aguenta a venda; o que chega agora é um novo tipo de dependência. Os fãs querem perguntar *"dois lugares abaixo de R$ 300 no sábado?"* e a resposta viria de um modelo que leva segundos, é cobrado por token, pode errar com uma prosa fluente e lê o catálogo e o mapa de lugares por ferramentas — uma caixa que nenhum teste, orçamento ou canary deste lab sabe julgar. O [Lab 12 — O assistente](../12/index.md) a coloca no BoxOffice atrás de um gateway, de recuperação, de ferramentas só de leitura e de guardrails: a [aula 13 — Sistemas de IA](../../classes/ai-systems/index.md).
 
 [Começar: Testes e CI](ci/index.md){ .md-button .md-button--primary }

@@ -25,9 +25,31 @@ theme: platform
 **Um serviço web de eventos e locais: Spring Boot, PostgreSQL, Flyway, um container — e a sua latência sem carga**
 
 <!--
-Roteiro: (1) por que o catalog primeiro; (2) o que você vai construir; (3) o contrato da API; (4) camadas,
+Capítulo 2 da história. Roteiro: (1) por que o catalog primeiro; (2) o que você vai construir; (3) o contrato da API; (4) camadas,
 DTOs e códigos de status; (5) JPA, N+1, o pool; (6) Flyway; (7) Dockerfile e Compose; (8) smoke test e
 tempo de serviço.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 0 · o teto<small>Nginx de fábrica: dezenas de milhares de req/s</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 2 · lab 1<small>catalog: um serviço, um banco</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 2<small>o joelho, medido</small></div>
+</div>
+
+<div class="q">
+
+Às 10:00 a demanda é de **~33.000 holds/s**; um PostgreSQL faz **~1.100**. Antes: quão rápido um serviço de verdade responde a **um** usuário?
+
+</div>
+
+- O tempo de serviço medido hoje é a referência de todo lab seguinte.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): todo capítulo abre com o número que o anterior deixou. O lab 1 abre o capítulo 2: o serviço único e o banco único que a aula 2 confere no papel.
 -->
 
 ---
@@ -233,6 +255,18 @@ k6 run load/smoke.js        # 1 VU, 30 s, think time 0.5 s
 Qual endpoint vai quebrar primeiro sob carga? Anote a hipótese para o lab 2.
 
 </div>
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 1 · tempo de serviço<small>um usuário: detalhe ~11 ms, listagem ~42 ms no p95</small></div><div class="arrow">→</div>
+<div class="box orange">quantas req/s?<small>a prévia desenha ~530; as 10:00 pedem ~33.000</small></div><div class="arrow">→</div>
+<div class="box accent">lab 2 · meça primeiro<small>carga aberta até a latência explodir: o joelho</small></div>
+</div>
+
+- Escreva a sua hipótese agora: qual recurso enche primeiro?
 
 ---
 

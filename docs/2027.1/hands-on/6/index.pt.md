@@ -9,7 +9,11 @@
 
 A venda relâmpago é o momento para o qual o BoxOffice existe: às 10:00, 60.000 assentos e dois milhões de fãs. O catálogo pôde ir para o cache porque alguns segundos de defasagem não fazem mal. **Os assentos são o oposto**: vender o mesmo assento duas vezes é o único bug que uma empresa de ingressos não pode se permitir. Este lab trata da camada de dados sob pressão[^1] — primeiro a corretude (transações e locks), depois a escala (réplicas, pooling, índices), depois a sobrevivência (failover) — e dos trade-offs entre elas.
 
-Este lab constrói o capítulo 6 da [história da disciplina](../../index.md#story), o banco de dados do qual todo serviço stateless agora depende. Ele implementa as decisões da aula 6: [um assento, uma reserva](../../classes/databases/transactions/index.md#double-booking) com locks ou uma verificação de versão, uma [réplica de leitura e o seu atraso](../../classes/databases/replication/index.md#lag), [pool de conexões](../../classes/databases/replication/index.md) com o PgBouncer, [índices lidos com `EXPLAIN`](../../classes/databases/models/index.md) e um [failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies), com as suas escritas perdidas e o split brain.
+Este lab implementa as decisões da aula 6: [um assento, uma reserva](../../classes/databases/transactions/index.md#double-booking) com locks ou uma verificação de versão, uma [réplica de leitura e o seu atraso](../../classes/databases/replication/index.md#lag), [pool de conexões](../../classes/databases/replication/index.md) com o PgBouncer, [índices lidos com `EXPLAIN`](../../classes/databases/models/index.md) e um [failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies), com as suas escritas perdidas e o split brain.
+
+!!! quote "A história até aqui"
+
+    Capítulo 6 da [história da disciplina](../../index.md#story), feito nos labs depois do capítulo 7. O [Lab 5](../5/index.md) deixou o caminho de leitura barato: o Redis responde as páginas de evento (um cache frio chegou a cerca de 70% de hits em um minuto, numa execução daquele lab) e o PostgreSQL só vê os misses. Escritas não vão para um cache assim. Os serviços stateless empurram toda reserva para o banco, dois fãs clicam no mesmo assento no mesmo milissegundo e às 10:00 chegam cerca de 33.000 reservas/s para as ~1.100 que um PostgreSQL atende ([aula 6 — Bancos de dados](../../classes/databases/index.md)). **Este lab** constrói o `inventory`, uma réplica de leitura, o PgBouncer, um índice e um failover, e mede as vendas duplicadas de cada estratégia de lock, as leituras desatualizadas que o atraso de replicação causa, as conexões que um pooler economiza, a consulta da listagem antes e depois do índice e as reservas que um failover perde.
 
 ## Antes de começar { #before-you-start }
 
@@ -255,7 +259,9 @@ boxoffice/
     results/lab6.md
 ```
 
-Próximo: [Lab 7 — Assíncrono](../7/index.md), em que o `order` confirma as reservas por meio de eventos.
+## O que quebra em seguida { #what-breaks-next }
+
+O assento está seguro: o `naive` vendeu assentos duas vezes (9 e 11 vendas duplicadas em execuções para este lab), enquanto o `pessimistic` e o `optimistic` sempre terminaram a auditoria em 0. Mas uma reserva ainda não é uma compra e nada nesta pilha a transforma em uma. O checkout precisa de um pedido, de um pagamento e de um e-mail de confirmação: chamados dentro da requisição, o fã espera pelo mais lento deles e uma queda do e-mail vira uma queda de pedidos. Os locks também mantêm o assento seguro, não o banco de pé: na abertura das vendas às 10:00 chegam 30 vezes mais fãs do que um PostgreSQL consegue atender e eles precisam de uma fila justa em vez de uma corrida por locks de linha. O [Lab 7 — Assíncrono](../7/index.md) constrói o `order`, que confirma as reservas pelo `inventory`, publica os seus eventos por um transactional outbox até o Kafka e admite a multidão por uma sala de espera: a [aula 8 — Mensageria](../../classes/messaging/index.md).
 
 [^1]: Martin Kleppmann e Chris Riccomini, *Designing Data-Intensive Applications*, 2ª ed., O'Reilly — capítulos sobre transações e replicação.
 [^2]: Documentação do PostgreSQL, [Explicit Locking](https://www.postgresql.org/docs/17/explicit-locking.html){target="_blank"}, [Log-Shipping Standby Servers](https://www.postgresql.org/docs/17/warm-standby.html){target="_blank"} e [Using EXPLAIN](https://www.postgresql.org/docs/17/using-explain.html){target="_blank"}.

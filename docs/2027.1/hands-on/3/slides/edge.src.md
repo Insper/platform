@@ -25,8 +25,30 @@ theme: platform
 **Nginx as reverse proxy, load balancer and rate limiter over three `catalog` replicas**
 
 <!--
-Outline: (1) why scale out; (2) the topology; (3) replicas in Compose; (4) nginx.conf; (5) distribution;
+Chapter 4 of the story. Outline: (1) why scale out; (2) the topology; (3) replicas in Compose; (4) nginx.conf; (5) distribution;
 (6) failures: stop vs pause; (7) rate limiting; (8) measuring scale-out efficiency.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 2 · the knee<small>one catalog: a few hundred req/s</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 4 · lab 3<small>Nginx over three replicas</small></div><div class="arrow">→</div>
+<div class="box">next · lab 4<small>gateway and identity</small></div>
+</div>
+
+<div class="q">
+
+At 10:00:00 about **100,000 requests/s** reach the edge; one replica keeps its latency target only up to a few hundred. Does 3× the replicas give 3× the capacity?
+
+</div>
+
+- With three, one can also fail while the others keep serving.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): every chapter opens with the number the previous one left. Lab 3 builds the edge of chapter 4 (class 4, Traffic & Edge).
 -->
 
 ---
@@ -211,6 +233,18 @@ Scaling efficiency = capacity(3) / (3 × capacity(1)). Watch `docker stats`: who
 - Mix: `db` at ~670% CPU, each replica ~20% — the shared tier is saturated.
 - More replicas = more concurrent heavy queries on the **same** database.
 - Cold replicas + `max_fails` can cascade into `502 no live upstreams`: **warm up** first.
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 3 · scale-out<small>details: close to 3×; the mix: little</small></div><div class="arrow">→</div>
+<div class="box orange">two limits<small>db ~670% CPU, replicas ~20%; anyone can call anything</small></div><div class="arrow">→</div>
+<div class="box accent">lab 4 · gateway & identity<small>who calls, checked once; stateless replicas</small></div>
+</div>
+
+- The database waits for labs 5 (cache) and 6 (indexes).
 
 ---
 

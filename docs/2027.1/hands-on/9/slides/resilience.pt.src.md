@@ -25,8 +25,31 @@ theme: platform
 **Um provedor de pagamento lento não pode derrubar o checkout**
 
 <!--
+Capítulo 10 da história da disciplina.
 Roteiro: (1) a cascata; (2) payment, psp, Toxiproxy; (3) timeout; (4) retry + idempotência;
 (5) circuit breaker; (6) bulkhead; (7) as cinco execuções no simulador; (8) game day; (9) medir.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">capítulo 9 · lab 8<small>dashboards, traces, um alerta de burn rate: acionou ~440 s depois que o db parou</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 10 · lab 9<small>timeout, retry, breaker, bulkhead, game day</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 10<small>o Kubernetes cura e escala</small></div>
+</div>
+
+<div class="q">
+
+10:02: o provedor de pagamento responde em **4 s em vez de 200 ms**. O dashboard do lab 8 mostra, o alerta dispara — e o checkout morre mesmo assim. Ver a falha basta para sobreviver a ela?
+
+</div>
+
+- Neste lab, o Toxiproxy soma 3 s a cada chamada ao `payment`.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): o capítulo 10 abre com o provedor lento que o dashboard do lab 8 enxerga, mas não segura.
 -->
 
 ---
@@ -268,6 +291,18 @@ Sem hipótese, não há experimento. Uma hipótese refutada é o resultado valio
 O simulador mostra a forma; k6 + Toxiproxy dão os seus próprios números.
 
 </div>
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 9 · contido<small><code>GET /orders/{id}</code>: 9 s na mediana sem proteção, milissegundos com os padrões</small></div><div class="arrow">→</div>
+<div class="box orange">o limite<small>toda mitigação do game day foi uma pessoa num terminal</small></div><div class="arrow">→</div>
+<div class="box accent">lab 10 · Kubernetes<small>reiniciar, escalar antes das 10:00, liberar: laços de controle</small></div>
+</div>
+
+- Às 10:00, ninguém deveria estar reiniciando contêineres à mão.
 
 ---
 

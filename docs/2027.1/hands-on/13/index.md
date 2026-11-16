@@ -6,9 +6,13 @@
     - **Measure it**: review precision, cost per pull request (PR), CI minutes and time to merge over a week of pull requests.
 
 Lab 11 gave BoxOffice a pipeline that builds, tests, scans, signs and rolls out each change behind a canary. Lab 12 put a language model *inside* the product. This lab puts language models **inside the pipeline** — and treats them with the same discipline as any other dependency: least privilege, budgets, validation of every output, and numbers that say whether they help.
-In the [story of the course](../../index.md#story) it builds chapter 14: the decisions of [code review](../../classes/ai-delivery/code-review/index.md), [AI-generated tests](../../classes/ai-delivery/testing/index.md), [agents in CI](../../classes/ai-delivery/agents-in-ci/index.md), [release and operate](../../classes/ai-delivery/release-operate/index.md) and [security & governance](../../classes/ai-delivery/security-governance/index.md).
+Each part applies one page of the [AI-Assisted Delivery class](../../classes/ai-delivery/index.md): [code review](../../classes/ai-delivery/code-review/index.md), [AI-generated tests](../../classes/ai-delivery/testing/index.md), [agents in CI](../../classes/ai-delivery/agents-in-ci/index.md), [release and operate](../../classes/ai-delivery/release-operate/index.md) and [security & governance](../../classes/ai-delivery/security-governance/index.md).
 
 The rule for the whole lab: **AI proposes, rules and humans dispose.** No step in this lab can merge, approve, deploy or roll back on its own. The model writes comments, patches and explanations; deterministic checks (tests, mutation score, policy thresholds) and people decide.
+
+!!! quote "The story so far"
+
+    Chapter 14 of the [story of the course](../../index.md#story). [Lab 12](../12/index.md) put a model inside the product and showed how far a change of model alone moves its behavior: grounded answers went from **1 of 10 to 5 of 10** by swapping `qwen2.5:1.5b` for `qwen2.5:3b`, without a line of Java. [Lab 11](../11/index.md) gave every change a pipeline — tests, a performance budget, scans, a signed image, a canary — sized for a team that ships ten changes a day and reviews each one by hand. Now the same models write the code, and changes arrive faster than people can review, test and release them ([class 14 — AI-Assisted Delivery](../../classes/ai-delivery/index.md)). **This lab** adds five AI steps to that pipeline, each one proposing and none approving, and measures whether they help: review precision over a week of PRs (70 % is a reasonable bar before a gate), cost per PR, CI minutes and time to merge.
 
 ## Before you start { #before-you-start }
 
@@ -350,6 +354,8 @@ boxoffice/
     results/lab13.md
 ```
 
-This is the last lab: the same pipeline, conventions and measurements carry into the team project.
+## What breaks next { #what-breaks-next }
+
+Every AI step of this lab judges **one change**: one diff, one test class, one red build, one canary against its baseline at today's traffic — and its own measurements say how far to trust it (while this lab was written, the local 7B reviewer scored 50 % recall on the golden set and was fooled by both injection cases). None of them answers the question the next on-sale asks of the **whole** system: with the edge, the caches, the waiting room, the breakers, Kubernetes and an assistant all in place, does BoxOffice keep p99 under 300 ms when 2 million fans arrive at 10:00, which component breaks first, and what does it cost to run? This is the last regular lab. Proving it with load, profiles and a cost model is [class 15 — Performance Engineering](../../classes/performance/index.md), and the [team project](../../exercises/project/index.md) carries this pipeline, its conventions and its measurements into that proof. Before that, [lab 14 — Payments in a sandbox](../14/index.md) goes back to the payment of lab 9 and plugs it into a real provider.
 
 [Start with part 1: AI review](review/index.md){ .md-button .md-button--primary }

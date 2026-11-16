@@ -31,6 +31,28 @@ Outline: (1) what BoxOffice becomes over 13 labs; (2) the toolchain; (3) the ser
 
 ---
 
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">before<small>a promise, no measurement</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 1 · lab 0<small>toolchain, names, the first number</small></div><div class="arrow">→</div>
+<div class="box">next · lab 1<small>catalog, the first real service</small></div>
+</div>
+
+<div class="q">
+
+On sale at 10:00: **2 M fans, 60 k seats**, p99 under 300 ms. How many requests per second does *your* machine serve when the server does almost nothing?
+
+</div>
+
+- Every later number of the course is compared with this one.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): every chapter opens with the number the previous one left.
+-->
+
+---
+
 ## BoxOffice, one lab at a time
 
 <div class="q">
@@ -233,6 +255,18 @@ k6 runs on the same cores: at tens of thousands of RPS you are measuring k6 too.
 - `results/lab0.md`: baseline table (1, 10, 50 VUs) + Little's Law check.
 - Playground hypothesis written down.
 - Quiz.
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 0 · the ceiling<small>stock Nginx, a static page: tens of thousands of req/s</small></div><div class="arrow">→</div>
+<div class="box orange">real work<small>Java code, a database transaction, a network hop</small></div><div class="arrow">→</div>
+<div class="box accent">lab 1 · catalog<small>the same k6 script: how much less, and where?</small></div>
+</div>
+
+- The gap between lab 1's number and this one is the price of real work.
 
 ---
 

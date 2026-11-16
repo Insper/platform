@@ -6,6 +6,10 @@
 
 Todo site de ingressos começa pela mesma página: *o que tem, onde e quando?* No BoxOffice esse é o trabalho do `catalog`. Ele é o serviço com **mais leitura** do sistema — durante uma venda relâmpago, milhões de fãs recarregam a página do evento enquanto só um punhado de administradores a altera — e por isso será a cobaia do balanceamento de carga (lab 3), do cache (lab 5) e dos índices (lab 6). Hoje você constrói a versão mais simples que funciona, o passo **monolith-first** da jornada de escala.
 
+!!! quote "A história até aqui"
+
+    Capítulo 2 da [história da disciplina](../../index.md#story). O [lab 0](../0/index.md) mediu um teto: um Nginx de fábrica respondendo uma página estática da memória, dezenas de milhares de requisições por segundo na sua máquina. A [aula 1](../../classes/intro/index.md) escreveu a promessa — 2 milhões de fãs, 60.000 lugares, toda página abaixo de 300 ms no percentil 99 — e a [aula 2](../../classes/estimation/index.md) a confere no papel: às 10:00 a demanda é de **~33.000 holds/s**, enquanto um PostgreSQL faz **~1.100** numa utilização sensata. Para medir qualquer uma dessas coisas, o BoxOffice precisa primeiro de algo real. **Este lab** constrói o `catalog`, o "um serviço, um banco" da história (os estágios 0 e 1 da [jornada de escala](../../classes/intro/scaling-journey/index.md)), e mede o seu tempo de serviço: quão rápido cada endpoint responde a um único usuário, sem carga.
+
 ## Antes de começar { #before-you-start }
 
 | | |
@@ -83,7 +87,7 @@ O banco começa com **50 locais em 10 cidades e 200.000 eventos** (um por hora a
 
 !!! info "Conexão com a teoria"
 
-    - Na [história da disciplina](../../index.md#story), o `catalog` é o "um serviço, um banco" dos capítulos 1 e 2: os estágios 0 e 1 da [jornada de escala](../../classes/intro/scaling-journey/index.md) e o sistema cuja capacidade a [aula 2](../../classes/estimation/index.md) estima e o lab 2 mede. Sua 1 CPU e suas 10 conexões com o banco são os números que o lab 2 transforma num joelho.
+    - O `catalog` é o sistema cuja capacidade a [aula 2](../../classes/estimation/index.md) estima e o lab 2 mede: sua 1 CPU e suas 10 conexões com o banco são os números que o lab 2 transforma num joelho.
     - Aula 5, [Computação e serviços](../../classes/compute/index.md): servidores de aplicação sem estado, [estilos de API](../../classes/compute/api-styles/index.md) (REST, recursos, códigos de status, versionamento).
     - Aula 6, [Bancos de dados](../../classes/databases/index.md): [modelos de dados](../../classes/databases/models/index.md) relacionais, schemas e migrations.
 
@@ -261,7 +265,9 @@ boxoffice/
 
 Rodando: `db` (PostgreSQL 17, schema `catalog` com 50 locais e 200.000 eventos) e `catalog` na porta 8082.
 
-Próximo: [Lab 2 — Meça primeiro](../2/index.md).
+## O que quebra em seguida { #what-breaks-next }
+
+O tempo de serviço é o melhor caso: um usuário e, na execução de exemplo da página, o detalhe a ~11 ms e a listagem a ~42 ms no p95 — ele não diz nada sobre quantas requisições por segundo o `catalog` aguenta. O preset `boxoffice-pool` do playground desenha o joelho em cerca de 530 req/s, com o pool de 10 conexões cheio enquanto a CPU está abaixo de 70%; a abertura de vendas das 10:00 pede ~33.000 holds/s. Onde o serviço real quebra e qual recurso enche primeiro é questão de medição, não de chute: o [Lab 2 — Meça primeiro](../2/index.md) carrega o `catalog` com uma carga aberta até a latência explodir, com as filas e os percentis da [aula 2 — Estimativas](../../classes/estimation/index.md).
 
 [^1]: Referência do Spring Boot, [Data Access — Database Initialization with Flyway](https://docs.spring.io/spring-boot/how-to/data-initialization.html){target="_blank"}.
 [^2]: IETF, [RFC 9457 — Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457){target="_blank"}.

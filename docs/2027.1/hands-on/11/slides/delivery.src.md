@@ -25,9 +25,30 @@ theme: platform
 **From `git push` to a canary that aborts by itself**
 
 <!--
+Chapter 11 of the story of the course, with the supply chain of chapter 12 and the performance gate of chapter 15.
 Outline: (1) why automate safety; (2) CI with Testcontainers; (3) supply chain: Trivy, SBOM,
 provenance; (4) performance budget; (5) GitOps with Argo CD; (6) canary with Argo Rollouts;
 (7) measure: lead time.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">chapter 11 · lab 10<small>a cluster that heals and scales</small></div><div class="arrow">→</div>
+<div class="box accent">chapters 11, 12, 15 · lab 11<small>tests, supply chain, budget, canary</small></div><div class="arrow">→</div>
+<div class="box">next · lab 12<small>the assistant</small></div>
+</div>
+
+<div class="q">
+
+Lab 10: a rolling update lost **0 of ~11,900** requests — but it ships whatever image you built, untested, unscanned, unmeasured. Who checks a change before 2 M fans get it, and who rolls it back?
+
+</div>
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): this lab closes chapter 11 (roll back without a human) and builds the supply chain of chapter 12 and the performance gate of chapter 15.
 -->
 
 ---
@@ -209,6 +230,18 @@ The cluster credentials never leave the cluster.
 | D | canary | sync → abort, error measurements, failed requests |
 
 <p class="small">Lead time is dominated by tests, image build, Argo CD polling (≤ 3 min) and the canary pauses — a deliberate price for safety.</p>
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 11 · safe changes<small>budget: p95 ~7 ms against 300 ms; the bad canary aborted in ~1 min</small></div><div class="arrow">→</div>
+<div class="box orange">a new dependency<small>a model: seconds per answer, billed per token, fluent mistakes, tools</small></div><div class="arrow">→</div>
+<div class="box accent">lab 12 · assistant<small>gateway, retrieval, read-only tools, guardrails</small></div>
+</div>
+
+- Fans ask: *"two seats under R$ 300 on Saturday?"*
 
 ---
 

@@ -15,13 +15,26 @@ adds the inside view — the three signals of the
 [observability class](../../classes/observability/index.md): **metrics** say *that* something is
 wrong and how much, **traces** say *where* in the request the time went, **logs** say *why*.
 
-This lab builds chapter 9 of the [story of the course](../../index.md#story) in BoxOffice: the RED
+This lab implements in BoxOffice the RED
 dashboard of [signals](../../classes/observability/signals/index.md), the trace context carried
 through the outbox and Kafka of [OpenTelemetry](../../classes/observability/opentelemetry/index.md),
 and the [SLO](../../classes/observability/slo/index.md) with the multiwindow burn-rate alert of
 [alerting](../../classes/observability/alerting/index.md). It comes right before
 [lab 9](../9/index.md) for a reason: you instrument BoxOffice before you break it on purpose,
 otherwise the chaos experiments of lab 9 have nothing to show.
+
+!!! quote "The story so far"
+
+    Chapter 9 of the [story of the course](../../index.md#story). [Lab 7](../7/index.md) took the slow
+    work out of the request: in a test run for that lab, at 200 orders/s `POST /orders` answered in
+    1.8 ms at p50 with the outbox against 2.7 s with the e-mail inline, and a 20 s `notification` outage
+    failed no order. Asynchrony has a price: failures stop showing up in requests. An order whose e-mail
+    never arrives produces no `5xx` and no slow endpoint — it vanishes somewhere between the outbox, Kafka
+    and the consumer — and k6, which measures from the outside, cannot see it
+    ([class 9 — Observability](../../classes/observability/index.md)). **This lab** builds the telemetry
+    pipeline, the RED dashboard, one trace per order and an SLO of 99.5% for `catalog` with a burn-rate
+    alert, and measures what the agent costs, what sampling saves, how many time series each service
+    creates and how long a stopped database takes to page someone.
 
 ## Slides
 
@@ -226,6 +239,17 @@ Commit and tag: `git add -A && git commit -m "lab 8: observability" && git tag l
   [Incident response](../../classes/observability/incident-response/index.md) ·
   [SLOs and error budgets](../../classes/observability/slo/index.md)
 - Previous lab: [7. Async messaging](../7/index.md) — the flow traced here.
-- Next lab: [9. Resilience & chaos](../9/index.md) uses this dashboard during a game day.
+
+## What breaks next { #what-breaks-next }
+
+BoxOffice can see itself: a RED dashboard, one trace per order from the edge through Kafka to the
+e-mail, and an SLO whose fast-burn alert paged about 440 s after `db` was stopped, in a test run for
+this lab. Seeing is not surviving. The next number is a slow dependency: at 10:02 the payment provider
+answers in 4 s instead of 200 ms. Nothing is down; the dashboard shows the `order` p95 climbing, the
+trace puts the time in the payment call, the alert fires — and checkout still dies, because every
+`order` thread waits on the provider and none is left even for requests that never touch it.
+[Lab 9 — Resilience & chaos](../9/index.md) adds the payment provider, reproduces that cascade and
+fixes it with timeout, retry, circuit breaker and bulkhead, each watched on this dashboard during a
+game day: [class 10 — Reliability](../../classes/reliability/index.md).
 
 [Start: Instrument everything](instrument/index.md){ .md-button .md-button--primary }

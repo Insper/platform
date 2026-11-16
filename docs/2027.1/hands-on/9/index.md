@@ -15,7 +15,7 @@ to the provider — because every one of its threads is waiting on `payment`. Th
 failure on your laptop and applies the patterns of the
 [reliability class](../../classes/reliability/index.md), with a number for each.
 
-This lab builds chapter 10 of the [story of the course](../../index.md#story): the
+The patterns are those of the reliability class: the
 [cascading failure](../../classes/reliability/index.md#cascading-failures) and its defences —
 [timeout](../../classes/reliability/patterns/index.md#timeout),
 [retry with jitter](../../classes/reliability/patterns/index.md#retry-with-backoff-and-jitter),
@@ -24,6 +24,10 @@ This lab builds chapter 10 of the [story of the course](../../index.md#story): t
 [game day](../../classes/reliability/chaos/index.md#game-days). It comes right after lab 8 on purpose:
 chaos needs observability first, so every experiment is watched on the lab 8 dashboard and paged by
 its burn-rate alert.
+
+!!! quote "The story so far"
+
+    Chapter 10 of the [story of the course](../../index.md#story). After [lab 8](../8/index.md), BoxOffice can see itself: a dashboard per service, one trace per order from the edge through Kafka to the e-mail, and a burn-rate alert that paged someone **about 440 s** after the database stopped in the test run. Seeing is not surviving. At 10:02 the payment provider answers in **4 s instead of 200 ms**: the trace puts the time in the payment call, the alert fires — and checkout still dies, because every `order` thread is waiting on the provider and none is left even for requests that never touch it ([class 10 — Reliability](../../classes/reliability/index.md)). **This lab** builds the defences in `PaymentClient.java` — timeout, retry with jitter, circuit breaker, bulkhead — reproduces the slow provider with Toxiproxy adding 3 s to every call, and measures what each pattern buys, above all for `GET /orders/{id}`, a request that never calls `payment`.
 
 ## Slides
 
@@ -202,6 +206,9 @@ Commit and tag: `git add -A && git commit -m "lab 9: resilience" && git tag lab9
   [External integrations](../../classes/compute/integrations/index.md)
 - Case study: [Payment system](../../classes/case-studies/payment-system/index.md)
 - Project: [Chaos game day](../../exercises/project/game-day/index.md)
-- Next lab: [10. Kubernetes](../10/index.md) adds self-healing and autoscaling.
+
+## What breaks next { #what-breaks-next }
+
+The patterns contain the slow provider: in the test run, `GET /orders/{id}` waited **9 s** at the median without them and a few milliseconds with them, and the game day timed how long your team took to detect and mitigate. But look at who mitigated: a person at a terminal, running `docker compose` and `curl` against Toxiproxy. Every defence of this lab assumes that *something* restarts a dead replica, adds replicas before 10:00 and rolls a bad release back — on one laptop with Compose, that something is you, and at 10:00, with 2 million fans in the line, nobody should be restarting containers by hand. [Lab 10 — Kubernetes](../10/index.md) hands those jobs to control loops — probes that restart, an autoscaler that adds `catalog` pods, rolling updates that do not lose requests — the platform of [class 11 — Cloud-Native](../../classes/cloud-native/index.md).
 
 [Start: Payment, provider and Toxiproxy](payment/index.md){ .md-button .md-button--primary }

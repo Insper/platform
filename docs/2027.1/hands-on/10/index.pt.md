@@ -14,12 +14,15 @@ serviço cair e teve que reiniciá-lo à mão. Às 10:00 do dia da venda ningué
 ou reiniciando contêineres. O Kubernetes transforma as duas coisas em **laços de controle**: você
 declara o estado desejado — "pelo menos duas réplicas prontas, mais quando o uso de unidade central de processamento (CPU, *central processing unit*) passar de 60%" — e os
 controllers mantêm a realidade ali, a cada poucos segundos, para sempre. Este lab é o lado prático da
-[aula de cloud-native](../../classes/cloud-native/index.md) e constrói o capítulo 11 da
-[história do curso](../../index.md#story): ele implementa as decisões da aula sobre
+[aula de cloud-native](../../classes/cloud-native/index.md): ele implementa as decisões da aula sobre
 [probes](../../classes/cloud-native/kubernetes/index.md#probes),
 [requests e limits](../../classes/cloud-native/kubernetes/index.md#requests-limits),
 [autoscaling](../../classes/cloud-native/kubernetes/index.md#autoscaling) e
 [perder um nó](../../classes/cloud-native/kubernetes/index.md#losing-a-node).
+
+!!! quote "A história até aqui"
+
+    Capítulo 11 da [história da disciplina](../../index.md#story). O [lab 9](../9/index.md) conteve o provedor de pagamento lento — na execução de teste, o `GET /orders/{id}` voltou de **9 s** na mediana para milissegundos —, mas toda mitigação do game day foi uma pessoa num terminal. O Compose numa máquina só não reinicia uma réplica morta em outro nó, não adiciona réplicas do `catalog` às 09:45 nem desfaz uma release ruim ([aula 11 — Cloud-Native](../../classes/cloud-native/index.md)). **Este lab** leva `db`, `redis` e `catalog` para um cluster kind de três nós com probes, requests e limits e um HPA, e mede quão rápido a capacidade acompanha uma rampa até 1.000 req/s, quantas requisições um rolling update perde e quanto tempo a autocura leva.
 
 ## Slides
 
@@ -198,6 +201,9 @@ Faça commit e tag: `git add -A && git commit -m "lab 10: kubernetes" && git tag
   [Serverless e autoscaling](../../classes/compute/serverless-autoscaling/index.md) ·
   [Balanceamento de carga](../../classes/edge/load-balancing/index.md)
 - Exercício: [Autoscaling no Kubernetes](../../exercises/kubernetes-autoscaling/index.md)
-- Próximo lab: [11. Entrega](../11/index.md) faz o deploy destes manifestos a partir do Git com o Argo CD.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O cluster agora se cura e escala sozinho: na execução de teste, o HPA pediu um terceiro pod **15 s** depois que a CPU passou de 60% e um rolling update com readiness e `preStop` perdeu **0** de cerca de 11.900 requisições (cerca de 140 sem eles). Mas cada release ainda começa com `kubectl` no seu laptop e troca todos os pods pela imagem que você construiu, seja ela qual for: nada a testou, escaneou ou conferiu a sua latência e uma versão que falha 30% das requisições chegaria a todos os fãs assim que o rollout terminasse. Com dez mudanças por dia antes da venda, cada uma precisa responder sozinha *"isto é seguro para entregar a 2 milhões de fãs?"*. O [Lab 11 — Entrega](../11/index.md) faz o deploy destes manifestos a partir do Git com o Argo CD, atrás de um pipeline que testa, mede, escaneia e assina toda imagem e de um canary que aborta sozinho — a [página de entrega](../../classes/cloud-native/delivery/index.md) da aula 11 e a cadeia de suprimentos da [aula 12 — Rede e Segurança](../../classes/network-security/index.md).
 
 [Começar: Um cluster local](cluster/index.md){ .md-button .md-button--primary }

@@ -9,6 +9,10 @@ The catalog is the textbook read-heavy service: during the week of the stadium s
 
 Caches are also, as every interview guide warns[^2], the most common source of subtle bugs in system design: stale data, cold starts, hot keys and stampedes. In this lab you will see each of them with your own measurements.
 
+!!! quote "The story so far"
+
+    Chapter 7 of the [story of the course](../../index.md#story) — built before chapter 6: the labs fix the read path first, with the `catalog` you already have, and leave the seats to [lab 6](../6/index.md). [Lab 4](../4/index.md) put a gateway in front of three stateless `catalog` replicas and measured the price of that front door: the gateway hop and the token check add a fraction of a millisecond to a few milliseconds at p50. The cost of a read is still the database behind it, which lab 2 measured as the limit of `catalog`: every replica asks PostgreSQL, and the event pages are read about 100 times more than they change ([class 7 — Caching](../../classes/caching/index.md)). **This lab** builds cache-aside with Redis in `catalog`, with invalidation, a fallback when Redis is down and a lock against stampedes, and measures the hit ratio, its effect on p99 and capacity, and the misses of one hot key before and after the fix.
+
 ## Before you start { #before-you-start }
 
 | | |
@@ -241,7 +245,9 @@ boxoffice/
     results/lab5.md
 ```
 
-Next: [Lab 6 — Data at scale](../6/index.md).
+## What breaks next { #what-breaks-next }
+
+The read path is cheap now: with a hit ratio h, the database sees only 1 − h of the reads, and in runs for this lab a cold cache reached about 70% hits in one minute while the lock cut the misses of one hot key from 2,238 to 19. The write path did not move. No cache may answer "is seat 42 free?" — a stale copy of a hold sells the seat twice — so stateless services push every hold into PostgreSQL, where two fans click the same seat in the same millisecond. At 10:00 the fans stop reading and start holding: about 33,000 holds/s against the ~1,100 one PostgreSQL serves. That is chapter 6, [class 6 — Databases](../../classes/databases/index.md), which the labs take after the cache: [Lab 6 — Data at scale](../6/index.md) builds `inventory` and proves which locking strategy never sells a seat twice.
 
 [^1]: Redis documentation, [Client-side caching and cache-aside](https://redis.io/docs/latest/develop/clients/client-side-caching/){target="_blank"} and [Key eviction](https://redis.io/docs/latest/develop/reference/eviction/){target="_blank"}.
 [^2]: Alex Xu, *System Design Interview — An Insider's Guide*, vol. 1, 2020 — chapter 1, "Cache".

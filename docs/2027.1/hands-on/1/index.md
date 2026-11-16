@@ -6,6 +6,10 @@
 
 Every ticketing site starts with the same page: *what is on, where, and when?* In BoxOffice that is the job of `catalog`. It is the most **read-heavy** service of the system — during a flash sale, millions of fans refresh the event page while only a handful of administrators ever change it — and that is why it will be the guinea pig for load balancing (lab 3), caching (lab 5) and indexing (lab 6). Today you build the simplest version that works, the **monolith-first** step of the scaling journey.
 
+!!! quote "The story so far"
+
+    Chapter 2 of the [story of the course](../../index.md#story). [Lab 0](../0/index.md) measured a ceiling: a stock Nginx answering a static page from memory, tens of thousands of requests per second on your machine. [Class 1](../../classes/intro/index.md) wrote the promise — 2 million fans, 60,000 seats, every page under 300 ms at the 99th percentile — and [class 2](../../classes/estimation/index.md) checks it on paper: at 10:00 the demand is **~33,000 holds/s**, while one PostgreSQL does **~1,100** at a sane utilization. To measure any of it, BoxOffice first needs something real. **This lab** builds `catalog`, the "one service, one database" of the story (stages 0 and 1 of the [scaling journey](../../classes/intro/scaling-journey/index.md)), and measures its service time: how fast each endpoint answers a single user, with no load.
+
 ## Before you start { #before-you-start }
 
 | | |
@@ -83,7 +87,7 @@ The database starts with **50 venues in 10 cities and 200,000 events** (one per 
 
 !!! info "Theory connection"
 
-    - In the [story of the course](../../index.md#story), `catalog` is the "one service, one database" of chapters 1 and 2: stages 0 and 1 of the [scaling journey](../../classes/intro/scaling-journey/index.md), and the system whose capacity [class 2](../../classes/estimation/index.md) estimates and lab 2 measures. Its 1 CPU and 10 database connections are the numbers that lab 2 turns into a knee.
+    - `catalog` is the system whose capacity [class 2](../../classes/estimation/index.md) estimates and lab 2 measures: its 1 CPU and 10 database connections are the numbers that lab 2 turns into a knee.
     - Class 5, [Compute & services](../../classes/compute/index.md): stateless app servers, [API styles](../../classes/compute/api-styles/index.md) (REST, resources, status codes, versioning).
     - Class 6, [Databases](../../classes/databases/index.md): relational [data models](../../classes/databases/models/index.md), schemas and migrations.
 
@@ -261,7 +265,9 @@ boxoffice/
 
 Running: `db` (PostgreSQL 17, schema `catalog` with 50 venues and 200,000 events) and `catalog` on port 8082.
 
-Next: [Lab 2 — Measure first](../2/index.md).
+## What breaks next { #what-breaks-next }
+
+The service time is the best case: one user, and in the page's example run the detail at ~11 ms and the listing at ~42 ms at p95 — it says nothing about how many requests per second `catalog` takes. The playground preset `boxoffice-pool` draws the knee at about 530 req/s, with the pool of 10 connections full while the CPU is below 70%; the 10:00 on-sale asks for ~33,000 holds/s. Where the real service breaks and which resource fills first is a measurement, not a guess: [Lab 2 — Measure first](../2/index.md) loads `catalog` with an open workload until latency explodes, with the queueing and the percentiles of [class 2 — Estimation](../../classes/estimation/index.md).
 
 [^1]: Spring Boot reference, [Data Access — Database Initialization with Flyway](https://docs.spring.io/spring-boot/how-to/data-initialization.html){target="_blank"}.
 [^2]: IETF, [RFC 9457 — Problem Details for HTTP APIs](https://www.rfc-editor.org/rfc/rfc9457){target="_blank"}.

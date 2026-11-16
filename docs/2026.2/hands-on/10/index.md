@@ -264,8 +264,8 @@ You should see each message twice — published by the producer, read by the con
 
 ``` termynal
 $ docker compose logs producer | grep queue
-producer-1  | … DEBUG 1 --- [kafka] [nio-8080-exec-1] store.kafka.producer.ProducerService     : queue {id=e29517a4-e00a-4ff6-9d0b-b64825763623, message=hello}
-producer-1  | … DEBUG 1 --- [kafka] [nio-8080-exec-3] store.kafka.producer.ProducerService     : queue {id=139b7a01-76ee-4fc4-9b65-a15467e35c81, message=world}
+producer-1  | … DEBUG 1 --- [producer] [nio-8080-exec-1] store.kafka.producer.ProducerService     : queue {id=e29517a4-e00a-4ff6-9d0b-b64825763623, message=hello}
+producer-1  | … DEBUG 1 --- [producer] [nio-8080-exec-3] store.kafka.producer.ProducerService     : queue {id=139b7a01-76ee-4fc4-9b65-a15467e35c81, message=world}
 $ docker compose logs consumer | grep -E "assigned|enqueue"
 consumer-1  | … INFO 1 --- [consumer] [ntainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : store: partitions assigned: [store-producer-example-0]
 consumer-1  | … DEBUG 1 --- [consumer] [ntainer#0-0-C-1] store.kafka.consumer.ConsumerService     : enqueue {id=e29517a4-e00a-4ff6-9d0b-b64825763623, message=hello}

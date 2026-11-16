@@ -18,16 +18,38 @@ theme: platform
 {{INCLUDE:scripts/slides/diagram.css}}
 </style>
 
-<div class="kicker">System Architecture · Insper · Lab 5</div>
+<div class="kicker">System Architecture · Insper · Lab 5 · Chapter 7</div>
 
 # Lab 5 — Caching
 
 **Redis cache-aside on `catalog`: hit ratio, p99, invalidation — and a stampede, reproduced and fixed**
 
 <!--
-Outline: (1) why cache the catalog; (2) what you will build; (3) cache-aside and EventCache; (4) keys and
+Chapter 7 of the story of the course, built before chapter 6. Outline: (1) why cache the catalog; (2) what you will build; (3) cache-aside and EventCache; (4) keys and
 time to live; (5) invalidation; (6) failure handling; (7) hit ratio math and measuring; (8) stampede and
 the lock; (9) other cures; (10) the simulator.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">before · lab 4<small>a gateway in front of 3 stateless replicas</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 7 · lab 5<small>Redis cache-aside on catalog</small></div><div class="arrow">→</div>
+<div class="box">next · lab 6<small>chapter 6: seats, holds, locks</small></div>
+</div>
+
+<div class="q">
+
+Every replica asks PostgreSQL, and the event pages are read **~100×** more than they change. How many of those reads can memory answer?
+
+</div>
+
+- Chapter 7 before 6: reads first, with the catalog you have; seats wait for lab 6.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): chapter 7 opens with the ~100x read ratio. Lab 4 measured the front door as cheap (a fraction of a ms to a few ms at p50), so the cost of a read is the database. The labs take chapter 7 before chapter 6.
 -->
 
 ---
@@ -225,6 +247,18 @@ k6 run load/stampede.js       # cache_misses ≫ expirations
 <!--
 The simulator sits at the end of step 5 of Cache-aside.
 -->
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 5 · reads<small>the database sees only 1 − h of the reads</small></div><div class="arrow">→</div>
+<div class="box orange">the writes<small>no cache may answer "is seat 42 free?" · 33,000 holds/s vs ~1,100</small></div><div class="arrow">→</div>
+<div class="box accent">lab 6 · chapter 6<small>inventory: which lock never sells a seat twice?</small></div>
+</div>
+
+- At 10:00 the fans stop reading and start holding seats.
 
 ---
 

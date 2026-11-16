@@ -25,9 +25,30 @@ theme: platform
 **Declare o estado desejado; deixe os laços de controle manterem o BoxOffice lá**
 
 <!--
+Capítulo 11 da história da disciplina.
 Roteiro: (1) por que laços de controle; (2) kind + Traefik + metrics-server; (3) base/overlay do
 Kustomize; (4) StatefulSet vs Deployment; (5) probes e graceful shutdown; (6) os controllers
 trabalhando e o gêmeo do lab; (7) HPA; (8) Ingress e Gateway API; (9) medir.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">capítulo 10 · lab 9<small>os padrões contêm um provedor lento</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 11 · lab 10<small>kind, probes, autoscaling, Ingress</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 11<small>entrega: pipeline, GitOps, canary</small></div>
+</div>
+
+<div class="q">
+
+O lab 9 trouxe o `GET /orders/{id}` de **9 s** na mediana de volta a milissegundos — mas toda mitigação foi uma pessoa num terminal. Quem reinicia uma réplica morta, adiciona pods do `catalog` às 09:45 ou desfaz uma release ruim?
+
+</div>
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): o capítulo 11 abre com o que o Compose numa máquina só não faz — curar, escalar às 09:45, desfazer.
 -->
 
 ---
@@ -324,6 +345,18 @@ Uma JVM que acabou de iniciar queima CPU compilando código e o HPA escala com e
 O playground prevê a forma; o seu CSV de réplicas ao longo do tempo é a evidência.
 
 </div>
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 10 · autocura<small>HPA: um terceiro pod 15 s depois de 60% de CPU; rollout: 0 de ~11.900 perdidas</small></div><div class="arrow">→</div>
+<div class="box orange">o limite<small><code>kubectl</code> no laptop: qualquer imagem vai para todo pod, sem teste nem scan</small></div><div class="arrow">→</div>
+<div class="box accent">lab 11 · entrega<small>testes, orçamento, scan, GitOps, um canary que aborta</small></div>
+</div>
+
+- Uma versão que falha 30% das requisições chegaria a todos os fãs.
 
 ---
 

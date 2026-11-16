@@ -15,13 +15,26 @@ visão de dentro — os três sinais da [aula de observabilidade](../../classes/
 **métricas** dizem *que* algo está errado e quanto, **traces** dizem *onde* na requisição o tempo foi
 gasto, **logs** dizem *por quê*.
 
-Este lab constrói no BoxOffice o capítulo 9 da [história do curso](../../index.md#story): o
+Este lab implementa no BoxOffice o
 dashboard RED de [sinais](../../classes/observability/signals/index.md), o contexto de trace
 carregado pelo outbox e pelo Kafka de [OpenTelemetry](../../classes/observability/opentelemetry/index.md),
 e o [SLO](../../classes/observability/slo/index.md) com o alerta de burn rate multijanela de
 [alertas](../../classes/observability/alerting/index.md). Ele vem logo antes do [lab 9](../9/index.md)
 por um motivo: você instrumenta o BoxOffice antes de quebrá-lo de propósito, senão os experimentos de
 caos do lab 9 não têm nada para mostrar.
+
+!!! quote "A história até aqui"
+
+    Capítulo 9 da [história da disciplina](../../index.md#story). O [Lab 7](../7/index.md) tirou o
+    trabalho lento da requisição: numa execução de teste daquele lab, a 200 pedidos/s o `POST /orders`
+    respondeu em 1,8 ms no p50 com o outbox contra 2,7 s com o e-mail dentro da requisição; uma queda de
+    20 s do `notification` não derrubou nenhum pedido. A assincronia tem um preço: as falhas deixam de
+    aparecer nas requisições. Um pedido cujo e-mail nunca chega não produz nenhum `5xx` nem endpoint
+    lento — ele some em algum ponto entre o outbox, o Kafka e o consumidor — e o k6, que mede de fora,
+    não o enxerga ([aula 9 — Observabilidade](../../classes/observability/index.md)). **Este lab**
+    constrói o pipeline de telemetria, o dashboard RED, um trace por pedido e um SLO de 99,5% para o
+    `catalog` com um alerta de burn rate, e mede quanto custa o agente, quanto a amostragem economiza,
+    quantas séries temporais cada serviço cria e quanto tempo um banco parado leva para acordar alguém.
 
 ## Slides
 
@@ -225,6 +238,17 @@ Faça commit e tag: `git add -A && git commit -m "lab 8: observability" && git t
   [Resposta a incidentes](../../classes/observability/incident-response/index.md) ·
   [SLOs e orçamentos de erro](../../classes/observability/slo/index.md)
 - Lab anterior: [7. Mensageria assíncrona](../7/index.md) — o fluxo rastreado aqui.
-- Próximo lab: [9. Resiliência e caos](../9/index.md) usa este dashboard durante um *game day*.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O BoxOffice consegue se ver: um dashboard RED, um trace por pedido da borda pelo Kafka até o e-mail e
+um SLO cujo alerta de queima rápida chamou alguém cerca de 440 s depois que o `db` foi parado, numa
+execução de teste deste lab. Ver não é sobreviver. O próximo número é uma dependência lenta: às 10:02 o
+provedor de pagamento responde em 4 s em vez de 200 ms. Nada está fora do ar; o dashboard mostra o p95
+do `order` subindo, o trace põe o tempo na chamada ao pagamento, o alerta dispara — e o checkout morre
+mesmo assim, porque toda thread do `order` espera pelo provedor e não sobra nenhuma nem para as
+requisições que nunca o tocam. O [Lab 9 — Resiliência e caos](../9/index.md) adiciona o provedor de
+pagamento, reproduz essa cascata e a corrige com timeout, retry, circuit breaker e bulkhead, cada um
+observado neste dashboard durante um *game day*: a [aula 10 — Confiabilidade](../../classes/reliability/index.md).
 
 [Começar: Instrumente tudo](instrument/index.md){ .md-button .md-button--primary }

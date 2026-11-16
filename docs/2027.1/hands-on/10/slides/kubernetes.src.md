@@ -25,9 +25,30 @@ theme: platform
 **Declare the desired state; let control loops keep BoxOffice there**
 
 <!--
+Chapter 11 of the story of the course.
 Outline: (1) why control loops; (2) kind + Traefik + metrics-server; (3) Kustomize base/overlay;
 (4) StatefulSet vs Deployment; (5) probes and graceful shutdown; (6) the controllers at work and the
 lab twin; (7) HPA; (8) Ingress and Gateway API; (9) measure.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">chapter 10 · lab 9<small>the patterns contain a slow provider</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 11 · lab 10<small>kind, probes, autoscaling, Ingress</small></div><div class="arrow">→</div>
+<div class="box">next · lab 11<small>delivery: pipeline, GitOps, canary</small></div>
+</div>
+
+<div class="q">
+
+Lab 9 brought `GET /orders/{id}` from **9 s** at the median back to milliseconds — but every mitigation was a person at a terminal. Who restarts a dead replica, adds `catalog` pods at 09:45 or rolls a bad release back?
+
+</div>
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): chapter 11 opens with what Compose on one machine cannot do — heal, scale at 09:45, roll back.
 -->
 
 ---
@@ -325,6 +346,18 @@ A starting JVM burns CPU compiling code, and the HPA scales on that CPU too.
 The playground predicts the shape; your CSV of replicas over time is the evidence.
 
 </div>
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 10 · self-healing<small>HPA: a third pod 15 s after 60% CPU; rollout: 0 of ~11,900 lost</small></div><div class="arrow">→</div>
+<div class="box orange">the limit<small><code>kubectl</code> from a laptop: any image goes to every pod, untested and unscanned</small></div><div class="arrow">→</div>
+<div class="box accent">lab 11 · delivery<small>tests, budget, scan, GitOps, a canary that aborts</small></div>
+</div>
+
+- A version that fails 30% of its requests would reach every fan.
 
 ---
 

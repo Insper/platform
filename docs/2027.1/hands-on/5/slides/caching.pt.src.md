@@ -18,16 +18,38 @@ theme: platform
 {{INCLUDE:scripts/slides/diagram.css}}
 </style>
 
-<div class="kicker">Arquitetura de Sistemas · Insper · Lab 5</div>
+<div class="kicker">Arquitetura de Sistemas · Insper · Lab 5 · Capítulo 7</div>
 
 # Lab 5 — Caching
 
 **Cache-aside com Redis no `catalog`: hit ratio, p99, invalidação — e um stampede, reproduzido e corrigido**
 
 <!--
-Roteiro: (1) por que fazer cache do catálogo; (2) o que você vai construir; (3) cache-aside e EventCache;
+Capítulo 7 da história da disciplina, construído antes do capítulo 6. Roteiro: (1) por que fazer cache do catálogo; (2) o que você vai construir; (3) cache-aside e EventCache;
 (4) chaves e tempo de vida; (5) invalidação; (6) tratamento de falhas; (7) a conta do hit ratio e a
 medição; (8) stampede e o lock; (9) outras curas; (10) o simulador.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">antes · lab 4<small>um gateway na frente de 3 réplicas stateless</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 7 · lab 5<small>cache-aside com Redis no catalog</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 6<small>capítulo 6: assentos, reservas, locks</small></div>
+</div>
+
+<div class="q">
+
+Toda réplica pergunta ao PostgreSQL e as páginas de evento são lidas **~100×** mais do que mudam. Quantas dessas leituras a memória consegue responder?
+
+</div>
+
+- Capítulo 7 antes do 6: primeiro as leituras, com o catalog que você tem; assentos no lab 6.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): o capítulo 7 abre com a razão de ~100x leituras por escrita. O lab 4 mediu a porta de entrada como barata (de uma fração de ms a poucos ms no p50), então o custo de uma leitura é o banco. Os labs fazem o capítulo 7 antes do 6.
 -->
 
 ---
@@ -225,6 +247,18 @@ k6 run load/stampede.js       # cache_misses ≫ expirations
 <!--
 O simulador fica no fim do passo 5 de Cache-aside.
 -->
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 5 · leituras<small>o banco só vê 1 − h das leituras</small></div><div class="arrow">→</div>
+<div class="box orange">as escritas<small>nenhum cache pode responder "o assento 42 está livre?" · 33.000 reservas/s contra ~1.100</small></div><div class="arrow">→</div>
+<div class="box accent">lab 6 · capítulo 6<small>inventory: qual lock nunca vende um assento duas vezes?</small></div>
+</div>
+
+- Às 10:00 os fãs param de ler e começam a reservar assentos.
 
 ---
 

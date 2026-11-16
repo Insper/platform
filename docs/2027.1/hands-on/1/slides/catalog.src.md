@@ -25,9 +25,31 @@ theme: platform
 **A web service for events and venues: Spring Boot, PostgreSQL, Flyway, a container — and its unloaded latency**
 
 <!--
-Outline: (1) why catalog first; (2) what you will build; (3) the API contract; (4) layers, DTOs and
+Chapter 2 of the story. Outline: (1) why catalog first; (2) what you will build; (3) the API contract; (4) layers, DTOs and
 status codes; (5) JPA, N+1, the pool; (6) Flyway; (7) Dockerfile and Compose; (8) smoke test and
 service time.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 0 · the ceiling<small>stock Nginx: tens of thousands of req/s</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 2 · lab 1<small>catalog: one service, one database</small></div><div class="arrow">→</div>
+<div class="box">next · lab 2<small>the knee, measured</small></div>
+</div>
+
+<div class="q">
+
+At 10:00 the demand is **~33,000 holds/s**; one PostgreSQL does **~1,100**. First: how fast does one real service answer **one** user?
+
+</div>
+
+- The service time you measure today is the reference for every later lab.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): every chapter opens with the number the previous one left. Lab 1 opens chapter 2: the one service and one database that class 2 checks on paper.
 -->
 
 ---
@@ -233,6 +255,18 @@ k6 run load/smoke.js        # 1 VU, 30 s, think time 0.5 s
 Which endpoint will break first under load? Write the hypothesis for lab 2.
 
 </div>
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 1 · service time<small>one user: detail ~11 ms, listing ~42 ms at p95</small></div><div class="arrow">→</div>
+<div class="box orange">how many req/s?<small>the preview draws ~530; 10:00 asks for ~33,000</small></div><div class="arrow">→</div>
+<div class="box accent">lab 2 · measure first<small>open load until latency explodes: the knee</small></div>
+</div>
+
+- Write your hypothesis now: which resource fills first?
 
 ---
 

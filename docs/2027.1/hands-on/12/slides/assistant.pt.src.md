@@ -25,8 +25,29 @@ theme: platform
 **Gateway, geração aumentada por recuperação (RAG), ferramentas, guardrails — e o custo do primeiro token**
 
 <!--
+Capítulo 13 da história da disciplina.
 Roteiro: (1) o problema; (2) arquitetura; (3) uv + Ollama + pgvector; (4) o gateway;
 (5) RAG e a sua avaliação; (6) ferramentas e o loop do agente; (7) guardrails; (8) métricas e TTFT.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 11 · entrega<small>testado, escaneado, assinado; um canary ruim aborta em ~1 min</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 13 · lab 12<small>gateway, RAG, ferramentas, guardrails</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 13<small>IA dentro do pipeline</small></div>
+</div>
+
+<div class="q">
+
+Os fãs perguntam *"dois lugares abaixo de R$ 300 no sábado?"* A resposta vem de um modelo: segundos por chamada, cobrado por token, capaz de inventar um lugar. Como ele entra no design sem virar a caixa mais fraca?
+
+</div>
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): o capítulo 13 abre com um novo tipo de dependência, não com mais tráfego.
 -->
 
 ---
@@ -250,6 +271,18 @@ As respostas do modelo são as citadas nas páginas, ou uma alternativa indicada
 * L = λW = (1/60 s) × 120 s = **2** → o segundo fã espera pelo primeiro.
 * Soluções: GPU, batching, controle de admissão, prompts menores — ou uma API hospedada.
 * Custo de 20.000 perguntas no Claude Opus 5.5: 20.000 × US$ 0,006 = **US$ 120**.
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 12 · medido<small>respostas ancoradas: 1 em 10 (1.5b) → 5 em 10 (3b), sem mudar o Java</small></div><div class="arrow">→</div>
+<div class="box orange">o limite<small>prompt, modelo, <code>k</code>: cada um é um deploy; código chega mais rápido que revisões</small></div><div class="arrow">→</div>
+<div class="box accent">lab 13 · modelos no pipeline<small>revisor, testes, agente de correção, canary explicado</small></div>
+</div>
+
+- Os mesmos modelos agora escrevem o código do time.
 
 ---
 

@@ -9,6 +9,10 @@ O catálogo é o exemplo clássico de serviço com muita leitura: na semana do s
 
 Caches também são, como todo guia de entrevista avisa[^2], a fonte mais comum de bugs sutis em system design: dados desatualizados, partidas a frio, chaves quentes e stampedes. Neste lab você vai ver cada um deles com as suas próprias medições.
 
+!!! quote "A história até aqui"
+
+    Capítulo 7 da [história da disciplina](../../index.md#story) — construído antes do capítulo 6: os labs consertam primeiro o caminho de leitura, com o `catalog` que você já tem, e deixam os assentos para o [lab 6](../6/index.md). O [Lab 4](../4/index.md) pôs um gateway na frente de três réplicas stateless do `catalog` e mediu o preço dessa porta de entrada: o salto pelo gateway e a verificação do token somam de uma fração de milissegundo a poucos milissegundos no p50. O custo de uma leitura continua sendo o banco por trás, que o lab 2 mediu como o limite do `catalog`: toda réplica pergunta ao PostgreSQL e as páginas de evento são lidas cerca de 100 vezes mais do que mudam ([aula 7 — Cache](../../classes/caching/index.md)). **Este lab** constrói cache-aside com Redis no `catalog`, com invalidação, um plano B quando o Redis cai e um lock contra stampedes, e mede o hit ratio, o seu efeito no p99 e na capacidade e os misses de uma chave quente antes e depois da correção.
+
 ## Antes de começar { #before-you-start }
 
 | | |
@@ -241,7 +245,9 @@ boxoffice/
     results/lab5.md
 ```
 
-Próximo: [Lab 6 — Dados em escala](../6/index.md).
+## O que quebra em seguida { #what-breaks-next }
+
+O caminho de leitura agora é barato: com um hit ratio h, o banco só vê 1 − h das leituras; em execuções para este lab, um cache frio chegou a cerca de 70% de hits em um minuto enquanto o lock derrubou os misses de uma chave quente de 2.238 para 19. O caminho de escrita não mudou. Nenhum cache pode responder "o assento 42 está livre?" — uma cópia desatualizada de uma reserva vende o assento duas vezes — então os serviços stateless empurram toda reserva para o PostgreSQL, onde dois fãs clicam no mesmo assento no mesmo milissegundo. Às 10:00 os fãs param de ler e começam a reservar: cerca de 33.000 reservas/s contra as ~1.100 que um PostgreSQL atende. Esse é o capítulo 6, a [aula 6 — Bancos de dados](../../classes/databases/index.md), que os labs fazem depois do cache: o [Lab 6 — Dados em escala](../6/index.md) constrói o `inventory` e prova qual estratégia de lock nunca vende um assento duas vezes.
 
 [^1]: Documentação do Redis, [Client-side caching and cache-aside](https://redis.io/docs/latest/develop/clients/client-side-caching/){target="_blank"} e [Key eviction](https://redis.io/docs/latest/develop/reference/eviction/){target="_blank"}.
 [^2]: Alex Xu, *System Design Interview — An Insider's Guide*, vol. 1, 2020 — capítulo 1, "Cache".

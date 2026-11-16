@@ -25,8 +25,30 @@ theme: platform
 **Nginx como proxy reverso, balanceador de carga e rate limiter sobre três réplicas do `catalog`**
 
 <!--
-Roteiro: (1) por que escalar horizontalmente; (2) a topologia; (3) réplicas no Compose; (4) nginx.conf;
+Capítulo 4 da história. Roteiro: (1) por que escalar horizontalmente; (2) a topologia; (3) réplicas no Compose; (4) nginx.conf;
 (5) distribuição; (6) falhas: stop vs pause; (7) rate limiting; (8) medir a eficiência do scale-out.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 2 · o joelho<small>um catalog: algumas centenas de req/s</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 4 · lab 3<small>o Nginx sobre três réplicas</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 4<small>gateway e identidade</small></div>
+</div>
+
+<div class="q">
+
+Às 10:00:00 cerca de **100.000 requisições/s** chegam à borda; uma réplica mantém a meta de latência só até algumas centenas. 3× as réplicas dão 3× a capacidade?
+
+</div>
+
+- Com três, uma também pode falhar enquanto as outras continuam atendendo.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): todo capítulo abre com o número que o anterior deixou. O lab 3 constrói a borda do capítulo 4 (aula 4, Tráfego e Borda).
 -->
 
 ---
@@ -211,6 +233,18 @@ Eficiência de escala = capacidade(3) / (3 × capacidade(1)). Olhe o `docker sta
 - Mistura: `db` em ~670% de CPU, cada réplica em ~20% — a camada compartilhada está saturada.
 - Mais réplicas = mais consultas pesadas simultâneas no **mesmo** banco.
 - Réplicas frias + `max_fails` podem cascatear até `502 no live upstreams`: **aqueça** antes.
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 3 · escala horizontal<small>detalhes: perto de 3×; a carga mista: pouco</small></div><div class="arrow">→</div>
+<div class="box orange">dois limites<small>db ~670% de CPU, réplicas ~20%; qualquer um chama qualquer coisa</small></div><div class="arrow">→</div>
+<div class="box accent">lab 4 · gateway e identidade<small>quem chama, verificado uma vez; réplicas stateless</small></div>
+</div>
+
+- O banco espera pelos labs 5 (cache) e 6 (índices).
 
 ---
 

@@ -25,8 +25,30 @@ theme: platform
 **An `auth` service that signs JSON Web Tokens (JWTs), and a Spring Cloud Gateway that validates them once**
 
 <!--
-Outline: (1) authn vs authz; (2) sessions vs JWT; (3) RS256 and JWKS; (4) auth service; (5) gateway
+Chapters 4 and 5 of the story. Outline: (1) authn vs authz; (2) sessions vs JWT; (3) RS256 and JWKS; (4) auth service; (5) gateway
 routes and LB; (6) security rules; (7) identity headers; (8) measurements: hop, JWT, login.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 3 · edge<small>3 replicas; the mix stuck on PostgreSQL</small></div><div class="arrow">→</div>
+<div class="box accent">chapters 4–5 · lab 4<small>auth + gateway: identity, once</small></div><div class="arrow">→</div>
+<div class="box">next · lab 5<small>a cache in front of the database</small></div>
+</div>
+
+<div class="q">
+
+The edge limits **20 requests/s per key**, but the key is a header the client picks. How do 2 million fans prove who they are — once, for every service?
+
+</div>
+
+- No replica keeps a session: the token travels with each request.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): every chapter opens with the number the previous one left. Lab 4 closes chapter 4 (identity) and builds the front door of chapter 5 (stateless services).
 -->
 
 ---
@@ -254,6 +276,18 @@ for r in 5 10 20 40; do k6 run -q -e RATE=$r --summary-export results/lab4/rate-
 <!--
 The simulator sits right after the failure cases in "Try it end to end".
 -->
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 4 · the front door<small>hop + JWT: ms or less; login: 10–20/s per core</small></div><div class="arrow">→</div>
+<div class="box orange">all state in PostgreSQL<small>pages read ~100× more than they change</small></div><div class="arrow">→</div>
+<div class="box accent">lab 5 · caching<small>Redis answers the repeated question</small></div>
+</div>
+
+- Fans log in before 10:00 and reuse the token.
 
 ---
 

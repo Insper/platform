@@ -613,6 +613,10 @@ nav = [
           { "h. Measure It" = "2027.1/hands-on/13/measure/index.md" },
           { "Quiz" = "2027.1/hands-on/13/quiz.md" },
         ] },
+        { "14. Payments Sandbox" = [
+          { "a. Overview" = "2027.1/hands-on/14/index.md" },
+          { "Quiz" = "2027.1/hands-on/14/quiz.md" },
+        ] },
       ] },
       { "Exercises" = [
         { "Overview" = "2027.1/exercises/index.md" },
@@ -885,6 +889,7 @@ language = "pt-BR"
 "11. Cloud-Native Platforms" = "11. Plataformas Cloud-Native"
 "13. AI Systems & Agents" = "13. Sistemas de IA e Agentes"
 "13. AI in CI/CD" = "13. IA no CI/CD"
+"14. Payments Sandbox" = "14. Pagamentos em Sandbox"
 "14. AI-Assisted Delivery" = "14. Entrega Assistida por IA"
 "15. Performance Engineering" = "15. Engenharia de Desempenho"
 "16. Case Studies" = "16. Estudos de Caso"

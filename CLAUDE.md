@@ -119,16 +119,26 @@ The simulator code is `docs/assets/javascripts/playground/*.js` +
 
 ### Hands-on labs (2027.1): incremental and autonomous
 
-One student repository, `boxoffice/`, grows from lab 0 to lab 13. `docs/2027.1/hands-on/<n>/code/` is
+One student repository, `boxoffice/`, grows from lab 0 to lab 14. `docs/2027.1/hands-on/<n>/code/` is
 an overlay: every file the lab adds or changes, in full, at its repo-relative path (`code/DELETED`
 lists removals); pages include them with `--8<--`. The state after lab N is the overlay of labs 0..N.
 Each lab has "Start state", "Catch up" (link to `../<N-1>/boxoffice-after-lab-<N-1>.zip`) and "End
 state", and must be followable by a student alone: full files, commands with their directory,
 "You should see…" checkpoints, troubleshooting, clean-up, deliverable checklist.
 
+**Every lab sits in the story of the course** (the chapter table of `2027.1/index.md#story`): its overview opens,
+right after the goal, with `!!! quote "The story so far"` (pt `"A história até aqui"`: the chapter, where BoxOffice
+stands after the previous lab with the number it measured, the problem that opens this lab and what it builds and
+measures) and ends with `## What breaks next { #what-breaks-next }` (pt `## O que quebra em seguida`: what this lab's
+measurement leaves open and which lab and class answer it) as its last `##` section; its deck has a slide
+`## The story so far` right after the title and `## What breaks next` right before Takeaways (pt `## A história até
+aqui`, `## O que quebra em seguida`). Use only numbers a page states. Lab 14 (payments in a Stripe sandbox,
+chapter 10's second lab) switches lab 9's `payment` to a real provider behind the `Psp` interface; the fake stays
+the default (`PSP_PROVIDER`), so CI and the chaos labs need no key.
+
 ```bash
 uv run scripts/handouts/snapshots.py           # build boxoffice-after-lab-<n>.zip (CI does it; gitignored)
-uv run scripts/handouts/snapshots.py --check   # includes exist, YAML/JSON of the overlays parse
+uv run scripts/handouts/snapshots.py --check   # includes exist, YAML/JSON parse, every lab has the story frame
 ```
 
 ### Classes (2027.1): one story, linked to the code

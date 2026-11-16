@@ -25,8 +25,31 @@ theme: platform
 **One slow payment provider must not take down the checkout**
 
 <!--
+Chapter 10 of the story of the course.
 Outline: (1) the cascade; (2) payment, psp, Toxiproxy; (3) timeout; (4) retry + idempotency;
 (5) circuit breaker; (6) bulkhead; (7) the five runs in the simulator; (8) game day; (9) measure.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">chapter 9 · lab 8<small>dashboards, traces, a burn-rate alert: it paged ~440 s after db stopped</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 10 · lab 9<small>timeout, retry, breaker, bulkhead, game day</small></div><div class="arrow">→</div>
+<div class="box">next · lab 10<small>Kubernetes heals and scales</small></div>
+</div>
+
+<div class="q">
+
+10:02: the payment provider answers in **4 s instead of 200 ms**. The lab 8 dashboard shows it, the alert fires — and checkout still dies. Is seeing a failure enough to survive it?
+
+</div>
+
+- In this lab, Toxiproxy adds 3 s to every call to `payment`.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): chapter 10 opens with the slow provider that lab 8's dashboard can see but not stop.
 -->
 
 ---
@@ -269,6 +292,18 @@ No hypothesis, no experiment. A refuted hypothesis is the valuable result.
 The simulator shows the shape; k6 + Toxiproxy give you your own numbers.
 
 </div>
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 9 · contained<small><code>GET /orders/{id}</code>: 9 s median unprotected, milliseconds with the patterns</small></div><div class="arrow">→</div>
+<div class="box orange">the limit<small>every game-day mitigation was a person at a terminal</small></div><div class="arrow">→</div>
+<div class="box accent">lab 10 · Kubernetes<small>restart, scale before 10:00, roll out: control loops</small></div>
+</div>
+
+- At 10:00, nobody should be restarting containers by hand.
 
 ---
 

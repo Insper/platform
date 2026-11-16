@@ -18,16 +18,38 @@ theme: platform
 {{INCLUDE:scripts/slides/diagram.css}}
 </style>
 
-<div class="kicker">Arquitetura de Sistemas · Insper · Lab 6</div>
+<div class="kicker">Arquitetura de Sistemas · Insper · Lab 6 · Capítulo 6</div>
 
 # Lab 6 — Dados em escala
 
 **Reservas de assento sem venda duplicada, uma réplica de leitura, PgBouncer, EXPLAIN — e um failover à mão**
 
 <!--
-Roteiro: (1) o invariante; (2) a corrida do lost update; (3) três estratégias; (4) o teste da venda
+Capítulo 6 da história da disciplina, feito depois do capítulo 7. Roteiro: (1) o invariante; (2) a corrida do lost update; (3) três estratégias; (4) o teste da venda
 relâmpago e a auditoria; (5) réplica por streaming e roteamento; (6) read-your-writes; (7) PgBouncer;
 (8) índices; (9) replicação síncrona, uma queda, failover, split brain, pg_rewind; (10) o simulador.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">antes · lab 5<small>o Redis responde as páginas de evento</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 6 · lab 6<small>inventory: reservas, locks, réplica, failover</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 7<small>capítulo 8: order, outbox, sala de espera</small></div>
+</div>
+
+<div class="q">
+
+Os serviços stateless empurram toda reserva para o banco. Às 10:00 chegam **~33.000 reservas/s** para as **~1.100** que um PostgreSQL atende — e dois fãs clicam no mesmo assento no mesmo milissegundo.
+
+</div>
+
+- Feito depois do capítulo 7: um assento, ao contrário de uma página de evento, nunca vem de uma cópia.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): o capítulo 6 abre com os serviços stateless empurrando toda decisão para o banco. Os labs o fazem depois do cache do lab 5 (cerca de 70% de hits em um minuto de um cache frio, numa execução daquele lab).
 -->
 
 ---
@@ -317,6 +339,18 @@ Uma pessoa às 10:01 é lenta demais: Patroni + etcd decidem o líder por **cons
 O simulador fica depois do experimento read-your-writes, no topo de Failover (abrindo na queda) e no fim
 da seção 5 (split brain, volta do primário, switchback).
 -->
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 6 · o assento está seguro<small>naive vende duas vezes; pessimistic e optimistic: 0</small></div><div class="arrow">→</div>
+<div class="box orange">ainda síncrono<small>o checkout espera pagamento e e-mail · 30× mais fãs do que a capacidade</small></div><div class="arrow">→</div>
+<div class="box accent">lab 7 · capítulo 8<small>order, um outbox até o Kafka, uma sala de espera</small></div>
+</div>
+
+- Uma reserva ainda não é uma compra: nada nesta pilha a transforma em uma.
 
 ---
 

@@ -18,16 +18,38 @@ theme: platform
 {{INCLUDE:scripts/slides/diagram.css}}
 </style>
 
-<div class="kicker">System Architecture · Insper</div>
+<div class="kicker">System Architecture · Insper · Chapter 8</div>
 
 # Hands-on 7 — Async Messaging
 
 **Outbox, Kafka, idempotent consumers, a dead-letter topic (DLT) and a waiting room for BoxOffice**
 
 <!--
-Outline: (1) why the e-mail must leave the request path; (2) Kafka in KRaft mode; (3) the
+Chapter 8 of the story of the course. Outline: (1) why the e-mail must leave the request path; (2) Kafka in KRaft mode; (3) the
 dual-write problem and the outbox; (4) idempotent consumer, retries and the DLT; (5) waiting room;
 (6) what we measure, and the simulator that replays the lab.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">before · lab 6<small>the seat is safe: a lock or a version decides</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 8 · lab 7<small>outbox, Kafka, idempotent consumer, waiting room</small></div><div class="arrow">→</div>
+<div class="box">next · lab 8<small>chapter 9: traces, dashboard, an alert</small></div>
+</div>
+
+<div class="q">
+
+Checkout still waits for the e-mail: when the provider is down, nobody can buy. And the crowd is **30×** too big: **~33,000 holds/s** for the **~1,100** one database takes.
+
+</div>
+
+- The fan's request should end at the commit; the rest can wait in a queue.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): chapter 8 opens with the synchronous write path and the 30x crowd. Lab 6 left the seat safe (naive double-booked, 9 and 11 seats in runs for that lab; pessimistic and optimistic always 0).
 -->
 
 ---
@@ -336,6 +358,18 @@ Concurrency 1, 50 ms per e-mail, 100 orders/s for 60 s. Lag at the end? Time to 
 Form a hypothesis in the simulator, then check it with k6 on your own services.
 
 </div>
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 7 · the e-mail left<small>outbox p50 1.8 ms vs 2.7 s inline, in a test run</small></div><div class="arrow">→</div>
+<div class="box orange">the price: visibility<small>a request, a row, a relay, a record, a consumer: where did the order stop?</small></div><div class="arrow">→</div>
+<div class="box accent">lab 8 · chapter 9<small>one trace per order, a dashboard, an alert</small></div>
+</div>
+
+- Failures that produce no 5xx are invisible to k6, still the only instrument.
 
 ---
 

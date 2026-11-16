@@ -25,9 +25,31 @@ theme: platform
 **Um serviço `auth` que assina JSON Web Tokens (JWTs) e um Spring Cloud Gateway que os valida uma única vez**
 
 <!--
-Roteiro: (1) autenticação vs autorização; (2) sessões vs JWT; (3) RS256 e JWKS; (4) serviço auth;
+Capítulos 4 e 5 da história. Roteiro: (1) autenticação vs autorização; (2) sessões vs JWT; (3) RS256 e JWKS; (4) serviço auth;
 (5) rotas e LB do gateway; (6) regras de segurança; (7) headers de identidade; (8) medições: salto,
 JWT, login.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 3 · borda<small>3 réplicas; a carga mista presa no PostgreSQL</small></div><div class="arrow">→</div>
+<div class="box accent">capítulos 4–5 · lab 4<small>auth + gateway: identidade, uma vez</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 5<small>um cache na frente do banco</small></div>
+</div>
+
+<div class="q">
+
+A borda limita **20 requisições/s por chave**, mas a chave é um cabeçalho que o cliente escolhe. Como 2 milhões de fãs provam quem são — uma vez, para todos os serviços?
+
+</div>
+
+- Nenhuma réplica guarda sessão: o token viaja com cada requisição.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): todo capítulo abre com o número que o anterior deixou. O lab 4 fecha o capítulo 4 (identidade) e constrói a porta de entrada do capítulo 5 (serviços stateless).
 -->
 
 ---
@@ -255,6 +277,18 @@ for r in 5 10 20 40; do k6 run -q -e RATE=$r --summary-export results/lab4/rate-
 <!--
 O simulador fica logo depois dos casos de falha em "Teste de ponta a ponta".
 -->
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 4 · a porta de entrada<small>salto + JWT: ms ou menos; login: 10–20/s por núcleo</small></div><div class="arrow">→</div>
+<div class="box orange">todo o estado no PostgreSQL<small>páginas lidas ~100× mais do que mudam</small></div><div class="arrow">→</div>
+<div class="box accent">lab 5 · caching<small>o Redis responde a pergunta repetida</small></div>
+</div>
+
+- Os fãs fazem login antes das 10:00 e reutilizam o token.
 
 ---
 

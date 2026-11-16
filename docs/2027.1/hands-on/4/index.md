@@ -7,7 +7,11 @@
 
 Until now anyone could create or delete events in the catalog. BoxOffice needs to know **who** is calling (authentication) and **what they may do** (authorization) — and it should not ask every service to solve that problem again. The standard answer is a gateway for the application programming interface (API), an **API gateway**[^1]: the single front door, where tokens are validated once and requests are routed to the right service. Behind it, services trust the identity the gateway passes along.
 
-This lab builds chapter 5 of the [story of the course](../../index.md#story): the front door that [stateless replicas](../../classes/compute/index.md#stateless-app-servers) need, where the token is checked once for every service and no replica keeps a session. It implements the [API gateway](../../classes/edge/api-gateway/index.md) of class 4, the [service map](../../classes/compute/services/index.md) of class 5 and the [token validation at the gateway](../../classes/edge/identity/index.md#gateway-validation) of the identity page.
+This lab implements the [API gateway](../../classes/edge/api-gateway/index.md) of class 4, the [service map](../../classes/compute/services/index.md) of class 5 and the [token validation at the gateway](../../classes/edge/identity/index.md#gateway-validation) of the identity page.
+
+!!! quote "The story so far"
+
+    Chapters 4 and 5 of the [story of the course](../../index.md#story). [Lab 3](../3/index.md) put three `catalog` replicas behind Nginx: a large gain for event details, little for the lab 2 mix, where the shared PostgreSQL is the bottleneck. And the edge does not know who is calling: its limit of 20 requests per second per key trusts a header the client chooses. At 10:00 the 2 million fans must prove who they are once (not to every service), and no replica may keep a login session that dies with it ([class 5](../../classes/compute/index.md#stateless-app-servers)). **This lab** builds `auth` and a gateway behind the edge — the token is checked once for every service and no replica keeps a session — and measures what the extra hop and the token check cost and how many logins per second `auth` takes.
 
 ## Before you start { #before-you-start }
 
@@ -277,7 +281,9 @@ boxoffice/
     results/lab4.md  results/lab4/
 ```
 
-Next: [Lab 5 — Caching](../5/index.md).
+## What breaks next { #what-breaks-next }
+
+The front door is cheap — the gateway hop and the token check add a fraction of a millisecond to a few milliseconds, because validation is local — but logins are not: BCrypt holds `auth` to ten to twenty per second per core, so fans must log in before 10:00 and reuse their tokens. The replicas are now stateless, which means every read and every write lands on PostgreSQL, the resource lab 3 already found full on the mix (`db` at ~670% CPU). The event pages are read about 100× more than they change, so most of that work answers the same question again. [Lab 5 — Caching](../5/index.md) puts Redis in front of the database, the answer of [class 7 — Caching](../../classes/caching/index.md); the holds, which must never come from a copy, wait for [class 6 — Databases](../../classes/databases/index.md) and lab 6.
 
 [^1]: Spring Cloud Gateway reference, [Server WebFlux](https://docs.spring.io/spring-cloud-gateway/reference/spring-cloud-gateway-server-webflux.html){target="_blank"}; Spring Security reference, [OAuth 2.0 Resource Server — JWT](https://docs.spring.io/spring-security/reference/reactive/oauth2/resource-server/jwt.html){target="_blank"}.
 [^2]: IETF, [RFC 7519 — JSON Web Token](https://www.rfc-editor.org/rfc/rfc7519){target="_blank"} and [RFC 7517 — JSON Web Key](https://www.rfc-editor.org/rfc/rfc7517){target="_blank"}.

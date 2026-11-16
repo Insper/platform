@@ -6,9 +6,13 @@
     - **Medir**: precisão das revisões, custo por pull request (PR), minutos de CI e tempo até o merge ao longo de uma semana de pull requests.
 
 O lab 11 deu ao BoxOffice um pipeline que compila, testa, escaneia, assina e libera cada mudança por trás de um canary. O lab 12 colocou um modelo de linguagem *dentro* do produto. Este lab coloca modelos de linguagem **dentro do pipeline** — e os trata com a mesma disciplina de qualquer outra dependência: privilégio mínimo, orçamentos, validação de toda saída e números que digam se eles ajudam.
-Na [história da disciplina](../../index.md#story) ele constrói o capítulo 14: as decisões de [revisão de código](../../classes/ai-delivery/code-review/index.md), [testes gerados por IA](../../classes/ai-delivery/testing/index.md), [agentes no CI](../../classes/ai-delivery/agents-in-ci/index.md), [liberação e operação](../../classes/ai-delivery/release-operate/index.md) e [segurança e governança](../../classes/ai-delivery/security-governance/index.md).
+Cada parte aplica uma página da [aula de Entrega Assistida por IA](../../classes/ai-delivery/index.md): as decisões de [revisão de código](../../classes/ai-delivery/code-review/index.md), [testes gerados por IA](../../classes/ai-delivery/testing/index.md), [agentes no CI](../../classes/ai-delivery/agents-in-ci/index.md), [liberação e operação](../../classes/ai-delivery/release-operate/index.md) e [segurança e governança](../../classes/ai-delivery/security-governance/index.md).
 
 A regra do lab inteiro: **a IA propõe; regras e humanos decidem.** Nenhuma etapa deste lab consegue fazer merge, aprovar, fazer deploy ou rollback sozinha. O modelo escreve comentários, patches e explicações; verificações determinísticas (testes, score de mutação, limites da política) e pessoas decidem.
+
+!!! quote "A história até aqui"
+
+    Capítulo 14 da [história da disciplina](../../index.md#story). O [lab 12](../12/index.md) colocou um modelo dentro do produto e mostrou quanto só a troca de modelo mexe no seu comportamento: as respostas ancoradas foram de **1 em 10 para 5 em 10** trocando o `qwen2.5:1.5b` pelo `qwen2.5:3b`, sem uma linha de Java. O [lab 11](../11/index.md) deu a toda mudança um pipeline — testes, um orçamento de desempenho, scans, uma imagem assinada, um canary — dimensionado para um time que entrega dez mudanças por dia e revisa cada uma à mão. Agora os mesmos modelos escrevem o código e as mudanças chegam mais rápido do que as pessoas conseguem revisar, testar e liberar ([aula 14 — Entrega Assistida por IA](../../classes/ai-delivery/index.md)). **Este lab** adiciona cinco etapas de IA a esse pipeline, cada uma propondo e nenhuma aprovando, e mede se elas ajudam: a precisão da revisão ao longo de uma semana de PRs (70 % é uma régua razoável antes de virar portão), o custo por PR, os minutos de CI e o tempo até o merge.
 
 ## Antes de começar { #before-you-start }
 
@@ -354,6 +358,8 @@ boxoffice/
     results/lab13.md
 ```
 
-Este é o último lab: o mesmo pipeline, as convenções e as medições seguem para o projeto em equipe.
+## O que quebra em seguida { #what-breaks-next }
+
+Toda etapa de IA deste lab julga **uma mudança**: um diff, uma classe de teste, um build vermelho, um canary contra a sua linha de base no tráfego de hoje — e as suas próprias medições dizem quanto confiar nela (enquanto este lab era escrito, o revisor local de 7B teve 50 % de recall no golden set e foi enganado pelos dois casos de injeção). Nenhuma delas responde à pergunta que a próxima venda faz ao sistema **inteiro**: com a borda, os caches, a sala de espera, os breakers, o Kubernetes e um assistente no lugar, o BoxOffice mantém o p99 abaixo de 300 ms quando 2 milhões de fãs chegam às 10:00, qual componente quebra primeiro e quanto custa operá-lo? Este é o último lab regular. Provar isso com carga, perfis e um modelo de custo é a [aula 15 — Engenharia de Desempenho](../../classes/performance/index.md); o [projeto em equipe](../../exercises/project/index.md) leva este pipeline, as suas convenções e as suas medições para essa prova. Antes disso, o [lab 14 — Pagamentos em sandbox](../14/index.md) volta ao pagamento do lab 9 e o liga a um provedor real.
 
 [Comece pela parte 1: review por IA](review/index.md){ .md-button .md-button--primary }

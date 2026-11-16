@@ -18,16 +18,38 @@ theme: platform
 {{INCLUDE:scripts/slides/diagram.css}}
 </style>
 
-<div class="kicker">System Architecture · Insper · Lab 6</div>
+<div class="kicker">System Architecture · Insper · Lab 6 · Chapter 6</div>
 
 # Lab 6 — Data at scale
 
 **Seat holds without double booking, a read replica, PgBouncer, EXPLAIN — and a failover by hand**
 
 <!--
-Outline: (1) the invariant; (2) the lost-update race; (3) three strategies; (4) the flash-sale test and
+Chapter 6 of the story of the course, taken after chapter 7. Outline: (1) the invariant; (2) the lost-update race; (3) three strategies; (4) the flash-sale test and
 audit; (5) streaming replica and routing; (6) read-your-writes; (7) PgBouncer; (8) indexes;
 (9) synchronous replication, a crash, failover, split brain, pg_rewind; (10) the simulator.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">before · lab 5<small>Redis answers the event pages</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 6 · lab 6<small>inventory: holds, locks, replica, failover</small></div><div class="arrow">→</div>
+<div class="box">next · lab 7<small>chapter 8: order, outbox, waiting room</small></div>
+</div>
+
+<div class="q">
+
+Stateless services push every hold into the database. At 10:00 **~33,000 holds/s** arrive for the **~1,100** one PostgreSQL serves — and two fans click the same seat in the same millisecond.
+
+</div>
+
+- Taken after chapter 7: a seat, unlike an event page, can never come from a copy.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): chapter 6 opens with stateless services pushing every decision into the database. The labs take it after the cache of lab 5 (about 70% hits in one minute of a cold run, in a run for that lab).
 -->
 
 ---
@@ -317,6 +339,18 @@ A human at 10:01 is too slow: Patroni + etcd decide the leader by **consensus**.
 The simulator sits after the read-your-writes experiment, at the top of Failover (opening on the crash)
 and at the end of section 5 (split brain, rejoin, switchback).
 -->
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 6 · the seat is safe<small>naive double-books; pessimistic and optimistic: 0</small></div><div class="arrow">→</div>
+<div class="box orange">still synchronous<small>checkout waits for payment and e-mail · 30× more fans than capacity</small></div><div class="arrow">→</div>
+<div class="box accent">lab 7 · chapter 8<small>order, an outbox to Kafka, a waiting room</small></div>
+</div>
+
+- A hold is not a purchase yet: nothing in this stack turns it into one.
 
 ---
 

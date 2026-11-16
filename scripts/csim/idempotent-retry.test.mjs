@@ -49,7 +49,12 @@ test("the sampled latencies follow the distribution (share over the timeout)", (
 test("the tip quotes lab 9's settings and the model's numbers", () => {
   const P = M.MODEL.price, pct = (v, lang) => fmt(100 * v, 1, lang) + "%";
   const s1 = (ms, lang) => fmt(ms / 1000, 1, lang) + " s";
-  tipHas("idempotent-retry", lang => lang === "en" ? [
+  const lab14 = (page, lang) => page.includes("/hands-on/14/") && [   /* lab 14: one key per order, the slow provider */
+    lang === "en" ? `${pct(M.tail("slow", L.timeoutMs), lang)} of the calls time out` : `${pct(M.tail("slow", L.timeoutMs), lang)} das chamadas estouram o timeout`,
+    lang === "en" ? `${fmt(slowOrder.charges, 0, lang)} charges for ${fmt(slowOrder.n, 0, lang)} fans — 0 duplicates` : `${fmt(slowOrder.charges, 0, lang)} cobranças para ${fmt(slowOrder.n, 0, lang)} fãs — 0 duplicadas`,
+    lang === "en" ? `${slowOrder.unknown} checkouts end UNKNOWN` : `${slowOrder.unknown} checkouts terminam UNKNOWN`,
+    lang === "en" ? `${slowNone.duplicates} fans pay twice or more` : `${slowNone.duplicates} fãs pagam duas vezes ou mais`];
+  tipHas("idempotent-retry", (lang, page) => lab14(page, lang) || (lang === "en" ? [
     `a ${L.timeoutMs / 1000} s read timeout, ${L.attempts} attempts, a ${L.backoff} ms backoff that doubles, ±${L.jitter * 100}% jitter`,
     `${pct(M.tail("normal", L.timeoutMs), lang)} of the calls are slower than ${L.timeoutMs / 1000} s`,
     `${none.duplicates} fans pay twice or more (${none.extra} extra charges, R$ ${fmt(none.extra * P, 0, lang)} to refund)`,
@@ -67,6 +72,6 @@ test("the tip quotes lab 9's settings and the model's numbers", () => {
     `mas ${slowOrder.unknown} checkouts terminam em UNKNOWN, cada um cobrado uma vez`,
     `ponha tentativas em 1: nenhuma duplicada, mas ${once.unknown} fãs ficam em UNKNOWN`,
     `Com ${L.attempts} tentativas um timeout de ${LONG / 1000} s também acaba com as duplicadas num dia normal, mas no dia lento ${longSlow.duplicates} fãs ainda pagam duas vezes e o checkout mais lento leva ${s1(longSlow.maxWait, lang)}`,
-  ]);
+  ]));
   eq(longNormal.duplicates, 0, "the tip says a 5 s timeout removes the duplicates on a normal day");
 });

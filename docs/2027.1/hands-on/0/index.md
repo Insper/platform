@@ -9,6 +9,10 @@ During the semester you will build **BoxOffice**, a ticketing platform for conce
 
 This first lab is short but important: a broken environment costs hours later, in the middle of a load test.
 
+!!! quote "The story so far"
+
+    Chapter 1 of the [story of the course](../../index.md#story). BoxOffice does not exist yet: there is a promise — a stadium show on sale at 10:00, **2 million fans for 60,000 seats**, every page under 300 ms at the 99th percentile ([class 1](../../classes/intro/index.md)) — and not a single number measured on a real machine. **This lab** installs the toolchain every lab uses, fixes the names every service will share and measures the first number of the course: how many requests per second *your* machine serves when the server does almost nothing.
+
 ## Before you start { #before-you-start }
 
 | | |
@@ -55,7 +59,7 @@ flowchart LR
 
 !!! info "Theory connection"
 
-    In the [story of the course](../../index.md#story), this lab opens chapter 1: before any design, a number — how many requests per second *your* machine serves, the first of the [measurable requirements](../../classes/intro/requirements/index.md) every later lab checks.
+    Before any design, a number: how many requests per second *your* machine serves, the first of the [measurable requirements](../../classes/intro/requirements/index.md) every later lab checks.
 
     This lab pairs with class 1, [What is system design](../../classes/intro/index.md): the scaling journey of BoxOffice from one server to millions of users is exactly the path the labs follow. The "Measure it" step at the end connects with class 2, [Estimation](../../classes/estimation/index.md).
 
@@ -450,7 +454,9 @@ boxoffice/
         check-env.sh
 ```
 
-Next: [Lab 1 — First service](../1/index.md).
+## What breaks next { #what-breaks-next }
+
+Your baseline is a **ceiling**: a stock Nginx answering a static page from memory, tens of thousands of requests per second. BoxOffice will serve far less — each request will run Java code, open a database transaction and cross the network — and so far nothing says how much less, or where the time goes. [Lab 1 — First service](../1/index.md) builds `catalog`, the first service with its own PostgreSQL, and measures it with the same k6 script: the gap between that number and this one is the price of real work.
 
 [^1]: Grafana k6 documentation, [Running k6](https://grafana.com/docs/k6/latest/get-started/running-k6/){target="_blank"} and [Install k6](https://grafana.com/docs/k6/latest/set-up/install-k6/){target="_blank"}.
 [^2]: Docker documentation, [Docker Compose](https://docs.docker.com/compose/){target="_blank"}.

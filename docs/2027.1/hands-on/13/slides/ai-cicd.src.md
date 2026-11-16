@@ -27,8 +27,31 @@ Artificial intelligence (AI) in continuous integration and delivery (CI/CD)
 **AI proposes, rules and humans dispose**
 
 <!--
+Chapter 14 of the story of the course.
 Outline: shared client; (1) PR review; (2) tests judged by mutation testing; (3) fix agent;
 (4) release notes; (5) explained canary; (6) security; (7) measure it.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">chapter 13 · lab 12<small>a model inside the product</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 14 · lab 13<small>models inside the pipeline</small></div><div class="arrow">→</div>
+<div class="box">next · chapter 15<small>performance engineering and the project</small></div>
+</div>
+
+<div class="q">
+
+In lab 12, swapping the model alone took grounded answers from **1 to 5 of 10**. Now the same models write the code: changes arrive faster than people can review, test and release them.
+
+</div>
+
+- The pipeline of lab 11 was sized for ten changes a day, reviewed by hand.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): chapter 14 opens when changes outpace the people who review them.
 -->
 
 ---
@@ -322,6 +345,18 @@ Which error can the grounding check **not** catch?
 </div>
 
 - At ~US$ 0.02 per review and 400 PRs a month the reviewer costs ~US$ 8: the **attention** cost of bad comments is bigger.
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 13 · one change<small>one diff, one test, one red build, one canary — each measured</small></div><div class="arrow">→</div>
+<div class="box orange">the whole system<small>2 M fans at 10:00, p99 under 300 ms: which box breaks first, at what cost?</small></div><div class="arrow">→</div>
+<div class="box accent">class 15 + project<small>load, profiles, a cost model</small></div>
+</div>
+
+- Lab 14 takes the payments of lab 9 to a real provider's sandbox.
 
 ---
 

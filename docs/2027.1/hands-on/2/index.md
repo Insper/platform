@@ -7,6 +7,10 @@
 
 "Measure first" is the most useful habit in system design. Before adding a cache, a replica or ten more servers, you need to know **how much load the current system takes, where it breaks and why**. Guessing is how teams spend a month on a cache for a service whose real limit was a connection pool of 10. In this lab you treat `catalog` as a black box with a load generator in front (k6) and a few gauges inside (Actuator), and you produce the most important chart of the course: **latency against throughput**.
 
+!!! quote "The story so far"
+
+    Chapters 2 and 3 of the [story of the course](../../index.md#story). [Lab 1](../1/index.md) built `catalog` and measured its service time with one user: a few milliseconds for a detail, tens for a listing (in lab 1's example run, ~11 ms and ~42 ms at the 95th percentile). [Class 2](../../classes/estimation/index.md) did the arithmetic for 10:00: **~33,000 holds/s** of demand against **~1,100** that one database sustains at a sane utilization — an estimate built on an *assumed* service time. **This lab** writes load, stress and sweep tests with k6, measures the knee of one `catalog` instance and names its bottleneck with gauges from inside the service: the number that replaces the assumption.
+
 ## Before you start { #before-you-start }
 
 | | |
@@ -49,8 +53,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 !!! info "Theory connection"
 
-    - In the [story of the course](../../index.md#story), this lab closes chapter 2 and opens chapter 3: it replaces the *assumed* service time of the class's [capacity check](../../classes/estimation/index.md) with a *measured* knee, and shows that one instance leaves its latency target at a few hundred requests per second — far from the on-sale's demand, so BoxOffice needs [more machines](../../classes/distributed/index.md).
-    - Class 2, [Estimation](../../classes/estimation/index.md): [queueing and Little's Law](../../classes/estimation/queueing/index.md), [percentiles and tail latency](../../classes/estimation/percentiles/index.md).
+    - Class 2, [Estimation](../../classes/estimation/index.md): the *measured* knee replaces the *assumed* service time of the class's [capacity check](../../classes/estimation/index.md); [queueing and Little's Law](../../classes/estimation/queueing/index.md), [percentiles and tail latency](../../classes/estimation/percentiles/index.md).
     - Class 15, [Performance engineering](../../classes/performance/index.md): [load-test types](../../classes/performance/load-testing/index.md), [finding bottlenecks](../../classes/performance/bottlenecks/index.md).
 
 ## Before you measure: a hypothesis
@@ -332,7 +335,9 @@ boxoffice/
 
 No service changed: the stack is still `db` + `catalog`.
 
-Next: [Lab 3 — Edge](../3/index.md), where one replica becomes three.
+## What breaks next { #what-breaks-next }
+
+One instance leaves its latency target at a few hundred requests per second — in the page's example run, p99 is 224 ms at 400 req/s and 2,056 ms at 500 — and a bigger pool does not save it when PostgreSQL is what is full. At 10:00:00 the edge receives about 100,000 requests/s and the holds alone are ~33,000/s: a 30× gap that no tuning of one machine closes. BoxOffice needs many machines and, between them, a network that loses, delays and duplicates messages ([class 3 — Distributed Systems](../../classes/distributed/index.md)). [Lab 3 — Edge](../3/index.md) takes the first step: three `catalog` replicas behind Nginx, measured against the knee you just found ([class 4 — Traffic & Edge](../../classes/edge/index.md)).
 
 [^1]: Grafana k6 documentation, [Open and closed models](https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/open-vs-closed/){target="_blank"} and [Arrival-rate executors](https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/){target="_blank"}.
 [^2]: John D. C. Little, "A Proof for the Queuing Formula: L = λW", *Operations Research* 9(3), 1961.

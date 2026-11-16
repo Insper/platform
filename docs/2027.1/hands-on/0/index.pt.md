@@ -9,6 +9,10 @@ Durante o semestre você vai construir o **BoxOffice**, uma plataforma de venda 
 
 Este primeiro lab é curto, mas importante: um ambiente quebrado custa horas depois, no meio de um teste de carga.
 
+!!! quote "A história até aqui"
+
+    Capítulo 1 da [história da disciplina](../../index.md#story). O BoxOffice ainda não existe: há uma promessa — um show de estádio à venda às 10:00, **2 milhões de fãs para 60.000 lugares**, toda página abaixo de 300 ms no percentil 99 ([aula 1](../../classes/intro/index.md)) — e nem um único número medido numa máquina de verdade. **Este lab** instala as ferramentas que todo lab usa, fixa os nomes que todos os serviços vão compartilhar e mede o primeiro número da disciplina: quantas requisições por segundo a *sua* máquina atende quando o servidor quase não faz nada.
+
 ## Antes de começar { #before-you-start }
 
 | | |
@@ -55,7 +59,7 @@ flowchart LR
 
 !!! info "Conexão com a teoria"
 
-    Na [história da disciplina](../../index.md#story), este lab abre o capítulo 1: antes de qualquer design, um número — quantas requisições por segundo a *sua* máquina atende, o primeiro dos [requisitos mensuráveis](../../classes/intro/requirements/index.md) que todo lab seguinte confere.
+    Antes de qualquer design, um número: quantas requisições por segundo a *sua* máquina atende, o primeiro dos [requisitos mensuráveis](../../classes/intro/requirements/index.md) que todo lab seguinte confere.
 
     Este lab acompanha a aula 1, [O que é projeto de sistemas](../../classes/intro/index.md): a jornada de escala do BoxOffice, de um servidor a milhões de usuários, é exatamente o caminho que os labs seguem. A etapa "Meça" no fim se conecta com a aula 2, [Estimativas](../../classes/estimation/index.md).
 
@@ -450,7 +454,9 @@ boxoffice/
         check-env.sh
 ```
 
-Próximo: [Lab 1 — Primeiro serviço](../1/index.md).
+## O que quebra em seguida { #what-breaks-next }
+
+A sua referência é um **teto**: um Nginx de fábrica respondendo uma página estática da memória, dezenas de milhares de requisições por segundo. O BoxOffice vai atender bem menos — cada requisição vai rodar código Java, abrir uma transação no banco e atravessar a rede — e por enquanto nada diz quanto menos, nem para onde vai o tempo. O [Lab 1 — Primeiro serviço](../1/index.md) constrói o `catalog`, o primeiro serviço com o seu próprio PostgreSQL, e o mede com o mesmo script do k6: a distância entre aquele número e este é o preço do trabalho de verdade.
 
 [^1]: Documentação do Grafana k6, [Running k6](https://grafana.com/docs/k6/latest/get-started/running-k6/){target="_blank"} e [Install k6](https://grafana.com/docs/k6/latest/set-up/install-k6/){target="_blank"}.
 [^2]: Documentação do Docker, [Docker Compose](https://docs.docker.com/compose/){target="_blank"}.

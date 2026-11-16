@@ -15,7 +15,7 @@ ar". Mesmo assim, em um minuto o `order` para de responder *qualquer coisa* — 
 `payment`. Este lab reproduz essa falha no seu laptop e aplica os padrões da
 [aula de confiabilidade](../../classes/reliability/index.md), com um número para cada um.
 
-Este lab constrói no BoxOffice o capítulo 10 da [história do curso](../../index.md#story): a
+Os padrões são os da aula de confiabilidade: a
 [falha em cascata](../../classes/reliability/index.md#cascading-failures) e as suas defesas —
 [timeout](../../classes/reliability/patterns/index.md#timeout),
 [retry com jitter](../../classes/reliability/patterns/index.md#retry-with-backoff-and-jitter),
@@ -24,6 +24,10 @@ Este lab constrói no BoxOffice o capítulo 10 da [história do curso](../../ind
 [game day](../../classes/reliability/chaos/index.md#game-days). Ele vem logo depois do lab 8 de
 propósito: caos exige observabilidade antes, então todo experimento é acompanhado no dashboard do lab 8
 e aciona o alerta de burn rate dele.
+
+!!! quote "A história até aqui"
+
+    Capítulo 10 da [história da disciplina](../../index.md#story). Depois do [lab 8](../8/index.md), o BoxOffice consegue se ver: um dashboard por serviço, um trace por pedido da borda ao e-mail passando pelo Kafka e um alerta de burn rate que acionou alguém **cerca de 440 s** depois que o banco parou, na execução de teste. Ver não é sobreviver. Às 10:02 o provedor de pagamento responde em **4 s em vez de 200 ms**: o trace põe o tempo na chamada de pagamento, o alerta dispara — e o checkout morre mesmo assim, porque todas as threads do `order` estão esperando o provedor e não sobra nenhuma nem para as requisições que nunca o tocam ([aula 10 — Confiabilidade](../../classes/reliability/index.md)). **Este lab** constrói as defesas no `PaymentClient.java` — timeout, retry com jitter, circuit breaker, bulkhead —, reproduz o provedor lento com o Toxiproxy somando 3 s a cada chamada e mede o que cada padrão compra, sobretudo para o `GET /orders/{id}`, uma requisição que nunca chama o `payment`.
 
 ## Slides
 
@@ -203,6 +207,9 @@ Faça commit e tag: `git add -A && git commit -m "lab 9: resilience" && git tag 
   [Integrações externas](../../classes/compute/integrations/index.md)
 - Estudo de caso: [Sistema de pagamentos](../../classes/case-studies/payment-system/index.md)
 - Projeto: [Game day de caos](../../exercises/project/game-day/index.md)
-- Próximo lab: [10. Kubernetes](../10/index.md) adiciona autocura e autoscaling.
+
+## O que quebra em seguida { #what-breaks-next }
+
+Os padrões contêm o provedor lento: na execução de teste, o `GET /orders/{id}` esperou **9 s** na mediana sem eles e poucos milissegundos com eles e o game day cronometrou quanto tempo o seu time levou para detectar e mitigar. Mas repare em quem mitigou: uma pessoa num terminal, rodando `docker compose` e `curl` contra o Toxiproxy. Toda defesa deste lab supõe que *algo* reinicia uma réplica morta, adiciona réplicas antes das 10:00 e desfaz uma release ruim — num laptop com Compose, esse algo é você e às 10:00, com 2 milhões de fãs na fila, ninguém deveria estar reiniciando contêineres à mão. O [Lab 10 — Kubernetes](../10/index.md) entrega essas tarefas a laços de controle — probes que reiniciam, um autoscaler que adiciona pods do `catalog`, rolling updates que não perdem requisições —, a plataforma da [aula 11 — Cloud-Native](../../classes/cloud-native/index.md).
 
 [Começar: Pagamento, provedor e Toxiproxy](payment/index.md){ .md-button .md-button--primary }

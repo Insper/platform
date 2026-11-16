@@ -13,12 +13,15 @@ service fall over and had to restart it by hand. At 10:00 on sale day nobody sho
 or restarting containers. Kubernetes turns both into **control loops**: you declare the desired
 state — "at least two ready replicas, more when their central processing unit (CPU) use passes 60%" — and controllers keep reality there,
 every few seconds, forever. This lab is the hands-on side of the
-[cloud-native class](../../classes/cloud-native/index.md) and builds chapter 11 of the
-[story of the course](../../index.md#story): it implements the class's decisions on
+[cloud-native class](../../classes/cloud-native/index.md): it implements the class's decisions on
 [probes](../../classes/cloud-native/kubernetes/index.md#probes),
 [requests and limits](../../classes/cloud-native/kubernetes/index.md#requests-limits),
 [autoscaling](../../classes/cloud-native/kubernetes/index.md#autoscaling) and
 [losing a node](../../classes/cloud-native/kubernetes/index.md#losing-a-node).
+
+!!! quote "The story so far"
+
+    Chapter 11 of the [story of the course](../../index.md#story). [Lab 9](../9/index.md) contained the slow payment provider — in its test run, `GET /orders/{id}` went from **9 s** at the median back to milliseconds — but every mitigation of its game day was a person at a terminal. Compose on one machine does not restart a dead replica on another node, add `catalog` replicas at 09:45 or roll a bad release back ([class 11 — Cloud-Native](../../classes/cloud-native/index.md)). **This lab** moves `db`, `redis` and `catalog` to a three-node kind cluster with probes, requests and limits and an HPA, and measures how fast capacity follows a ramp to 1,000 req/s, how many requests a rolling update loses and how long self-healing takes.
 
 ## Slides
 
@@ -197,6 +200,9 @@ Commit and tag: `git add -A && git commit -m "lab 10: kubernetes" && git tag lab
   [Serverless and autoscaling](../../classes/compute/serverless-autoscaling/index.md) ·
   [Load balancing](../../classes/edge/load-balancing/index.md)
 - Exercise: [Kubernetes autoscaling](../../exercises/kubernetes-autoscaling/index.md)
-- Next lab: [11. Delivery](../11/index.md) deploys these manifests from Git with Argo CD.
+
+## What breaks next { #what-breaks-next }
+
+The cluster now heals and scales by itself: in the test run the HPA asked for a third pod **15 s** after the CPU crossed 60%, and a rolling update with readiness and `preStop` lost **0** of about 11,900 requests (about 140 without them). But each release still starts with `kubectl` on your laptop and replaces every pod with whatever image you built: nothing tested it, scanned it or checked its latency, and a version that fails 30% of its requests would reach every fan as soon as the rollout ends. With ten changes a day before the on-sale, each one must answer *"is this safe to give to 2 million fans?"* by itself. [Lab 11 — Delivery](../11/index.md) deploys these manifests from Git with Argo CD, behind a pipeline that tests, measures, scans and signs every image and a canary that aborts by itself — the [delivery page](../../classes/cloud-native/delivery/index.md) of class 11 and the supply chain of [class 12 — Network & Security](../../classes/network-security/index.md).
 
 [Start: A local cluster](cluster/index.md){ .md-button .md-button--primary }

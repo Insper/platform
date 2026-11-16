@@ -15,12 +15,22 @@ the same second hit every service at once. This lab replaces that coupling with 
 [messaging class](../../classes/messaging/index.md): **events on a log**, **at-least-once delivery
 handled with idempotency**, and **queues that absorb a spike**.
 
-It builds chapter 8 of the [story of the course](../../index.md#story). The decisions you implement are
-argued in the class: [synchronous vs asynchronous](../../classes/messaging/index.md#sync-vs-async),
+The decisions you implement are argued in the class: [synchronous vs asynchronous](../../classes/messaging/index.md#sync-vs-async),
 the [transactional outbox](../../classes/messaging/patterns/index.md#transactional-outbox),
 [idempotent consumers](../../classes/messaging/semantics/index.md#idempotent-consumers),
 [retries and dead letters](../../classes/messaging/semantics/index.md#dlq) and the
 [flash-sale waiting room](../../classes/messaging/queues-pubsub/index.md#the-flash-sale-waiting-room).
+
+!!! quote "The story so far"
+
+    Chapter 8 of the [story of the course](../../index.md#story). [Lab 6](../6/index.md) made the seat
+    safe: with a row lock or a version check the double-booking audit ends at 0, where the naive version
+    sold seats twice (9 and 11 in runs for that lab). The write path is still one synchronous chain, and
+    the crowd is still 30 times too big: about 33,000 holds/s arrive for the ~1,100 one database can take
+    ([class 8 — Messaging](../../classes/messaging/index.md)). **This lab** builds the outbox, Kafka, an
+    idempotent `notification` and a waiting room, and measures `POST /orders` with and without the e-mail
+    inline, the orders a `notification` outage fails, the lag and drain time of a burst, the duplicates
+    after a replay and the admission rate under a spike.
 
 ## Slides
 
@@ -234,6 +244,18 @@ Commit and tag: `git add -A && git commit -m "lab 7: async messaging" && git tag
   [Delivery semantics](../../classes/messaging/semantics/index.md)
 - Case study: [Ticketing (BoxOffice flash sale)](../../classes/case-studies/ticketing/index.md)
 - Exercise: [Event-driven](../../exercises/event-driven/index.md)
-- Next lab: [8. Observability](../8/index.md) traces this flow end to end, across the Kafka hop.
+
+## What breaks next { #what-breaks-next }
+
+The e-mail left the request: in a test run for this lab, at 200 orders/s `POST /orders` answered in
+1.8 ms at p50 with the outbox against 2.7 s with the e-mail inline, and a 20 s `notification` outage
+failed no order. The price is visibility. A purchase is now a request, a database row, an outbox relay,
+a Kafka record and a consumer, in four processes and at four different times: when a fan says "I paid
+and got no e-mail", nothing in this stack says where the order stopped, and the lag of a burst (about
+4,900 messages with one consumer thread, in another test run) shows only to whoever runs `kafka-lag.sh`. At the
+10:00 on-sale, failures that produce no `5xx` are invisible to k6, still the only instrument.
+[Lab 8 — Observability](../8/index.md) follows one order across the services and the Kafka hop in a
+single trace and turns a promise to fans into a service level objective (SLO) with an alert:
+[class 9 — Observability](../../classes/observability/index.md).
 
 [Start: Kafka in Compose](kafka/index.md){ .md-button .md-button--primary }

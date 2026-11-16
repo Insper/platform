@@ -13,13 +13,16 @@ The flash sale is next week and the team ships ten changes a day. Each of them c
 a slow query, a vulnerable library, a version that fails 30% of the requests. Nobody can review every
 change by hand at that pace — the pipeline must answer *"is this change safe to give to 2 million
 fans?"* automatically, and limit the damage when the answer was wrong. This lab is the hands-on side
-of the [delivery page](../../classes/cloud-native/delivery/index.md) of the cloud-native class and
-closes chapter 11 of the [story of the course](../../index.md#story) — rolling a bad release back
-without a human: it implements
+of the [delivery page](../../classes/cloud-native/delivery/index.md) of the cloud-native class: it
+implements
 [continuous integration](../../classes/cloud-native/delivery/index.md#continuous-integration) with a
 [performance budget](../../classes/performance/capacity-planning/index.md#performance-budgets),
 [GitOps](../../classes/cloud-native/delivery/index.md#gitops) and a
 [canary judged by metrics](../../classes/cloud-native/delivery/index.md#canary-with-automated-metrics-analysis).
+
+!!! quote "The story so far"
+
+    Chapter 11 of the [story of the course](../../index.md#story), with the supply chain of chapter 12 and the performance gate of chapter 15. [Lab 10](../10/index.md) put BoxOffice on a cluster that heals and scales by itself: in its test run, a rolling update with readiness and `preStop` lost **0** of about 11,900 requests. But every release still starts with `kubectl` on a laptop and replaces every pod with an image nobody tested, scanned or measured: a release that fails 30% of its requests would reach all 2 million fans with nothing to roll it back ([class 11 — Cloud-Native](../../classes/cloud-native/index.md)), and every image carries libraries nobody reviewed ([class 12 — Network & Security](../../classes/network-security/index.md)). **This lab** builds the pipeline that answers *"is this change safe?"* by itself — CI with Testcontainers and a k6 performance budget ([class 15 — Performance Engineering](../../classes/performance/index.md)), a Trivy scan, an SBOM and signed provenance, GitOps with Argo CD and a canary judged by Prometheus — and measures where the pipeline spends its time, the lead time from `git push` to users, whether the budget catches a regression and how fast a bad canary aborts.
 
 ## Slides
 
@@ -205,5 +208,9 @@ Commit and tag: `git add -A && git commit -m "lab 11: delivery" && git tag lab11
     generation checked by mutation testing, an agent that proposes a fix when `CI` fails, AI release
     notes and an explained canary verdict — with the same discipline of permissions, budgets and
     measurements.
+
+## What breaks next { #what-breaks-next }
+
+The pipeline now answers for every change: in the test run the budget held p95 around **7 ms** against 300 ms and turned the pull request red with a 400 ms sleep, and the canary that failed 30% of its requests aborted by itself **about a minute** after Argo CD synced — only the fans who hit it saw errors. The platform can now carry the on-sale; what arrives next is a new kind of dependency. Fans want to ask *"two seats under R$ 300 on Saturday?"*, and the answer would come from a model that takes seconds, is billed per token, can be wrong in fluent prose and reads the catalog and the seat map through tools — a box that no test, budget or canary of this lab knows how to judge. [Lab 12 — The assistant](../12/index.md) puts it into BoxOffice behind a gateway, retrieval, read-only tools and guardrails: [class 13 — AI Systems](../../classes/ai-systems/index.md).
 
 [Start: Tests and CI](ci/index.md){ .md-button .md-button--primary }

@@ -7,6 +7,10 @@
 
 In lab 2 you found the knee of a single `catalog` instance. The simplest way to move it is **horizontal scaling**: more identical, *stateless* copies of the service behind a load balancer. The same box also solves a second problem — with one instance, a crash or a deploy takes BoxOffice down. With three, one can fail while the others keep serving. This lab builds the **edge** of the system: the single public entry point that every request crosses first.
 
+!!! quote "The story so far"
+
+    Chapter 4 of the [story of the course](../../index.md#story). [Lab 2](../2/index.md) measured the knee of one `catalog`: it leaves its latency target at a few hundred requests per second (300–400 req/s in the page's example run), with the pool or PostgreSQL full. At 10:00:00, two million phones send about **100,000 requests/s** to the edge ([class 3](../../classes/distributed/index.md)) and, with a single instance, a crash or a deploy takes BoxOffice down. **This lab** builds the edge of [class 4](../../classes/edge/index.md) — Nginx over three replicas, with passive health checks, timeouts, retries and a rate limit per key — and measures scale-out: does 3× the replicas give 3× the capacity?
+
 ## Before you start { #before-you-start }
 
 | | |
@@ -49,7 +53,7 @@ Click the slides and use ← → to move through them; **F** goes full screen an
 
 !!! info "Theory connection"
 
-    - In the [story of the course](../../index.md#story), this lab builds chapter 4: the first hops of [the request's journey](../../classes/edge/index.md#the-request-journey), with the decisions of [Nginx as a load balancer](../../classes/edge/load-balancing/index.md#nginx), [health checks](../../classes/edge/load-balancing/index.md#health-checks) and [rate limiting](../../classes/edge/api-gateway/index.md#rate-limiting).
+    - The first hops of [the request's journey](../../classes/edge/index.md#the-request-journey), with the decisions of [Nginx as a load balancer](../../classes/edge/load-balancing/index.md#nginx), [health checks](../../classes/edge/load-balancing/index.md#health-checks) and [rate limiting](../../classes/edge/api-gateway/index.md#rate-limiting).
     - Class 4, [Traffic & edge](../../classes/edge/index.md): [load balancing](../../classes/edge/load-balancing/index.md) (L4 vs L7, algorithms, health checks) and [API gateway](../../classes/edge/api-gateway/index.md) (rate-limiting algorithms).
     - Class 5, [Compute](../../classes/compute/services/index.md): why only **stateless** services scale out this easily.
     - Component catalog: [Load Balancer](../../reference/components/edge/index.md#lb).
@@ -389,7 +393,9 @@ boxoffice/
 
 From now on clients use `http://localhost` (the edge); the replicas are not reachable from your machine.
 
-Next: [Lab 4 — Gateway & identity](../4/index.md).
+## What breaks next { #what-breaks-next }
+
+Three replicas multiply the cheap requests — a large gain for details only, because each replica brings its own core — but not the lab 2 mix: in a test run for this lab, `db` sat at ~670% CPU while each replica used ~20%, so the limit is the shared database, the target of labs 5 (cache) and 6 (indexes). Before that, the edge must stop trusting whoever calls: its rate limit is keyed on a header the client chooses, and anyone can create or delete events. At 10:00 the 2 million callers must prove who they are once (not to every service), and no replica may keep anything that another one needs. [Lab 4 — Gateway & identity](../4/index.md) adds `auth` and a gateway behind this edge: the [identity](../../classes/edge/identity/index.md) of class 4 and the stateless services of [class 5 — Compute & Services](../../classes/compute/index.md).
 
 [^1]: NGINX documentation, [HTTP Load Balancing](https://nginx.org/en/docs/http/load_balancing.html){target="_blank"}, [ngx_http_upstream_module](https://nginx.org/en/docs/http/ngx_http_upstream_module.html){target="_blank"} and [ngx_http_limit_req_module](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html){target="_blank"}.
 [^2]: Betsy Beyer et al., *Site Reliability Engineering*, O'Reilly, 2016 — chapter 20, "Load Balancing in the Datacenter".

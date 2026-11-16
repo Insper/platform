@@ -27,8 +27,31 @@ Inteligência artificial (IA) na integração e entrega contínuas (CI/CD, *cont
 **A IA propõe; regras e humanos decidem**
 
 <!--
+Capítulo 14 da história da disciplina.
 Roteiro: cliente compartilhado; (1) review de PR; (2) testes avaliados por testes de mutação;
 (3) agente de correção; (4) release notes; (5) canary explicado; (6) segurança; (7) meça.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">capítulo 13 · lab 12<small>um modelo dentro do produto</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 14 · lab 13<small>modelos dentro do pipeline</small></div><div class="arrow">→</div>
+<div class="box">depois · capítulo 15<small>engenharia de desempenho e o projeto</small></div>
+</div>
+
+<div class="q">
+
+No lab 12, só trocar o modelo levou as respostas ancoradas de **1 para 5 em 10**. Agora os mesmos modelos escrevem o código: as mudanças chegam mais rápido do que as pessoas conseguem revisar, testar e liberar.
+
+</div>
+
+- O pipeline do lab 11 foi dimensionado para dez mudanças por dia, revisadas à mão.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): o capítulo 14 abre quando as mudanças passam à frente de quem as revisa.
 -->
 
 ---
@@ -322,6 +345,18 @@ Que erro a verificação de ancoragem **não** consegue pegar?
 </div>
 
 - A ~US$ 0,02 por review e 400 PRs por mês, o revisor custa ~US$ 8: o custo de **atenção** dos comentários ruins é maior.
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 13 · uma mudança<small>um diff, um teste, um build vermelho, um canary — cada um medido</small></div><div class="arrow">→</div>
+<div class="box orange">o sistema inteiro<small>2 M de fãs às 10:00, p99 abaixo de 300 ms: qual caixa quebra primeiro, a que custo?</small></div><div class="arrow">→</div>
+<div class="box accent">aula 15 + projeto<small>carga, perfis, um modelo de custo</small></div>
+</div>
+
+- O lab 14 leva os pagamentos do lab 9 ao sandbox de um provedor real.
 
 ---
 

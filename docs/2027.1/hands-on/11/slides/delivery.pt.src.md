@@ -25,9 +25,30 @@ theme: platform
 **Do `git push` a um canary que aborta sozinho**
 
 <!--
+Capítulo 11 da história da disciplina, com a cadeia de suprimentos do capítulo 12 e o portão de desempenho do capítulo 15.
 Roteiro: (1) por que automatizar a segurança; (2) CI com Testcontainers; (3) cadeia de suprimentos:
 Trivy, SBOM, proveniência; (4) orçamento de desempenho; (5) GitOps com Argo CD; (6) canary com Argo
 Rollouts; (7) meça: lead time.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">capítulo 11 · lab 10<small>um cluster que se cura e escala</small></div><div class="arrow">→</div>
+<div class="box accent">capítulos 11, 12, 15 · lab 11<small>testes, cadeia de suprimentos, orçamento, canary</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 12<small>o assistente</small></div>
+</div>
+
+<div class="q">
+
+Lab 10: um rolling update perdeu **0 de ~11.900** requisições — mas entrega qualquer imagem que você construiu, sem teste, sem scan, sem medição. Quem confere uma mudança antes que 2 M de fãs a recebam e quem a desfaz?
+
+</div>
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): este lab fecha o capítulo 11 (desfazer sem um humano) e constrói a cadeia de suprimentos do capítulo 12 e o portão de desempenho do capítulo 15.
 -->
 
 ---
@@ -209,6 +230,18 @@ As credenciais do cluster nunca saem do cluster.
 | D | canary | sync → abort, medições de erro, requisições que falharam |
 
 <p class="small">O lead time é dominado pelos testes, pelo build da imagem, pela consulta do Argo CD (≤ 3 min) e pelas pausas do canary — um preço deliberado pela segurança.</p>
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 11 · mudanças seguras<small>orçamento: p95 ~7 ms contra 300 ms; o canary ruim abortou em ~1 min</small></div><div class="arrow">→</div>
+<div class="box orange">uma nova dependência<small>um modelo: segundos por resposta, cobrado por token, erros fluentes, ferramentas</small></div><div class="arrow">→</div>
+<div class="box accent">lab 12 · assistente<small>gateway, recuperação, ferramentas só de leitura, guardrails</small></div>
+</div>
+
+- Os fãs perguntam: *"dois lugares abaixo de R$ 300 no sábado?"*
 
 ---
 

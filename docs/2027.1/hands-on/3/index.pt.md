@@ -7,6 +7,10 @@
 
 No lab 2 você encontrou o joelho de uma única instância do `catalog`. O jeito mais simples de deslocá-lo é a **escala horizontal**: mais cópias idênticas e *stateless* do serviço atrás de um balanceador de carga. A mesma caixa resolve um segundo problema — com uma instância, uma queda ou um deploy derruba o BoxOffice. Com três, uma pode falhar enquanto as outras continuam atendendo. Este lab constrói a **borda** do sistema: a única porta de entrada pública que toda requisição atravessa primeiro.
 
+!!! quote "A história até aqui"
+
+    Capítulo 4 da [história da disciplina](../../index.md#story). O [lab 2](../2/index.md) mediu o joelho de um `catalog`: ele sai da meta de latência com algumas centenas de requisições por segundo (300–400 req/s na execução de exemplo da página), com o pool ou o PostgreSQL cheio. Às 10:00:00, dois milhões de celulares mandam cerca de **100.000 requisições/s** para a borda ([aula 3](../../classes/distributed/index.md)) e, com uma única instância, uma queda ou um deploy derruba o BoxOffice. **Este lab** constrói a borda da [aula 4](../../classes/edge/index.md) — o Nginx sobre três réplicas, com health checks passivos, timeouts, retentativas e um limite de taxa por chave — e mede a escala horizontal: 3× as réplicas dão 3× a capacidade?
+
 ## Antes de começar { #before-you-start }
 
 | | |
@@ -49,7 +53,7 @@ Clique nos slides e use ← → para navegar; **F** abre em tela cheia e **P** a
 
 !!! info "Conexão com a teoria"
 
-    - Na [história da disciplina](../../index.md#story), este lab constrói o capítulo 4: os primeiros saltos da [jornada da requisição](../../classes/edge/index.md#the-request-journey), com as decisões do [Nginx como balanceador de carga](../../classes/edge/load-balancing/index.md#nginx), dos [health checks](../../classes/edge/load-balancing/index.md#health-checks) e do [rate limiting](../../classes/edge/api-gateway/index.md#rate-limiting).
+    - Os primeiros saltos da [jornada da requisição](../../classes/edge/index.md#the-request-journey), com as decisões do [Nginx como balanceador de carga](../../classes/edge/load-balancing/index.md#nginx), dos [health checks](../../classes/edge/load-balancing/index.md#health-checks) e do [rate limiting](../../classes/edge/api-gateway/index.md#rate-limiting).
     - Aula 4, [Tráfego e borda](../../classes/edge/index.md): [balanceamento de carga](../../classes/edge/load-balancing/index.md) (L4 vs L7, algoritmos, health checks) e [API gateway](../../classes/edge/api-gateway/index.md) (algoritmos de rate limiting).
     - Aula 5, [Computação](../../classes/compute/services/index.md): por que só serviços **stateless** escalam horizontalmente com essa facilidade.
     - Catálogo de componentes: [Load Balancer](../../reference/components/edge/index.md#lb).
@@ -389,7 +393,9 @@ boxoffice/
 
 Daqui em diante os clientes usam `http://localhost` (a borda); as réplicas não são alcançáveis a partir da sua máquina.
 
-Próximo: [Lab 4 — Gateway e identidade](../4/index.md).
+## O que quebra em seguida { #what-breaks-next }
+
+Três réplicas multiplicam as requisições baratas — um ganho grande só com detalhes, porque cada réplica traz o seu próprio núcleo — mas não a carga mista do lab 2: numa execução de teste deste lab, o `db` ficou a ~670% de CPU enquanto cada réplica usava ~20%, então o limite é o banco compartilhado, alvo dos labs 5 (cache) e 6 (índices). Antes disso, a borda precisa parar de confiar em quem chama: o seu limite de taxa usa um cabeçalho que o próprio cliente escolhe e qualquer um pode criar ou apagar eventos. Às 10:00 os 2 milhões de chamadores precisam provar quem são uma única vez (não para cada serviço) e nenhuma réplica pode guardar nada de que outra precise. O [Lab 4 — Gateway e identidade](../4/index.md) acrescenta o `auth` e um gateway atrás desta borda: a [identidade](../../classes/edge/identity/index.md) da aula 4 e os serviços stateless da [aula 5 — Computação e Serviços](../../classes/compute/index.md).
 
 [^1]: Documentação do NGINX, [HTTP Load Balancing](https://nginx.org/en/docs/http/load_balancing.html){target="_blank"}, [ngx_http_upstream_module](https://nginx.org/en/docs/http/ngx_http_upstream_module.html){target="_blank"} e [ngx_http_limit_req_module](https://nginx.org/en/docs/http/ngx_http_limit_req_module.html){target="_blank"}.
 [^2]: Betsy Beyer et al., *Site Reliability Engineering*, O'Reilly, 2016 — capítulo 20, "Load Balancing in the Datacenter".

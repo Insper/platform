@@ -15,11 +15,14 @@ meu pedido?* Um assistente consegue respondê-las em segundos, às 3 da manhã, 
 se não inventar shows, não vazar dados e não custar mais que os ingressos. Este lab constrói um com a
 arquitetura da [aula de sistemas de IA](../../classes/ai-systems/index.md), rodando **inteiramente na
 sua máquina** com um modelo aberto local (Ollama) e, opcionalmente, no Claude para comparação.
-Na [história da disciplina](../../index.md#story), este lab constrói o capítulo 13: ele implementa as
-decisões do [gateway de LLM](../../classes/ai-systems/llm-gateway/index.md) (rotas e um fallback),
+Ele implementa as decisões do [gateway de LLM](../../classes/ai-systems/llm-gateway/index.md) (rotas e um fallback),
 do [loop do agente](../../classes/ai-systems/agents/index.md#loop) e das suas [ferramentas só de leitura](../../classes/ai-systems/agents/index.md#side-effects),
 da [recuperação com pgvector](../../classes/ai-systems/rag-memory/index.md#embeddings) e da
 [malha de segurança](../../classes/ai-systems/safety-evals/index.md#guardrail-code).
+
+!!! quote "A história até aqui"
+
+    Capítulo 13 da [história da disciplina](../../index.md#story). Depois do [lab 11](../11/index.md), toda mudança chega ao cluster por um pipeline que a testa, escaneia e assina, e um canary ruim aborta sozinho cerca de um minuto depois do sync; a borda, os caches e a sala de espera aguentam os 2 milhões de fãs. O que chega agora não é mais tráfego, mas um novo tipo de dependência. Os fãs perguntam *"dois lugares abaixo de R$ 300 no sábado?"* e a resposta vem de um modelo lento, cobrado por token e não determinístico, que lê o catálogo e o mapa de lugares por ferramentas e nunca pode inventar um lugar nem obedecer a um texto escondido numa página ([aula 13 — Sistemas de IA](../../classes/ai-systems/index.md)). **Este lab** constrói esse assistente atrás de um gateway de LLM, com recuperação no pgvector, ferramentas só de leitura num loop de agente limitado e guardrails, e mede o tempo até o primeiro token sob concorrência, se a recuperação encontra os eventos certos (hit@5), a parcela de respostas ancoradas e quanto custa cada resposta.
 
 ## Slides
 
@@ -213,6 +216,9 @@ Faça o commit e a tag: `git add -A && git commit -m "lab 12: AI assistant" && g
   [RAG e memória](../../classes/ai-systems/rag-memory/index.md) ·
   [Segurança e avaliações](../../classes/ai-systems/safety-evals/index.md)
 - Estudo de caso: [Assistente de IA](../../classes/case-studies/ai-assistant/index.md)
-- Próximo lab: [13. IA no CI/CD](../13/index.md) usa modelos de linguagem dentro do pipeline de entrega do lab 11.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O assistente agora responde com citações conferidas pelo guarda de saída, recusa uma injeção com `422` e exporta os seus tokens, o custo e o tempo até o primeiro token. Mas o seu comportamento mudou sem uma linha de Java: nas execuções de teste, trocar o `qwen2.5:1.5b` pelo `qwen2.5:3b` levou as respostas ancoradas de **1 em 10 para 5 em 10**. Um prompt, a descrição de uma ferramenta, a versão de um modelo ou o `k` da recuperação: cada um é um deploy que o pipeline do lab 11 não julga. E os mesmos modelos agora escrevem código para o time, então os pull requests chegam mais rápido do que as pessoas conseguem revisar, testar e liberar antes da venda. O [Lab 13](../13/index.md) coloca modelos de linguagem dentro desse pipeline de entrega — um revisor, testes julgados por testes de mutação, um agente de correção, release notes, um canary explicado — sem deixar nenhum deles aprovar o próprio trabalho: a [aula 14 — Entrega Assistida por IA](../../classes/ai-delivery/index.md).
 
 [Começar: O serviço e o gateway de LLM](service/index.md){ .md-button .md-button--primary }

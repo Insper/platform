@@ -18,15 +18,37 @@ theme: platform
 {{INCLUDE:scripts/slides/diagram.css}}
 </style>
 
-<div class="kicker">System Architecture · Insper</div>
+<div class="kicker">System Architecture · Insper · Chapter 9</div>
 
 # Hands-on 8 — Observability
 
 **OpenTelemetry, a RED (rate, errors, duration) dashboard, one trace across Kafka and a service level objective (SLO) that pages on time**
 
 <!--
-Outline: (1) the questions k6 cannot answer; (2) otel-lgtm and the Java agent; (3) the outbox breaks
+Chapter 9 of the story of the course. Outline: (1) the questions k6 cannot answer; (2) otel-lgtm and the Java agent; (3) the outbox breaks
 the trace; (4) RED and USE as code; (5) SLO, error budget, burn rate; (6) fire the alert; (7) measure.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">before · lab 7<small>the e-mail left the request: outbox, Kafka</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 9 · lab 8<small>OpenTelemetry, RED dashboard, SLO and alert</small></div><div class="arrow">→</div>
+<div class="box">next · lab 9<small>chapter 10: a slow provider, resilience</small></div>
+</div>
+
+<div class="q">
+
+Asynchrony hides failures: `POST /orders` answers in **1.8 ms** (lab 7), yet an order whose e-mail never arrives produces no 5xx. Where did that order go?
+
+</div>
+
+- k6 measures from the outside; this lab adds the inside view.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): chapter 9 opens with asynchrony hiding failures. Lab 7 measured the outbox at 1.8 ms p50 against 2.7 s inline at 200 orders/s, in a test run for that lab.
 -->
 
 ---
@@ -247,6 +269,18 @@ Steady traffic, one healthy hour, then `docker compose stop db`. When does the f
 You cannot fix what you do not measure — and you cannot measure what you did not instrument.
 
 </div>
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 8 · we can see it<small>one trace per order · paged ~440 s after db stopped, in a test run</small></div><div class="arrow">→</div>
+<div class="box orange">seeing ≠ surviving<small>10:02: the payment provider answers in 4 s instead of 200 ms</small></div><div class="arrow">→</div>
+<div class="box accent">lab 9 · chapter 10<small>timeout, retry, circuit breaker, bulkhead, a game day</small></div>
+</div>
+
+- The alert fires and checkout still dies: every order thread waits on the provider.
 
 ---
 

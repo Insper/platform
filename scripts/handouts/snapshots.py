@@ -21,6 +21,9 @@ line must not be blank — a range that moved after an edit of the lab code usua
 It also runs the simulators' lab-value check (`node scripts/csim/test.mjs lab-values`, when Node is
 installed): the concept simulators copy some lab settings (TTLs, partitions, breaker, HPA…), listed in
 `scripts/csim/lab-values.mjs`, and a lab edit that changes one of them must update the simulator and its tip.
+Every lab also has to sit in the story of the course: its overview opens with the quote "The story so far"
+(pt "A história até aqui") and ends with `## What breaks next { #what-breaks-next }`, and its deck has
+a slide of each ("## The story so far" / "## A história até aqui", "## What breaks next" / "## O que quebra em seguida").
 """
 from __future__ import annotations
 
@@ -113,8 +116,33 @@ def check_classes() -> list[str]:
     return errors
 
 
-def check(lab: Path) -> list[str]:
+STORY = {"en": ('!!! quote "The story so far"', "## The story so far", "## What breaks next"),
+         "pt": ('!!! quote "A história até aqui"', "## A história até aqui", "## O que quebra em seguida")}
+
+
+def check_story(lab: Path) -> list[str]:
+    """the overview and the deck of a lab open and close with the story of the course"""
     errors = []
+    for lang, (quote, slide_open, slide_next) in STORY.items():
+        page = lab / ("index.md" if lang == "en" else "index.pt.md")
+        if page.exists():
+            text = page.read_text()
+            if quote not in text:
+                errors.append(f"{page.relative_to(REPO)}: no {quote} box (the story so far)")
+            if "{ #what-breaks-next }" not in text:
+                errors.append(f"{page.relative_to(REPO)}: no section {{ #what-breaks-next }}")
+        for deck in (lab / "slides").glob("*.src.md"):
+            if deck.name.endswith(".pt.src.md") != (lang == "pt"):
+                continue
+            text = deck.read_text()
+            for slide in (slide_open, slide_next):
+                if not re.search("^" + re.escape(slide) + "$", text, re.M):
+                    errors.append(f"{deck.relative_to(REPO)}: no slide '{slide}'")
+    return errors
+
+
+def check(lab: Path) -> list[str]:
+    errors = check_story(lab)
     for page in lab.rglob("*.md"):
         for inc in INCLUDE.findall(page.read_text()):
             if "/code/" in inc:

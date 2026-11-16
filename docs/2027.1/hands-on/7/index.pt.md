@@ -16,12 +16,23 @@ mesmo segundo atingem todos os serviços de uma vez. Este lab troca esse acoplam
 [aula de mensageria](../../classes/messaging/index.md): **eventos em um log**, **entrega
 *at-least-once* tratada com idempotência** e **filas que absorvem um pico**.
 
-Ele constrói o capítulo 8 da [história da disciplina](../../index.md#story). As decisões que você implementa
-são justificadas na aula: [síncrono vs assíncrono](../../classes/messaging/index.md#sync-vs-async),
+As decisões que você implementa são justificadas na aula: [síncrono vs assíncrono](../../classes/messaging/index.md#sync-vs-async),
 o [transactional outbox](../../classes/messaging/patterns/index.md#transactional-outbox),
 [consumidores idempotentes](../../classes/messaging/semantics/index.md#idempotent-consumers),
 [retries e mensagens mortas](../../classes/messaging/semantics/index.md#dlq) e a
 [sala de espera da venda relâmpago](../../classes/messaging/queues-pubsub/index.md#the-flash-sale-waiting-room).
+
+!!! quote "A história até aqui"
+
+    Capítulo 8 da [história da disciplina](../../index.md#story). O [Lab 6](../6/index.md) deixou o
+    assento seguro: com um lock de linha ou uma verificação de versão a auditoria de vendas duplicadas
+    termina em 0, enquanto a versão ingênua vendeu assentos duas vezes (9 e 11 em execuções daquele lab).
+    O caminho de escrita ainda é uma única cadeia síncrona e a multidão ainda é 30 vezes grande demais:
+    chegam cerca de 33.000 reservas/s para as ~1.100 que um banco consegue receber
+    ([aula 8 — Mensageria](../../classes/messaging/index.md)). **Este lab** constrói o outbox, o Kafka,
+    um `notification` idempotente e uma sala de espera, e mede o `POST /orders` com e sem o e-mail dentro
+    da requisição, os pedidos que uma queda do `notification` derruba, o lag e o tempo de escoamento de
+    uma rajada, as duplicatas depois de um replay e a taxa de admissão sob um pico.
 
 ## Slides
 
@@ -236,6 +247,19 @@ Faça commit e tag: `git add -A && git commit -m "lab 7: async messaging" && git
   [Semânticas de entrega](../../classes/messaging/semantics/index.md)
 - Estudo de caso: [Venda de ingressos (venda relâmpago do BoxOffice)](../../classes/case-studies/ticketing/index.md)
 - Exercício: [Orientado a eventos](../../exercises/event-driven/index.md)
-- Próximo lab: [8. Observabilidade](../8/index.md) rastreia este fluxo de ponta a ponta, inclusive o salto pelo Kafka.
+
+## O que quebra em seguida { #what-breaks-next }
+
+O e-mail saiu da requisição: numa execução de teste deste lab, a 200 pedidos/s o `POST /orders`
+respondeu em 1,8 ms no p50 com o outbox contra 2,7 s com o e-mail dentro da requisição; uma queda de
+20 s do `notification` não derrubou nenhum pedido. O preço é a visibilidade. Uma compra agora é uma
+requisição, uma linha no banco, um relay do outbox, um registro no Kafka e um consumidor, em quatro
+processos e em quatro momentos diferentes: quando um fã diz "paguei e não recebi o e-mail", nada nesta
+pilha diz onde o pedido parou e o lag de uma rajada (cerca de 4.900 mensagens com uma thread
+consumidora, em outra execução de teste) só aparece para quem roda o `kafka-lag.sh`. Na abertura das
+vendas às 10:00, falhas que não produzem nenhum `5xx` são invisíveis para o k6, ainda o único
+instrumento. O [Lab 8 — Observabilidade](../8/index.md) segue um pedido pelos serviços e pelo salto do
+Kafka num único trace e transforma uma promessa aos fãs num objetivo de nível de serviço (SLO,
+*service level objective*) com um alerta: a [aula 9 — Observabilidade](../../classes/observability/index.md).
 
 [Começar: Kafka no Compose](kafka/index.md){ .md-button .md-button--primary }

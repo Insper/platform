@@ -9,7 +9,11 @@
 
 The flash sale is the moment BoxOffice exists for: at 10:00, 60,000 seats and two million fans. The catalog could be cached because a few seconds of staleness is harmless. **Seats are the opposite**: selling the same seat twice is the one bug a ticketing company cannot afford. This lab is about the data layer under pressure[^1] — correctness first (transactions and locks), then scale (replicas, pooling, indexes), then survival (failover) — and about the trade-offs between them.
 
-This lab builds chapter 6 of the [story of the course](../../index.md#story), the database that every stateless service now depends on. It implements the decisions of class 6: [one seat, one hold](../../classes/databases/transactions/index.md#double-booking) with locks or a version check, a [read replica and its lag](../../classes/databases/replication/index.md#lag), [connection pooling](../../classes/databases/replication/index.md) with PgBouncer, [indexes read with `EXPLAIN`](../../classes/databases/models/index.md), and a [failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies) with its lost writes and split brain.
+This lab implements the decisions of class 6: [one seat, one hold](../../classes/databases/transactions/index.md#double-booking) with locks or a version check, a [read replica and its lag](../../classes/databases/replication/index.md#lag), [connection pooling](../../classes/databases/replication/index.md) with PgBouncer, [indexes read with `EXPLAIN`](../../classes/databases/models/index.md), and a [failover](../../classes/databases/replication/index.md#failover-when-the-leader-dies) with its lost writes and split brain.
+
+!!! quote "The story so far"
+
+    Chapter 6 of the [story of the course](../../index.md#story), taken in the labs after chapter 7. [Lab 5](../5/index.md) made the read path cheap: Redis answers the event pages (a cold cache reached about 70% hits in one minute, in a run for that lab) and PostgreSQL sees only the misses. Writes cannot be cached that way. Stateless services push every hold into the database, two fans click the same seat in the same millisecond, and at 10:00 about 33,000 holds/s arrive for the ~1,100 that one PostgreSQL serves ([class 6 — Databases](../../classes/databases/index.md)). **This lab** builds `inventory`, a read replica, PgBouncer, an index and a failover, and measures the double bookings of each locking strategy, the stale reads that replication lag causes, the connections a pooler saves, the listing query before and after the index, and the holds a failover loses.
 
 ## Before you start { #before-you-start }
 
@@ -255,7 +259,9 @@ boxoffice/
     results/lab6.md
 ```
 
-Next: [Lab 7 — Async](../7/index.md), where `order` confirms holds through events.
+## What breaks next { #what-breaks-next }
+
+The seat is safe: `naive` sold seats twice (9 and 11 double bookings in runs for this lab), while `pessimistic` and `optimistic` always ended the audit at 0. But a hold is not a purchase yet, and nothing in this stack turns it into one. Checkout needs an order, a payment and a confirmation e-mail: called inside the request, the fan waits for the slowest of them, and an e-mail outage becomes an ordering outage. Locks also keep the seat safe, not the database alive: at the 10:00 on-sale 30 times more fans arrive than one PostgreSQL can serve, and they need a fair line instead of a race for row locks. [Lab 7 — Async](../7/index.md) builds `order`, which confirms holds through `inventory`, publishes its events through a transactional outbox to Kafka and admits the crowd through a waiting room: [class 8 — Messaging](../../classes/messaging/index.md).
 
 [^1]: Martin Kleppmann and Chris Riccomini, *Designing Data-Intensive Applications*, 2nd ed., O'Reilly — chapters on transactions and replication.
 [^2]: PostgreSQL documentation, [Explicit Locking](https://www.postgresql.org/docs/17/explicit-locking.html){target="_blank"}, [Log-Shipping Standby Servers](https://www.postgresql.org/docs/17/warm-standby.html){target="_blank"} and [Using EXPLAIN](https://www.postgresql.org/docs/17/using-explain.html){target="_blank"}.

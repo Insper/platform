@@ -25,8 +25,29 @@ theme: platform
 **Gateway, retrieval-augmented generation (RAG), tools, guardrails — and the cost of the first token**
 
 <!--
+Chapter 13 of the story of the course.
 Outline: (1) the problem; (2) architecture; (3) uv + Ollama + pgvector; (4) the gateway;
 (5) RAG and its evaluation; (6) tools and the agent loop; (7) guardrails; (8) metrics and TTFT.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 11 · delivery<small>tested, scanned, signed; a bad canary aborts in ~1 min</small></div><div class="arrow">→</div>
+<div class="box accent">chapter 13 · lab 12<small>gateway, RAG, tools, guardrails</small></div><div class="arrow">→</div>
+<div class="box">next · lab 13<small>AI inside the pipeline</small></div>
+</div>
+
+<div class="q">
+
+Fans ask *"two seats under R$ 300 on Saturday?"* The answer comes from a model: seconds per call, billed per token, able to invent a seat. How does it enter the design without becoming the weakest box?
+
+</div>
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): chapter 13 opens with a new kind of dependency, not more traffic.
 -->
 
 ---
@@ -250,6 +271,18 @@ The model's replies are the ones quoted on the pages, or a labelled alternative.
 * L = λW = (1/60 s) × 120 s = **2** → the second fan waits for the first.
 * Fixes: GPU, batching, admission control, smaller prompts — or a hosted API.
 * Cost of 20 000 questions on Claude Opus 5.5: 20 000 × US$ 0.006 = **US$ 120**.
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 12 · measured<small>grounded answers: 1 of 10 (1.5b) → 5 of 10 (3b), no Java changed</small></div><div class="arrow">→</div>
+<div class="box orange">the limit<small>prompt, model, <code>k</code>: each one a deploy; code arrives faster than reviews</small></div><div class="arrow">→</div>
+<div class="box accent">lab 13 · models in the pipeline<small>reviewer, tests, fix agent, explained canary</small></div>
+</div>
+
+- The same models now write the team's code.
 
 ---
 

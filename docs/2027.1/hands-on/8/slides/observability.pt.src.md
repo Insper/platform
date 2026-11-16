@@ -18,16 +18,38 @@ theme: platform
 {{INCLUDE:scripts/slides/diagram.css}}
 </style>
 
-<div class="kicker">Arquitetura de Sistemas · Insper</div>
+<div class="kicker">Arquitetura de Sistemas · Insper · Capítulo 9</div>
 
 # Hands-on 8 — Observabilidade
 
 **OpenTelemetry, um dashboard RED (taxa, erros e duração, *rate, errors, duration*), um trace atravessando o Kafka e um objetivo de nível de serviço (SLO, *service level objective*) que aciona na hora certa**
 
 <!--
-Roteiro: (1) as perguntas que o k6 não responde; (2) otel-lgtm e o agente Java; (3) o outbox quebra
+Capítulo 9 da história da disciplina. Roteiro: (1) as perguntas que o k6 não responde; (2) otel-lgtm e o agente Java; (3) o outbox quebra
 o trace; (4) RED e USE como código; (5) SLO, orçamento de erros, taxa de queima; (6) disparar o
 alerta; (7) medir.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">antes · lab 7<small>o e-mail saiu da requisição: outbox, Kafka</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 9 · lab 8<small>OpenTelemetry, dashboard RED, SLO e alerta</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 9<small>capítulo 10: um provedor lento, resiliência</small></div>
+</div>
+
+<div class="q">
+
+A assincronia esconde falhas: o `POST /orders` responde em **1,8 ms** (lab 7), mas um pedido cujo e-mail nunca chega não produz 5xx. Para onde foi esse pedido?
+
+</div>
+
+- O k6 mede de fora; este lab adiciona a visão de dentro.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): o capítulo 9 abre com a assincronia escondendo falhas. O lab 7 mediu o outbox em 1,8 ms no p50 contra 2,7 s síncrono a 200 pedidos/s, numa execução de teste daquele lab.
 -->
 
 ---
@@ -248,6 +270,18 @@ Tráfego constante, uma hora saudável, depois `docker compose stop db`. Quando 
 Você não conserta o que não mede — e não mede o que não instrumentou.
 
 </div>
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 8 · o sistema se vê<small>um trace por pedido · o alerta chama alguém ~440 s depois de parar o db, num teste</small></div><div class="arrow">→</div>
+<div class="box orange">ver ≠ sobreviver<small>10:02: o provedor de pagamento responde em 4 s em vez de 200 ms</small></div><div class="arrow">→</div>
+<div class="box accent">lab 9 · capítulo 10<small>timeout, retry, circuit breaker, bulkhead, um game day</small></div>
+</div>
+
+- O alerta dispara e o checkout morre mesmo assim: toda thread do order espera pelo provedor.
 
 ---
 

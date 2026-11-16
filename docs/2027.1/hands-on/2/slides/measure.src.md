@@ -25,8 +25,30 @@ theme: platform
 **Load, stress and sweep tests with k6: find the knee, check Little's Law, name the bottleneck**
 
 <!--
-Outline: (1) why measure before optimizing; (2) closed vs open models; (3) the scripts; (4) gauges from
+Chapters 2 and 3 of the story. Outline: (1) why measure before optimizing; (2) closed vs open models; (3) the scripts; (4) gauges from
 inside; (5) the sweep and the knee; (6) Little's Law and the pool; (7) moving the bottleneck; (8) stress.
+-->
+
+---
+
+## The story so far
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 1 · service time<small>one user: a few ms (detail), tens of ms (listing)</small></div><div class="arrow">→</div>
+<div class="box accent">chapters 2–3 · lab 2<small>load, stress, sweep: the knee</small></div><div class="arrow">→</div>
+<div class="box">next · lab 3<small>three replicas behind an edge</small></div>
+</div>
+
+<div class="q">
+
+Class 2 estimated **~33,000 holds/s** against **~1,100** for one database, on an *assumed* service time. Where does one real `catalog` leave its latency target?
+
+</div>
+
+- Measured, not assumed: the knee and the resource that fills.
+
+<!--
+The story of the course (2027.1 overview, "The story of the course"): every chapter opens with the number the previous one left. Lab 2 closes chapter 2 and opens chapter 3.
 -->
 
 ---
@@ -233,6 +255,18 @@ A model of the lab's stack (200 threads, the pool, 1 CPU, PostgreSQL with 7 core
 - Little's Law table vs measured gauges.
 - Stress report with knee, peak and recovery.
 - One paragraph: **the bottleneck of `catalog` and the evidence**.
+
+---
+
+## What breaks next
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 2 · the knee<small>example run: p99 224 ms at 400 req/s, 2 s at 500</small></div><div class="arrow">→</div>
+<div class="box orange">a 30× gap<small>10:00 asks for ~33,000 holds/s: no single machine</small></div><div class="arrow">→</div>
+<div class="box accent">lab 3 · edge<small>three replicas behind Nginx</small></div>
+</div>
+
+- Between machines the network lies: class 3, Distributed Systems.
 
 ---
 

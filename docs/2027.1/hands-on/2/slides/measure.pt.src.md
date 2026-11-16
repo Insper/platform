@@ -25,8 +25,30 @@ theme: platform
 **Testes de carga, de estresse e de varredura com o k6: encontre o joelho, confira a Lei de Little, dê nome ao gargalo**
 
 <!--
-Roteiro: (1) por que medir antes de otimizar; (2) modelos fechado vs aberto; (3) os scripts; (4) medidores
+Capítulos 2 e 3 da história. Roteiro: (1) por que medir antes de otimizar; (2) modelos fechado vs aberto; (3) os scripts; (4) medidores
 de dentro; (5) a varredura e o joelho; (6) a Lei de Little e o pool; (7) mudar o gargalo de lugar; (8) estresse.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">lab 1 · tempo de serviço<small>um usuário: poucos ms (detalhe), dezenas de ms (listagem)</small></div><div class="arrow">→</div>
+<div class="box accent">capítulos 2–3 · lab 2<small>carga, estresse, varredura: o joelho</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 3<small>três réplicas atrás de uma borda</small></div>
+</div>
+
+<div class="q">
+
+A aula 2 estimou **~33.000 holds/s** contra **~1.100** de um banco, sobre um tempo de serviço *suposto*. Onde um `catalog` de verdade sai da meta de latência?
+
+</div>
+
+- Medido, não suposto: o joelho e o recurso que enche.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): todo capítulo abre com o número que o anterior deixou. O lab 2 fecha o capítulo 2 e abre o capítulo 3.
 -->
 
 ---
@@ -233,6 +255,18 @@ Um modelo da pilha do lab (200 threads, o pool, 1 CPU, PostgreSQL com 7 núcleos
 - Tabela da Lei de Little vs os medidores.
 - Relatório de estresse com joelho, pico e recuperação.
 - Um parágrafo: **o gargalo do `catalog` e a evidência**.
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 2 · o joelho<small>execução de exemplo: p99 224 ms a 400 req/s, 2 s a 500</small></div><div class="arrow">→</div>
+<div class="box orange">uma diferença de 30×<small>as 10:00 pedem ~33.000 holds/s: nenhuma máquina sozinha</small></div><div class="arrow">→</div>
+<div class="box accent">lab 3 · borda<small>três réplicas atrás do Nginx</small></div>
+</div>
+
+- Entre máquinas a rede mente: aula 3, Sistemas Distribuídos.
 
 ---
 

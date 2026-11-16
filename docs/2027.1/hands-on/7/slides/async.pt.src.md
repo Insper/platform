@@ -18,16 +18,38 @@ theme: platform
 {{INCLUDE:scripts/slides/diagram.css}}
 </style>
 
-<div class="kicker">Arquitetura de Sistemas · Insper</div>
+<div class="kicker">Arquitetura de Sistemas · Insper · Capítulo 8</div>
 
 # Hands-on 7 — Mensageria Assíncrona
 
 **Outbox, Kafka, consumidores idempotentes, um tópico de mensagens mortas (DLT, *dead-letter topic*) e uma sala de espera para o BoxOffice**
 
 <!--
-Roteiro: (1) por que o e-mail precisa sair do caminho da requisição; (2) Kafka em modo KRaft; (3) o
+Capítulo 8 da história da disciplina. Roteiro: (1) por que o e-mail precisa sair do caminho da requisição; (2) Kafka em modo KRaft; (3) o
 problema da escrita dupla e o outbox; (4) consumidor idempotente, retentativas e DLT; (5) sala de
 espera; (6) o que medimos e o simulador que repete o lab.
+-->
+
+---
+
+## A história até aqui
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box muted">antes · lab 6<small>o assento está seguro: um lock ou uma versão decide</small></div><div class="arrow">→</div>
+<div class="box accent">capítulo 8 · lab 7<small>outbox, Kafka, consumidor idempotente, sala de espera</small></div><div class="arrow">→</div>
+<div class="box">depois · lab 8<small>capítulo 9: traces, dashboard, um alerta</small></div>
+</div>
+
+<div class="q">
+
+O checkout ainda espera pelo e-mail: quando o provedor cai, ninguém compra. E a multidão é **30×** grande demais: **~33.000 reservas/s** para as **~1.100** que um banco recebe.
+
+</div>
+
+- A requisição do fã deveria terminar no commit; o resto pode esperar numa fila.
+
+<!--
+A história da disciplina (visão geral de 2027.1, "A história da disciplina"): o capítulo 8 abre com o caminho de escrita síncrono e a multidão 30x maior. O lab 6 deixou o assento seguro (o naive vendeu duas vezes, 9 e 11 assentos em execuções daquele lab; pessimistic e optimistic sempre 0).
 -->
 
 ---
@@ -336,6 +358,18 @@ Concorrência 1, 50 ms por e-mail, 100 pedidos/s por 60 s. *Lag* no fim? Tempo p
 Forme uma hipótese no simulador e depois confira com o k6 nos seus próprios serviços.
 
 </div>
+
+---
+
+## O que quebra em seguida
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box green">lab 7 · o e-mail saiu<small>outbox: p50 de 1,8 ms contra 2,7 s síncrono, num teste</small></div><div class="arrow">→</div>
+<div class="box orange">o preço: visibilidade<small>requisição, linha, relay, registro, consumidor: onde o pedido parou?</small></div><div class="arrow">→</div>
+<div class="box accent">lab 8 · capítulo 9<small>um trace por pedido, um dashboard, um alerta</small></div>
+</div>
+
+- Falhas que não produzem 5xx são invisíveis para o k6, ainda o único instrumento.
 
 ---
 

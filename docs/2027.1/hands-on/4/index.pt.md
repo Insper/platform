@@ -7,7 +7,11 @@
 
 Até agora qualquer um podia criar ou apagar eventos no catálogo. O BoxOffice precisa saber **quem** está chamando (autenticação) e **o que essa pessoa pode fazer** (autorização) — e não deve pedir a cada serviço que resolva esse problema de novo. A resposta padrão é um gateway para a interface de programação de aplicações (API, *application programming interface*), um **API gateway**[^1]: a porta de entrada única, onde os tokens são validados uma vez e as requisições são roteadas para o serviço certo. Atrás dele, os serviços confiam na identidade que o gateway repassa.
 
-Este lab constrói o capítulo 5 da [história da disciplina](../../index.md#story): a porta de entrada de que as [réplicas stateless](../../classes/compute/index.md#stateless-app-servers) precisam, onde o token é verificado uma vez para todos os serviços e nenhuma réplica guarda sessão. Ele implementa o [API gateway](../../classes/edge/api-gateway/index.md) da aula 4, o [mapa de serviços](../../classes/compute/services/index.md) da aula 5 e a [validação de token no gateway](../../classes/edge/identity/index.md#gateway-validation) da página de identidade.
+Este lab implementa o [API gateway](../../classes/edge/api-gateway/index.md) da aula 4, o [mapa de serviços](../../classes/compute/services/index.md) da aula 5 e a [validação de token no gateway](../../classes/edge/identity/index.md#gateway-validation) da página de identidade.
+
+!!! quote "A história até aqui"
+
+    Capítulos 4 e 5 da [história da disciplina](../../index.md#story). O [lab 3](../3/index.md) pôs três réplicas do `catalog` atrás do Nginx: um ganho grande para os detalhes de evento, pouco para a carga mista do lab 2, em que o gargalo é o PostgreSQL compartilhado. E a borda não sabe quem está chamando: o seu limite de 20 requisições por segundo por chave confia num cabeçalho que o próprio cliente escolhe. Às 10:00 os 2 milhões de fãs precisam provar quem são uma única vez (não para cada serviço) e nenhuma réplica pode guardar uma sessão de login que morre com ela ([aula 5](../../classes/compute/index.md#stateless-app-servers)). **Este lab** constrói o `auth` e um gateway atrás da borda — o token é verificado uma vez para todos os serviços e nenhuma réplica guarda sessão — e mede quanto custam o salto extra e a verificação do token, e quantos logins por segundo o `auth` aguenta.
 
 ## Antes de começar { #before-you-start }
 
@@ -277,7 +281,9 @@ boxoffice/
     results/lab4.md  results/lab4/
 ```
 
-Próximo: [Lab 5 — Caching](../5/index.md).
+## O que quebra em seguida { #what-breaks-next }
+
+A porta de entrada é barata — o salto do gateway e a verificação do token somam de uma fração de milissegundo a poucos milissegundos, porque a validação é local —, mas o login não é: o BCrypt limita o `auth` a dez a vinte por segundo por núcleo, então os fãs precisam fazer login antes das 10:00 e reutilizar os seus tokens. As réplicas agora são stateless, o que significa que toda leitura e toda escrita caem no PostgreSQL, o recurso que o lab 3 já encontrou cheio na carga mista (`db` a ~670% de CPU). As páginas de evento são lidas cerca de 100× mais do que mudam, então boa parte desse trabalho responde de novo à mesma pergunta. O [Lab 5 — Caching](../5/index.md) põe o Redis na frente do banco, a resposta da [aula 7 — Cache](../../classes/caching/index.md); os holds, que nunca podem vir de uma cópia, esperam pela [aula 6 — Bancos de Dados](../../classes/databases/index.md) e pelo lab 6.
 
 [^1]: Referência do Spring Cloud Gateway, [Server WebFlux](https://docs.spring.io/spring-cloud-gateway/reference/spring-cloud-gateway-server-webflux.html){target="_blank"}; referência do Spring Security, [OAuth 2.0 Resource Server — JWT](https://docs.spring.io/spring-security/reference/reactive/oauth2/resource-server/jwt.html){target="_blank"}.
 [^2]: IETF, [RFC 7519 — JSON Web Token](https://www.rfc-editor.org/rfc/rfc7519){target="_blank"} e [RFC 7517 — JSON Web Key](https://www.rfc-editor.org/rfc/rfc7517){target="_blank"}.

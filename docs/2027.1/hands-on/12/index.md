@@ -14,11 +14,14 @@ my order?* An assistant can answer them in seconds, at 3 a.m., in Portuguese and
 not invent shows, leak data or cost more than the tickets. This lab builds one with the architecture
 of the [AI systems class](../../classes/ai-systems/index.md), running **entirely on your machine**
 with a local open model (Ollama), and optionally on Claude for comparison.
-In the [story of the course](../../index.md#story), this lab builds chapter 13: it implements the
-decisions of [the LLM gateway](../../classes/ai-systems/llm-gateway/index.md) (routes and a fallback),
+It implements the decisions of [the LLM gateway](../../classes/ai-systems/llm-gateway/index.md) (routes and a fallback),
 [the agent loop](../../classes/ai-systems/agents/index.md#loop) and its [read-only tools](../../classes/ai-systems/agents/index.md#side-effects),
 [retrieval with pgvector](../../classes/ai-systems/rag-memory/index.md#embeddings) and the
 [safety mesh](../../classes/ai-systems/safety-evals/index.md#guardrail-code).
+
+!!! quote "The story so far"
+
+    Chapter 13 of the [story of the course](../../index.md#story). After [lab 11](../11/index.md), every change reaches the cluster through a pipeline that tests, scans and signs it, and a bad canary aborts by itself about a minute after the sync; the edge, the caches and the waiting room carry the 2 million fans. What arrives next is not more traffic but a new kind of dependency. Fans ask *"two seats under R$ 300 on Saturday?"*, and the answer comes from a model that is slow, billed per token and non-deterministic, reads the catalog and the seat map through tools, and must never invent a seat or obey text hidden in a page ([class 13 — AI Systems](../../classes/ai-systems/index.md)). **This lab** builds that assistant behind an LLM gateway, with retrieval on pgvector, read-only tools in a bounded agent loop and guardrails, and measures the time to first token under concurrency, whether retrieval finds the right events (hit@5), the share of grounded answers and what each answer costs.
 
 ## Slides
 
@@ -211,6 +214,9 @@ Commit and tag: `git add -A && git commit -m "lab 12: AI assistant" && git tag l
   [RAG and memory](../../classes/ai-systems/rag-memory/index.md) ·
   [Safety and evals](../../classes/ai-systems/safety-evals/index.md)
 - Case study: [AI assistant](../../classes/case-studies/ai-assistant/index.md)
-- Next lab: [13. AI in CI/CD](../13/index.md) uses language models inside the delivery pipeline of lab 11.
+
+## What breaks next { #what-breaks-next }
+
+The assistant now answers with citations checked by the output guard, rejects an injection with `422` and exports its tokens, cost and time to first token. But its behavior moved without a line of Java: in the test runs, swapping `qwen2.5:1.5b` for `qwen2.5:3b` took grounded answers from **1 of 10 to 5 of 10**. A prompt, a tool description, a model version or the `k` of the retrieval is each a deploy that the pipeline of lab 11 does not judge. And the same models now write code for the team, so pull requests arrive faster than people can review, test and release them before the on-sale. [Lab 13](../13/index.md) puts language models inside that delivery pipeline — a reviewer, tests judged by mutation testing, a fix agent, release notes, an explained canary — without letting any of them approve its own work: [class 14 — AI-Assisted Delivery](../../classes/ai-delivery/index.md).
 
 [Start: The service and the LLM gateway](service/index.md){ .md-button .md-button--primary }
