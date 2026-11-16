@@ -21,11 +21,12 @@ As aulas e os labs mostram como as coisas funcionam; os exercícios fazem você 
 | 5 | [Autoscaling no Kubernetes](kubernetes-autoscaling/index.md) | Probes, requests/limits, HPA sob carga k6 | [Aula 11](../classes/cloud-native/index.md) · [Lab 10](../hands-on/10/index.md) | Semana 14 | 10% | Página + manifestos + vídeo |
 | 6 | [Design no playground](playground-design/index.md) | Compor componentes para atingir metas de SLO + custo, com aleatoriedade | [Playground](../../playground/index.md) · Aulas 4–13 | Semana 15 | 15% | JSON exportado + justificativa + relatórios das execuções |
 | 7 | [Design doc](design-doc/index.md) | Design escrito + ADRs para um problema de entrevista, defesa oral | [Aula 16](../classes/case-studies/index.md) · [Entrevista](../support/interview/index.md) | Semana 17 | 20% | Página do design doc + ADRs + defesa oral |
+| 8 | [Serviço de câmbio](exchange/index.md) *(opcional)* | Um provedor externo atrás de um cache: contêiner, gateway, queda | [Aulas 7, 10](../classes/reliability/index.md) · [Labs 4, 5, 9](../hands-on/9/index.md) | Semana 13 | — | Página + Dockerfile + compose + resultados do k6 |
 | | [Projeto em equipe](project/index.md) | Construir, medir, quebrar e defender um sistema inteiro | Todas | Semanas 3–20 | — | Repositório + documentação + apresentação |
 
 !!! info "As semanas são relativas"
 
-    "Semana *n*" é a *n*-ésima semana do semestre. As datas do calendário, os dias de quiz e de prova estão na [página de planejamento](../planning.md). Salvo aviso do professor, um exercício vence no **último dia de aula da sua semana, às 23:59**. Os pesos são a participação de cada exercício dentro do componente *exercícios* da nota; como esse componente entra na nota final está na [página do curso](../index.md).
+    "Semana *n*" é a *n*-ésima semana do semestre. As datas do calendário, os dias de quiz e de prova estão na [página de planejamento](../planning.md). Salvo aviso do professor, um exercício vence no **último dia de aula da sua semana, às 23:59**. Os pesos são a participação de cada exercício dentro do componente *exercícios* da nota; como esse componente entra na nota final está na [página do curso](../index.md). O exercício 8 é **opcional**: como ele conta (bônus ou substituindo outra nota) será anunciado pelo professor.
 
 ## Como os exercícios são avaliados { #how-the-exercises-are-graded }
 

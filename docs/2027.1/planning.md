@@ -20,7 +20,7 @@ Two meetings a week, about twenty weeks. As a rule, the **first meeting** of the
 | 10 | **Midterm exams** | | |
 | 11 | [Lab 8 — Observability (OTel)](hands-on/8/index.md) | [Lab 9 — Resilience & chaos](hands-on/9/index.md) | [Ex. 4 Event-driven](exercises/event-driven/index.md) |
 | 12 | [11. Cloud-Native Platforms](classes/cloud-native/index.md) | [12. Network & Security](classes/network-security/index.md) | [M4 Async & resilience](exercises/project/milestones/index.md#m4-async-resilience) · **Quiz 2** |
-| 13 | [Lab 10 — Kubernetes (HPA)](hands-on/10/index.md) | [Lab 11 — Delivery (CI/CD, GitOps)](hands-on/11/index.md) | |
+| 13 | [Lab 10 — Kubernetes (HPA)](hands-on/10/index.md) | [Lab 11 — Delivery (CI/CD, GitOps)](hands-on/11/index.md) | [Ex. 8 Exchange service](exercises/exchange/index.md) (optional) |
 | 14 | [13. AI Systems & Agents](classes/ai-systems/index.md) | [Lab 12 — AI assistant](hands-on/12/index.md) | [Ex. 5 Kubernetes autoscaling](exercises/kubernetes-autoscaling/index.md) · [M5 K8s + CI/CD](exercises/project/milestones/index.md#m5-kubernetes-cicd) |
 | 15 | [14. AI-Assisted Delivery](classes/ai-delivery/index.md) | [Lab 13 — AI in CI/CD](hands-on/13/index.md) | [Ex. 6 Playground design](exercises/playground-design/index.md) |
 | 16 | [15. Performance Engineering](classes/performance/index.md) | [16. Case Studies](classes/case-studies/index.md) — mock interviews, round 1 | [M6 Load-test campaign](exercises/project/load-test-campaign/index.md) · **Quiz 3** |

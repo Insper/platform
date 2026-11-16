@@ -56,9 +56,14 @@ A API deve se apoiar em um serviço de terceiros para obter as taxas de câmbio.
 - [ExchangeRate-API](https://www.exchangerate-api.com/){target="_blank"};
 - [Open Exchange Rates](https://openexchangerates.org/){target="_blank"};
 - [CurrencyLayer](https://currencylayer.com/){target="_blank"};
+- [PTAX do Banco Central do Brasil](https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/aplicacao#!/recursos){target="_blank"} (pública, sem chave);
 - qualquer outra API.
 
 Ou você pode extrair os dados de um site (scraping).
+
+!!! tip "Um serviço pronto sobre a PTAX"
+
+    Algumas APIs gratuitas bloqueiam requisições vindas da AWS. Se a sua bloquear, ou se preferir focar na plataforma, a página [API de Câmbio: serviço do BACEN](bacen/index.md) traz o serviço inteiro em FastAPI sobre a PTAX do Banco Central do Brasil (BCB): você só escreve o contêiner dele e o liga ao gateway.
 
 !!! tip "Dica"
 

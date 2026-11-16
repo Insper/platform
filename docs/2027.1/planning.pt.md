@@ -20,7 +20,7 @@ Dois encontros por semana, cerca de vinte semanas. Em geral, o **primeiro encont
 | 10 | **Provas intermediárias** | | |
 | 11 | [Lab 8 — Observabilidade (OTel)](hands-on/8/index.md) | [Lab 9 — Resiliência e caos](hands-on/9/index.md) | [Ex. 4 Orientado a eventos](exercises/event-driven/index.md) |
 | 12 | [11. Plataformas Cloud-Native](classes/cloud-native/index.md) | [12. Redes e Segurança](classes/network-security/index.md) | [M4 Assíncrono e resiliência](exercises/project/milestones/index.md#m4-async-resilience) · **Quiz 2** |
-| 13 | [Lab 10 — Kubernetes (HPA)](hands-on/10/index.md) | [Lab 11 — Entrega (CI/CD, GitOps)](hands-on/11/index.md) | |
+| 13 | [Lab 10 — Kubernetes (HPA)](hands-on/10/index.md) | [Lab 11 — Entrega (CI/CD, GitOps)](hands-on/11/index.md) | [Ex. 8 Serviço de câmbio](exercises/exchange/index.md) (opcional) |
 | 14 | [13. Sistemas de IA e Agentes](classes/ai-systems/index.md) | [Lab 12 — Assistente de IA](hands-on/12/index.md) | [Ex. 5 Autoscaling no Kubernetes](exercises/kubernetes-autoscaling/index.md) · [M5 K8s + CI/CD](exercises/project/milestones/index.md#m5-kubernetes-cicd) |
 | 15 | [14. Entrega Assistida por IA](classes/ai-delivery/index.md) | [Lab 13 — IA no CI/CD](hands-on/13/index.md) | [Ex. 6 Design no playground](exercises/playground-design/index.md) |
 | 16 | [15. Engenharia de Desempenho](classes/performance/index.md) | [16. Estudos de Caso](classes/case-studies/index.md) — entrevistas simuladas, rodada 1 | [M6 Campanha de testes de carga](exercises/project/load-test-campaign/index.md) · **Quiz 3** |

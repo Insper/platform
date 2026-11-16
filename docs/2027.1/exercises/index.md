@@ -21,11 +21,12 @@ Lectures and labs show you how things work; the exercises make you **do it on yo
 | 5 | [Kubernetes autoscaling](kubernetes-autoscaling/index.md) | Probes, requests/limits, HPA under k6 load | [Class 11](../classes/cloud-native/index.md) · [Lab 10](../hands-on/10/index.md) | Week 14 | 10% | Page + manifests + video |
 | 6 | [Playground design](playground-design/index.md) | Composing components to meet SLO + cost goals, under randomness | [Playground](../../playground/index.md) · Classes 4–13 | Week 15 | 15% | Exported JSON + rationale + run reports |
 | 7 | [Design doc](design-doc/index.md) | Written design + ADRs for an interview problem, oral defence | [Class 16](../classes/case-studies/index.md) · [Interview](../support/interview/index.md) | Week 17 | 20% | Design doc page + ADRs + oral defence |
+| 8 | [Exchange service](exchange/index.md) *(optional)* | An external provider behind a cache: container, gateway, outage | [Classes 7, 10](../classes/reliability/index.md) · [Labs 4, 5, 9](../hands-on/9/index.md) | Week 13 | — | Page + Dockerfile + compose + k6 results |
 | | [Team project](project/index.md) | Build, measure, break and defend a whole system | All | Weeks 3–20 | — | Repository + docs + presentation |
 
 !!! info "Weeks are relative"
 
-    "Week *n*" is the *n*-th week of the semester. The calendar dates, the quiz days and the exam days are on the [planning page](../planning.md). Unless the instructor announces otherwise, an exercise is due on the **last class day of its week, at 23:59**. The weights are the share of each exercise inside the *exercises* component of the grade; how that component enters the final grade is on the [course page](../index.md).
+    "Week *n*" is the *n*-th week of the semester. The calendar dates, the quiz days and the exam days are on the [planning page](../planning.md). Unless the instructor announces otherwise, an exercise is due on the **last class day of its week, at 23:59**. The weights are the share of each exercise inside the *exercises* component of the grade; how that component enters the final grade is on the [course page](../index.md). Exercise 8 is **optional**: how it counts (bonus or replacing another grade) will be announced by the instructor.
 
 ## How the exercises are graded
 

@@ -56,9 +56,14 @@ The API should rely on a third-party service to fetch exchange rates. You can us
 - [ExchangeRate-API](https://www.exchangerate-api.com/){target="_blank"};
 - [Open Exchange Rates](https://openexchangerates.org/){target="_blank"};
 - [CurrencyLayer](https://currencylayer.com/){target="_blank"};
+- [PTAX of the Central Bank of Brazil](https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/aplicacao#!/recursos){target="_blank"} (public, no key);
 - any other API.
 
 Or, you can scrape the data from a website.
+
+!!! tip "A ready service on PTAX"
+
+    Some free APIs block requests that come from AWS. If yours does, or if you prefer to focus on the platform, the page [Exchange API: BACEN service](bacen/index.md) gives the whole service in FastAPI on top of PTAX of the Central Bank of Brazil (BCB): you only write its container and plug it into the gateway.
 
 !!! tip "Hint"
 
