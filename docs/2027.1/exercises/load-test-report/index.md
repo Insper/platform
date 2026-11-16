@@ -48,7 +48,7 @@ Run a load-test campaign against **one HTTP endpoint (or a small mix)** of your 
 - [ ] **Stress** test: steps up to at least **2× the load rate** (or until failure); a **throughput vs p99** chart with the knee marked.
 - [ ] **Spike** test: a sudden jump to ≥ 3× the base rate; report errors during the spike and the **recovery time** to normal p99.
 - [ ] **Little's Law check** at the load rate: in-flight requests `L = λ × W` compared with the server threads and the database connection pool.
-- [ ] **Bottleneck analysis** with resource evidence (CPU, memory, threads, pool waits, GC, DB) — not a guess.
+- [ ] **Bottleneck analysis** with resource evidence (CPU, memory, threads, pool waits, garbage collection (GC), DB) — not a guess.
 - [ ] **One change + re-test** (e.g. pool size, replicas, an index, virtual threads, a cache) with before/after numbers under the same script and data.
 - [ ] A one-sentence **capacity statement**: "one instance with 2 vCPU sustains X req/s at p99 < Y ms".
 - [ ] *AI usage* section (see the [policy](../index.md#use-of-ai-tools)).
@@ -258,7 +258,7 @@ Use the **USE method** for each resource — **U**tilization, **S**aturation, **
 | App CPU | `docker stats`, `process.cpu.usage` | CPU near the `cpus` limit, throttling |
 | Server threads | `tomcat.threads.busy` / `executor.active` (actuator) | busy = max |
 | DB connection pool | `hikaricp.connections.pending`, `.usage` | pending > 0 |
-| JVM memory / GC | `jvm.gc.pause`, `jvm.memory.used` | long or frequent pauses |
+| Java Virtual Machine (JVM) memory / GC | `jvm.gc.pause`, `jvm.memory.used` | long or frequent pauses |
 | Database | `docker stats` of `db`, `pg_stat_activity`, `EXPLAIN ANALYZE` | CPU at limit, sequential scans, lock waits |
 
 ```bash
@@ -268,6 +268,12 @@ docker compose exec db psql -U catalog -c "select state, count(*) from pg_stat_a
 ```
 
 Then check with **Little's Law**. If the load test achieves λ = 400 req/s with a mean latency W = 25 ms, there are `L = 400 × 0.025 = 10` requests in flight. If each request holds a database connection for most of its time and the pool has 10 connections, the pool is full: the next request waits — that is the knee. Hikari's default `maximum-pool-size` is 10, which is why this is the classic first bottleneck of a Spring Boot service.
+
+!!! warning "Memory that grows is not a leak — yet"
+
+    Under load, the JVM grows the heap it *reserves* (`jvm.memory.committed`) and keeps it long after the load ends, so `docker stats` goes up and stays up. That alone is not a leak: a leak is the **live** heap growing round after round. Run the same load several times, with a pause between rounds, and watch the **floor** of the heap sawtooth, the `jvm.memory.used` left right after each GC (in Prometheus, `min_over_time(jvm_memory_used_bytes{area="heap"}[1m])`). Flat across rounds, no leak; rising with the number of requests, suspect one. To confirm, force a full GC and read what is left: the runtime images here are JRE-only, so switch the runtime stage to `eclipse-temurin:21-jdk` for the test and run `jcmd 1 GC.run`, then `jcmd 1 GC.heap_info`; `jcmd 1 GC.class_histogram` before and after shows which class grows.
+
+    A real case: in the 2026.2 store, the gateway was suspected of leaking. The container went from 403 to 675 MiB under load and did not come back, but the live heap after a forced GC stayed at 22–24 MiB across 4 rounds and about 510 thousand requests — the JVM reserving memory, not a leak. The `mem_limit` of step 1 matters here too: without it, the JVM sizes its maximum heap at 25% of the host's memory, not of the container's.
 
 ### 6. Change one thing and re-test
 

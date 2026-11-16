@@ -136,7 +136,7 @@ Seja qual for a opção, o sistema precisa ter os componentes abaixo (ids da pal
 |-|-|:-:|
 | Borda | Um ponto de entrada: API gateway (`apigw`) ou Ingress (`ingress`) com rate limiting em pelo menos uma rota | M2 |
 | Identidade | Autenticação (`auth`) com JWT ou OIDC; pelo menos uma rota protegida | M2 |
-| Serviços | **Pelo menos três** serviços próprios (`app`/`worker`), cada um com os seus dados | M2 |
+| Serviços | **Pelo menos três** serviços próprios (`app`/`worker`), cada um com os seus dados e um endpoint de saúde (`/actuator/health/liveness` e `/readiness`, sem expor nada interno) | M2 |
 | Dados | Um banco SQL (`sql`) com migrações; um segundo armazenamento justificado, se necessário (`nosql`, `objstore`, `vectordb`) | M2 |
 | Cache | Um cache (`cache`) em um caminho de leitura quente, com taxa de acerto medida | M3 |
 | Replicação | Uma réplica de leitura ou um pool de conexões na frente do banco, justificado por uma medição | M3 |

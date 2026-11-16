@@ -136,7 +136,7 @@ Whatever the option, the system must have the components below (palette ids in p
 |-|-|:-:|
 | Edge | An entry point: API gateway (`apigw`) or Ingress (`ingress`) with rate limiting on at least one route | M2 |
 | Identity | Authentication (`auth`) with JWT or OIDC; at least one protected route | M2 |
-| Services | **At least three** services of your own (`app`/`worker`), each with its own data | M2 |
+| Services | **At least three** services of your own (`app`/`worker`), each with its own data and a health endpoint (`/actuator/health/liveness` and `/readiness`, nothing internal exposed) | M2 |
 | Data | A SQL database (`sql`) with migrations; a justified second store if needed (`nosql`, `objstore`, `vectordb`) | M2 |
 | Caching | A cache (`cache`) on a hot read path, with a measured hit ratio | M3 |
 | Replication | A read replica or a connection pool in front of the database, justified by a measurement | M3 |

@@ -48,7 +48,7 @@ Execute uma campanha de testes de carga contra **um endpoint HTTP (ou uma pequen
 - [ ] Teste **stress**: degraus até pelo menos **2× a taxa do load** (ou até falhar); um gráfico de **vazão vs p99** com o joelho marcado.
 - [ ] Teste **spike**: um salto repentino para ≥ 3× a taxa base; informe os erros durante o pico e o **tempo de recuperação** até o p99 normal.
 - [ ] **Verificação da Lei de Little** na taxa do load: requisições em andamento `L = λ × W` comparadas com as threads do servidor e o pool de conexões do banco.
-- [ ] **Análise do gargalo** com evidências de recursos (CPU, memória, threads, espera no pool, GC, banco) — não um chute.
+- [ ] **Análise do gargalo** com evidências de recursos (CPU, memória, threads, espera no pool, coleta de lixo (GC, *garbage collection*), banco) — não um chute.
 - [ ] **Uma mudança + novo teste** (por exemplo, tamanho do pool, réplicas, um índice, virtual threads, um cache) com números de antes/depois com o mesmo script e os mesmos dados.
 - [ ] Uma **declaração de capacidade** de uma frase: "uma instância com 2 vCPU sustenta X req/s com p99 < Y ms".
 - [ ] Seção *Uso de IA* (veja a [política](../index.md#use-of-ai-tools)).
@@ -258,7 +258,7 @@ Use o **método USE** para cada recurso — **U**tilização, **S**aturação, *
 | CPU da aplicação | `docker stats`, `process.cpu.usage` | CPU perto do limite de `cpus`, throttling |
 | Threads do servidor | `tomcat.threads.busy` / `executor.active` (actuator) | ocupadas = máximo |
 | Pool de conexões do BD | `hikaricp.connections.pending`, `.usage` | pending > 0 |
-| Memória da JVM / GC | `jvm.gc.pause`, `jvm.memory.used` | pausas longas ou frequentes |
+| Memória da máquina virtual Java (JVM, *Java Virtual Machine*) / GC | `jvm.gc.pause`, `jvm.memory.used` | pausas longas ou frequentes |
 | Banco de dados | `docker stats` do `db`, `pg_stat_activity`, `EXPLAIN ANALYZE` | CPU no limite, varreduras sequenciais, espera por locks |
 
 ```bash
@@ -268,6 +268,12 @@ docker compose exec db psql -U catalog -c "select state, count(*) from pg_stat_a
 ```
 
 Depois confira com a **Lei de Little**. Se o teste de load atinge λ = 400 req/s com latência média W = 25 ms, há `L = 400 × 0,025 = 10` requisições em andamento. Se cada requisição segura uma conexão com o banco durante a maior parte do tempo e o pool tem 10 conexões, o pool está cheio: a próxima requisição espera — esse é o joelho. O `maximum-pool-size` padrão do Hikari é 10 e é por isso que esse é o gargalo clássico de um serviço Spring Boot.
+
+!!! warning "Memória que cresce ainda não é vazamento"
+
+    Sob carga, a JVM aumenta o heap que *reserva* (`jvm.memory.committed`) e o mantém muito depois do fim da carga, então o `docker stats` sobe e fica alto. Isso sozinho não é vazamento: vazamento é o heap **vivo** crescer rodada após rodada. Rode a mesma carga várias vezes, com uma pausa entre as rodadas, e observe o **piso** do dente de serra do heap, o `jvm.memory.used` que sobra logo depois de cada GC (no Prometheus, `min_over_time(jvm_memory_used_bytes{area="heap"}[1m])`). Estável entre as rodadas, sem vazamento; subindo com o número de requisições, desconfie. Para confirmar, force um GC completo e leia o que sobrou: as imagens de execução daqui só têm JRE, então troque o estágio de execução por `eclipse-temurin:21-jdk` durante o teste e rode `jcmd 1 GC.run` e depois `jcmd 1 GC.heap_info`; o `jcmd 1 GC.class_histogram` antes e depois mostra qual classe cresce.
+
+    Um caso real: na loja da 2026.2, o gateway foi acusado de vazar memória. O container foi de 403 para 675 MiB sob carga e não voltou, mas o heap vivo depois de um GC forçado ficou em 22–24 MiB ao longo de 4 rodadas e cerca de 510 mil requisições — era a JVM reservando memória, não vazamento. O `mem_limit` do passo 1 também conta aqui: sem ele, a JVM dimensiona o heap máximo em 25% da memória da máquina, não do container.
 
 ### 6. Mude uma coisa e teste de novo { #6-change-one-thing-and-re-test }
 
