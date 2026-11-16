@@ -78,7 +78,7 @@ Add the broker and the two reference services to the `compose.yaml` of the platf
 
 ## 3. The producer-service
 
-A Spring Boot service with one endpoint: `GET /producer/{msg}` wraps the text in a small JSON with a random id and publishes it to `store-producer-example`.
+A Spring Boot service with two endpoints: `GET /producer/health-check` answers `200` for the orchestrator, and `GET /producer/{msg}` wraps the text in a small JSON with a random id and publishes it to `store-producer-example`.
 
 ```
 api/
@@ -189,6 +189,7 @@ and open it in the `RouterValidator` (see [Hands-on 3](../3/authorization/index.
 api/
     consumer-service/
         src/main/java/store/kafka/consumer/
+            ConsumerResource.java
             ConsumerService.java
             ConsumerServiceApplication.java
             KafkaConsumerConfig.java
@@ -201,6 +202,12 @@ api/
 
     ``` { .java .copy .select linenums="1" title="consumer-service/src/main/java/store/kafka/consumer/ConsumerService.java" }
     --8<-- "docs/2026.2/hands-on/10/code/consumer-service/src/main/java/store/kafka/consumer/ConsumerService.java"
+    ```
+
+=== "ConsumerResource.java"
+
+    ``` { .java .copy .select linenums="1" title="consumer-service/src/main/java/store/kafka/consumer/ConsumerResource.java" }
+    --8<-- "docs/2026.2/hands-on/10/code/consumer-service/src/main/java/store/kafka/consumer/ConsumerResource.java"
     ```
 
 === "KafkaConsumerConfig.java"
@@ -375,13 +382,14 @@ orderEventPublisher.orderCreated(order.id(), idAccount, order.total());
 
 ### 6.2 The notification-service
 
-A copy of the `consumer-service` with three changes: the package, the group (`notification-group`) and the listener, which reads `order-events`.
+A copy of the `consumer-service` with four changes: the package, the health-check path (`/notification/health-check`), the group (`notification-group`) and the listener, which reads `order-events`.
 
 ```
 api/
     notification-service/
         src/main/java/store/notification/
             KafkaConsumerConfig.java
+            NotificationResource.java
             NotificationService.java
             NotificationServiceApplication.java
         src/main/resources/application.yaml
@@ -393,6 +401,12 @@ api/
 
     ``` { .java .copy .select linenums="1" title="notification-service/src/main/java/store/notification/NotificationService.java" }
     --8<-- "docs/2026.2/hands-on/10/code/notification-service/src/main/java/store/notification/NotificationService.java"
+    ```
+
+=== "NotificationResource.java"
+
+    ``` { .java .copy .select linenums="1" title="notification-service/src/main/java/store/notification/NotificationResource.java" }
+    --8<-- "docs/2026.2/hands-on/10/code/notification-service/src/main/java/store/notification/NotificationResource.java"
     ```
 
 === "KafkaConsumerConfig.java"

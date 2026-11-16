@@ -191,6 +191,14 @@ flowchart LR
         Response code: 422 (unprocessable entity), if the currency code is not supported.
         ```
 
+!!! info "GET /orders/health-check"
+
+    Responde `200` enquanto o serviço está de pé. Quem chama é o orquestrador (o `healthcheck` do compose, a probe do Kubernetes) direto no serviço, sem passar pelo gateway, por isso não exige token. Não devolva nada interno: nunca `System.getenv()`, que carrega senhas e chaves.
+
+    ```bash
+    Response code: 200 (ok)
+    ```
+
 ## Adicionais
 
 Funcionalidades adicionais são bem-vindas, como:

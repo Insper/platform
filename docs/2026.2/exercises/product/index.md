@@ -114,6 +114,14 @@ The Product API must expose the following endpoints:
     Response code: 204 (no content)
     ```
 
+!!! info "GET /products/health-check"
+
+    Answers `200` while the service is up. The orchestrator calls it (the compose `healthcheck`, the Kubernetes probe) straight on the service, not through the gateway, so it needs no token. Return nothing internal: never `System.getenv()`, which carries passwords and keys.
+
+    ```bash
+    Response code: 200 (ok)
+    ```
+
 ## Additionals
 
 Additional features are welcome, such as:

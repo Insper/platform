@@ -11,6 +11,8 @@ Ela integra os microsserviços da plataforma listados na tabela abaixo e é espe
 
 Ao final, o projeto principal deve incorporar no GitHub as implementações individuais, como submodules. O projeto inteiro deve ser integrado e estar funcional, ou seja, os microsserviços devem estar comunicando entre si e a aplicação deve estar disponível para acesso.
 
+Todo microsserviço expõe um health-check, `GET /<serviço>/health-check`: ele responde `200` enquanto o serviço está de pé e não devolve nada interno (nunca `System.getenv()`, que carrega senhas e chaves). As probes do orquestrador o chamam.
+
 ```python exec="1" html="1"
 --8<-- "docs/2026.2/exercises/project/grade.py"
 ```

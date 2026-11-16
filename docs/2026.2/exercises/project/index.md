@@ -11,6 +11,8 @@ It integrates the microservices of the platform listed in the table below, and e
 
 In the end, the main project must incorporate the individual implementations on GitHub, as submodules. The whole project must be integrated and working, that is, the microservices must communicate with each other and the application must be available for access.
 
+Every microservice exposes a health check, `GET /<service>/health-check`: it answers `200` while the service is up and returns nothing internal (never `System.getenv()`, which carries passwords and keys). The orchestrator's probes call it.
+
 ```python exec="1" html="1"
 --8<-- "docs/2026.2/exercises/project/grade.py"
 ```

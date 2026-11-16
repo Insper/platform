@@ -19,5 +19,11 @@ public class ProducerResource {
         producerService.sendMessage(msg);
         return ResponseEntity.ok().build();
     }
-    
+
+    // a literal path wins over /producer/{msg}, so this never sends a message
+    @GetMapping("/producer/health-check")
+    public ResponseEntity<Void> healthCheck() {
+        return ResponseEntity.ok().build();
+    }
+
 }
