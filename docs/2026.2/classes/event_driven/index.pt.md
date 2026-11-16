@@ -195,7 +195,7 @@ Cada grupo de consumidores controla seus próprios offsets, então `notification
 
 Quando um produtor envia uma mensagem **com chave**, o particionador padrão do Kafka calcula o hash da chave para escolher a partição: a mesma chave sempre vai para a mesma partição (enquanto o número de partições não mudar). Mensagens **sem chave** são espalhadas entre as partições.
 
-Como a ordem só é garantida *dentro* de uma partição, a chave é a forma de escolher **o que** precisa permanecer em ordem. No [Hands-on 10](../../hands-on/10/index.md), o order service envia `kafkaTemplate.send("order-events", order.getId().toString(), event)` — o `orderId` é a chave, então `OrderCreated`, `OrderPaid` e `OrderShipped` de um mesmo pedido são sempre lidos em sequência, enquanto pedidos diferentes são processados em paralelo.
+Como a ordem só é garantida *dentro* de uma partição, a chave é a forma de escolher **o que** precisa permanecer em ordem. No [Hands-on 10](../../hands-on/10/index.md), o order service envia `kafkaTemplate.send("order-events", id, json)` — o id do pedido é a chave, então `OrderCreated`, `OrderPaid` e `OrderShipped` de um mesmo pedido são sempre lidos em sequência, enquanto pedidos diferentes são processados em paralelo.
 
 ``` mermaid-sim
 flowchart LR
@@ -223,7 +223,7 @@ A configuração `acks` do produtor escolhe quanto disso o produtor espera:
 | `1` | a líder a gravou | Perdida se a líder morrer antes de as seguidoras copiarem |
 | `all` | todas as réplicas em sincronia a têm (com `min.insync.replicas` ≥ 2) | Mais lenta, mas sobrevive à perda de um broker |
 
-O Hands-on 10 usa `acks: all` com `enable.idempotence: true`; o produtor idempotente anexa um número de sequência a cada mensagem, para que os retries do próprio produtor não criem duplicatas no log. (Desde o Kafka 3.0, ambos já são o padrão do produtor.)
+O Hands-on 10 conta com os padrões do produtor, que desde o Kafka 3.0 são `acks=all` com `enable.idempotence=true`; o produtor idempotente anexa um número de sequência a cada mensagem, para que os retries do próprio produtor não criem duplicatas no log.
 
 !!! info "ZooKeeper e KRaft"
     Clusters Kafka mais antigos guardavam seus metadados em um ensemble ZooKeeper separado. Hoje o Kafka tem seu próprio quórum de metadados baseado em Raft (**KRaft**; veja [Consenso](../distributed_systems/consensus/index.md)) e o Kafka 4.0 (2025) removeu completamente o suporte ao ZooKeeper. O [Hands-on 10](../../hands-on/10/index.md) roda o Kafka 4 em modo KRaft: um único nó que é broker e controller ao mesmo tempo.
@@ -290,7 +290,7 @@ Um consumidor lê uma mensagem, a processa (por exemplo, envia um e-mail) e **fa
 | Garantia | Como | Uma queda significa | Uso típico |
 |---|---|---|---|
 | **At-most-once** | Commit **antes** de processar | A mensagem é **perdida** | Métricas em que uma lacuna é aceitável |
-| **At-least-once** | Commit **depois** de processar | A mensagem é **processada de novo** | A escolha padrão — Hands-on 10 (`enable_auto_commit=False` + `commit()` após o processamento) |
+| **At-least-once** | Commit **depois** de processar | A mensagem é **processada de novo** | A escolha padrão — Hands-on 10 (o container do Spring Kafka confirma depois que o listener retorna) |
 | **Exactly-once** | Transações do Kafka (produtor idempotente + `isolation.level=read_committed`) | Nenhuma das duas — mas só para *ler do Kafka → escrever no Kafka* | Processamento de streams (Kafka Streams) |
 
 ``` mermaid-sim
@@ -405,7 +405,7 @@ stateDiagram-v2
     }
     ```
 
-Faça retry apenas das falhas que podem dar certo depois (um banco brevemente indisponível). Uma mensagem que *nunca* poderá ser processada — JSON inválido, um ID de produto desconhecido — deve ir direto para a DLQ; fazer retry dela só atrasa o resto da partição.
+Faça retry apenas das falhas que podem dar certo depois (um banco brevemente indisponível). Uma mensagem que *nunca* poderá ser processada — JSON inválido, um ID de produto desconhecido — deve ir direto para a DLQ; fazer retry dela só atrasa o resto da partição. E sem tratamento de erro configurado algum, o `DefaultErrorHandler` padrão do Spring Kafka tenta um registro que falha 10 vezes, o registra e confirma o offset depois dele: nada trava, mas a mensagem se perde — o [Hands-on 10](../../hands-on/10/index.md) (seção 8) mostra os dois comportamentos.
 
 ---
 
@@ -435,7 +435,7 @@ Faça retry apenas das falhas que podem dar certo depois (um banco brevemente in
 
 ## Conexões
 
-- [Hands-on 10](../../hands-on/10/index.md) — Kafka na loja: `OrderCreated` publicado pelo order service e consumido pelo notification service, com uma DLQ.
+- [Hands-on 10](../../hands-on/10/index.md) — Kafka na loja: `OrderCreated` publicado pelo order service e consumido pelo notification service, com um dead-letter topic.
 - [Microsserviços](../microservices/index.md) — um banco por serviço, o motivo pelo qual sagas e outboxes são necessários.
 - [Sistemas distribuídos](../distributed_systems/index.md) — consistência eventual, ordem e consenso (KRaft).
 - [Confiabilidade](../reliability/index.md) — retries, backoff e idempotência também se aplicam aos consumidores.

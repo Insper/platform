@@ -22,11 +22,13 @@ theme: platform
 
 # Hands-on 10 — Kafka Messaging
 
-**The order-service publishes `OrderCreated`; a notification-service reacts on its own**
+**A producer appends to a log and answers; a consumer reads it on its own time — first the reference pair, then the store**
 
 <!--
-Outline: (1) why not one more REST call; (2) Kafka (KRaft mode) and Kafka UI in compose; (3) the
-order-service producer; (4) the Python notification-service consumer; (5) test; (6) DLQ, idempotency.
+Outline: (1) why not one more REST call; (2) Kafka in KRaft mode in compose; (3) the producer-service and its
+gateway route; (4) the consumer-service; (5) run it, look inside Kafka, stop the consumer; (6) the store:
+order-events and the notification-service; (7) partitions, groups, keys; (8) duplicates, bad messages, the
+dead-letter topic; the simulator.
 -->
 
 ---
@@ -35,321 +37,431 @@ order-service producer; (4) the Python notification-service consumer; (5) test; 
 
 <div class="q">
 
-Every call the order-service makes — to account-service, to product-service — happens **before** it answers.
-Now we must send a **confirmation email**. Add one more REST call?
+Every call the order-service makes happens **before** it answers. Now it must send a **confirmation email**. One more REST call?
 
 </div>
 
-* The customer does not need the email to **finish the order**: it is **fire-and-forget**.
-* So publish an **`OrderCreated`** event to Kafka and return.
-* A new **notification-service** consumes it **asynchronously** — the order-service does not even know it exists.
+<div style="font-size: 1.15em">
+<div class="flow">
+<div class="arrow" style="flex: .55; text-align: left">REST</div>
+<div class="box">POST /orders</div><div class="arrow">→</div>
+<div class="box">account, product</div><div class="arrow">→</div>
+<div class="box red">email service<small>slow or down: the order waits or fails</small></div><div class="arrow">→</div>
+<div class="box muted">201</div>
+</div>
+<div class="flow" style="margin-top: .6em">
+<div class="arrow" style="flex: .55; text-align: left">Kafka</div>
+<div class="box">POST /orders</div><div class="arrow">→</div>
+<div class="box">account, product</div><div class="arrow">→</div>
+<div class="box accent">append to a topic<small>a durable log</small></div><div class="arrow">→</div>
+<div class="box green">201 at once</div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .55; text-align: left"></div>
+<div class="box muted" style="flex: 3.2">later, on its own time: the notification-service reads the topic and sends the email</div>
+</div>
+</div>
 
 ---
 
-## 1 · Architecture
+## Two steps: the reference, then the store
 
-<div class="flow">
-<div class="arrow" style="flex: .45; text-align: left">Before</div>
-<div class="box">client</div><div class="arrow">→</div>
-<div class="box">gateway</div><div class="arrow">→</div>
-<div class="box accent">order-service</div><div class="arrow">REST, sync →</div>
-<div class="box">account-service<small>and product-service</small></div>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: .55; text-align: left">Reference</div>
+<div class="box">GET /producer/{msg}</div><div class="arrow">→</div>
+<div class="box accent">producer-service</div><div class="arrow">send →</div>
+<div class="box orange">store-producer-example<small>no key</small></div><div class="arrow">→</div>
+<div class="box green">consumer-service<small>group store</small></div>
 </div>
-<div class="flow">
-<div class="arrow" style="flex: .45; text-align: left">After</div>
-<div class="box muted">the same REST calls</div><div class="arrow">+</div>
-<div class="box accent">order-service</div><div class="arrow">publish →</div>
-<div class="box orange">order-events<small>Kafka topic</small></div><div class="arrow">async →</div>
-<div class="box green">notification-service</div>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: .55; text-align: left">Store</div>
+<div class="box">POST /orders</div><div class="arrow">→</div>
+<div class="box accent">order-service<small>after saving</small></div><div class="arrow">send →</div>
+<div class="box orange">order-events<small>key = order id</small></div><div class="arrow">→</div>
+<div class="box green">notification-service<small>group notification-group</small></div>
 </div>
+
+- Same pattern twice: two Spring Boot services that **never call each other**.
+- The producer does not know who reads; a new reader (analytics) is a new **group**, not a code change.
+
+<!--
+The page's table "Reference / In the store" lists the same pieces: producer, topic, key, consumer, message.
+-->
+
+---
+
+## A topic is a log
+
+<div class="flow" style="font-size: 1.2em; align-items: stretch">
+<div class="arrow" style="flex: .5; align-self: center; text-align: left">partition 0</div>
+<div class="box green">0<small>hello</small></div>
+<div class="box green">1<small>world</small></div>
+<div class="box orange">2<small>a</small></div>
+<div class="box orange">3<small>b</small></div>
+<div class="box orange">4<small>c</small></div>
+<div class="box muted">5<small>next write</small></div>
+</div>
+<div class="flow" style="font-size: 1.05em">
+<div class="arrow" style="flex: .5"></div>
+<div class="box green" style="flex: 2">read and committed by group store</div>
+<div class="box orange" style="flex: 3">waiting: lag = 5 − 2 = 3</div>
+<div class="box muted">log-end offset 5</div>
+</div>
+
+- The producer **appends**; a record gets the next **offset** and stays — reading does not delete it.
+- Kafka keeps, per **group** and partition, the **committed offset**: the next record that group will read.
+- **Lag** = log-end offset − committed offset. Another group reads the same log from its own offset.
+
+---
+
+## 2 · Kafka in Docker Compose
+
+<div class="flow" style="font-size: 1.15em; align-items: stretch">
+<div class="group">
+<div class="caption">Docker network</div>
+<div class="box">producer · consumer<small>bootstrap-servers: kafka:9092</small></div>
+</div>
+<div class="arrow" style="align-self: center">PLAINTEXT →</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">kafka · one node, KRaft<small>broker + controller · :9092 clients · :9093 controller quorum</small></div>
+<div class="arrow" style="align-self: center">no ports →</div>
+<div class="box muted" style="flex: .7; display: flex; flex-direction: column; justify-content: center">your machine<small>tools run inside the container</small></div>
+</div>
+
+- **KRaft**: Kafka keeps its metadata on its own Raft quorum; Kafka 4.0 removed ZooKeeper.
+- `ADVERTISED_LISTENERS: kafka:9092` — the service name; in a container, `localhost` is the container itself.
+- A topic is **created on first use** with `KAFKA_NUM_PARTITIONS: 1`; one broker → replication factor 1.
+
+<p class="small">The reference uses <code>apache/kafka:latest</code> (4.3.1 when written); pin it for reproducible builds.</p>
+
+---
+
+## 3 · The producer-service
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box">GET /producer/hello</div><div class="arrow">→</div>
+<div class="box">ProducerResource</div><div class="arrow">→</div>
+<div class="box accent">ProducerService<small>Map → JSON (ObjectMapper)</small></div><div class="arrow">→</div>
+<div class="box orange">kafkaTemplate.send<small>(topic, json) · no key</small></div><div class="arrow">→</div>
+<div class="box green">200<small>handed to the client buffer</small></div>
+</div>
+
+```java
+Map<String, String> map = Map.of("id", id, "message", msg);
+kafkaTemplate.send("store-producer-example", objectMapper.writeValueAsString(map));
+```
+
+- `KafkaProducerConfig`: the broker address + `StringSerializer` for key and value — nothing else.
+- `send` is **asynchronous**: `200` = "handed to the Kafka client", not "stored".
+- Since Kafka 3.0 the defaults are safe: `acks=all` and **idempotence** on.
+
+---
+
+## 3.1 · Through the gateway
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box muted">curl</div><div class="arrow">→</div>
+<div class="box">lb :8080</div><div class="arrow">→</div>
+<div class="box accent">gateway<small>route Path=/producer/**</small></div><div class="arrow">→</div>
+<div class="box green">RouterValidator<small>"GET /producer/**" is open: no cookie</small></div><div class="arrow">→</div>
+<div class="box">producer:8080</div>
+</div>
+
+- Without the route: `404`. Without the open entry: `401` (the route needs a login).
+
+<div class="warn">
+
+An open `GET` that **publishes** is a demo only: anyone can write to the topic, and a crawler or a prefetch would publish too. In the store the event comes out of `POST /orders`, a secured route.
+
+</div>
+
+---
+
+## 4 · The consumer-service
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box accent">listener container<small>polls store-producer-example</small></div><div class="arrow">→</div>
+<div class="box">@KafkaListener<small>called once per record</small></div><div class="arrow">→</div>
+<div class="box green">all records of the poll done</div><div class="arrow">→</div>
+<div class="box orange">commit the offsets<small>AckMode.BATCH</small></div><div class="arrow">↺</div>
+</div>
+
+```java
+@KafkaListener(topics = "store-producer-example", groupId = "store")
+public void consumerMsg(String message) { … logger.debug("enqueue {}", map); }
+```
+
+- The method never calls `poll()` or `commit()`: the container does, with `enable.auto.commit=false`.
+- A crash before the commit → those records come **again**: at-least-once (section 8).
+
+<p class="small"><code>pom.xml</code> is the producer's with <code>artifactId</code> <code>consumer-service</code> — keep the old one and the jar gets the producer's name.</p>
+
+---
+
+<!-- _class: tight -->
+
+## 5 · Run the reference
+
+```bash
+cd api/producer-service && mvn clean package -DskipTests && cd ../..
+cd api/consumer-service && mvn clean package -DskipTests && cd ../..
+cd api && docker compose up -d --build
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/producer/hello     # 200
+```
+
+<div class="flow" style="font-size: 1.05em">
+<div class="box accent">producer-1<small>queue {id=e295…, message=hello}</small></div><div class="arrow">→</div>
+<div class="box orange">store-producer-example<small>partition 0 · offset 0</small></div><div class="arrow">→</div>
+<div class="box green">consumer-1<small>enqueue {id=e295…, message=hello}</small></div>
+</div>
+
+| Tool (inside the `kafka` container) | Shows |
+|---|---|
+| `kafka-topics.sh --describe --topic …` | partitions, leader, replicas |
+| `kafka-console-consumer.sh --from-beginning` | the records, still there after being read |
+| `kafka-consumer-groups.sh --describe --group store` | committed offset, log-end offset, **lag** |
+
+---
+
+## 5.2 · The consumer was down
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box red">docker compose stop consumer</div><div class="arrow">→</div>
+<div class="box orange">3 × curl /producer/…<small>200, 200, 200</small></div><div class="arrow">→</div>
+<div class="box orange">--describe<small>no active members · lag 3</small></div><div class="arrow">→</div>
+<div class="box green">start consumer<small>resumes at offset 2: a, b, c · lag 0</small></div>
+</div>
+
+- The producer **did not notice**: it answered `200` three times.
+- With REST, those three calls would have **failed**; with a log in between, the consumer catches up.
 
 <div class="ok">
 
-Decoupling: tomorrow an **analytics-service** can consume `order-events` without touching a single line of the order-service.
+Asynchronous messaging turns "the other service is down" from an error into a **delay**.
 
 </div>
 
 ---
 
-## The steps
+## 6 · In the store: order-events
 
-2. **Docker Compose** — add Kafka (KRaft mode, no ZooKeeper) and Kafka UI.
-3. **order-service** — `spring-kafka`, the `OrderCreatedEvent` record, producer config, publisher.
-4. **notification-service** — a new Python / FastAPI consumer.
-5. **Testing** — create an order, see the event in Kafka UI and in the notification logs; scale the consumer.
-6. **Reliability** — dead letter queue and idempotent consumers.
-
----
-
-<!-- _class: tight -->
-
-## 2 · Docker Compose
-
-Two services added to `docker-compose.yml`:
-
-| Service | Image | Port | Role |
-|---|---|---|---|
-| `kafka` | `apache/kafka:4.3.1` | 9092 | broker + KRaft controller |
-| `kafka-ui` | `provectuslabs/kafka-ui:latest` | 8090 → 8080 | browse topics, messages, consumer lag |
-
-Key Kafka settings:
-
-- `KAFKA_PROCESS_ROLES: broker,controller` — **KRaft**: one node is broker and controller (quorum on `CONTROLLER://:9093`); ZooKeeper was removed in Kafka 4.0.
-- `KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092` — clients connect by the service name.
-- `KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"` — `order-events` is created on first publish.
-- `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1` — a single broker in development.
-
----
-
-## 3 · order-service: the event
-
-<div class="cols">
-<div>
-
-`pom.xml`:
-
-```xml
-<dependency>
-    <groupId>org.springframework.kafka</groupId>
-    <artifactId>spring-kafka</artifactId>
-</dependency>
-```
-
+<div class="flow" style="font-size: 1.1em">
+<div class="box">POST /orders</div><div class="arrow">→</div>
+<div class="box">account, product<small>REST, synchronous</small></div><div class="arrow">→</div>
+<div class="box">save the order</div><div class="arrow">→</div>
+<div class="box accent">send(order-events, key = order id)</div><div class="arrow">→</div>
+<div class="box green">201</div>
 </div>
-<div>
-
-`store.order.OrderCreatedEvent`:
-
-```java
-public record OrderCreatedEvent(
-    String orderId,
-    String customerId,
-    Double totalAmount,
-    String timestamp
-) {}
-```
-
-</div>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: 2.6"></div>
+<div class="box orange">next poll</div><div class="arrow">→</div>
+<div class="box green">notification-service<small>sending confirmation email: order …</small></div>
 </div>
 
-<p class="small">A record: immutable, like the fact it represents.</p>
+- Publish **after** saving: never announce an order that does not exist.
+- The order-service never calls the notification-service, and does not wait for the email.
 
 ---
 
-## 3 · Producer configuration
+## 6 · Same pattern, three changes
 
-```yaml
-spring:
-  kafka:
-    bootstrap-servers: kafka:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      acks: all
-      retries: 3
-      properties:
-        enable.idempotence: true
-```
-
-<p class="small"><code>acks: all</code> waits for every in-sync replica before confirming. No effect on a single broker; in production it prevents data loss on broker failover.</p>
-
----
-
-## 3 · Publishing
-
-```java
-@Component
-@RequiredArgsConstructor
-public class OrderEventPublisher {
-    private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
-
-    public void publishOrderCreated(Order order) {
-        var event = new OrderCreatedEvent(order.getId().toString(),
-            order.getCustomerId(), order.getTotalAmount(), Instant.now().toString());
-        kafkaTemplate.send("order-events", order.getId().toString(), event);
-    }
-}
-```
-
-In `OrderService`, **after saving**: `eventPublisher.publishOrderCreated(savedOrder);`
-
-<p class="small">Topic <code>order-events</code>, key = order id, value = the event as JSON.</p>
-
----
-
-## 4 · notification-service (Python / FastAPI)
-
-<div class="cols">
-<div>
-
-```text
-notification-service/
-    main.py
-    Dockerfile
-    requirements.txt
-```
-
-```text
-fastapi==0.110.0
-kafka-python==2.3.2
-uvicorn==0.29.0
-```
-
-</div>
-<div>
-
-- `Dockerfile`: `python:3.12-slim`, runs `uvicorn main:app` on port `8080`.
-- On startup, a **daemon thread** runs the consumer loop.
-- `GET /health` → `{"status": "up"}`.
-- In compose: `build: ./notification-service`, `depends_on: kafka`, `PYTHONUNBUFFERED=1`.
-
-</div>
+<div class="matrix" style="--n: 2; font-size: 1.15em">
+<div></div><div class="head">reference</div><div class="head">store</div>
+<div class="row">producer</div><div class="box" style="flex-direction: column">ProducerService<small>send(topic, json)</small></div><div class="box accent" style="flex-direction: column">OrderEventPublisher<small>send("order-events", id, json): with a key</small></div>
+<div class="row">config</div><div class="box">KafkaProducerConfig</div><div class="box">the same class, in package store.order</div>
+<div class="row">consumer</div><div class="box">consumer-service</div><div class="box green" style="flex-direction: column">notification-service<small>new package, group notification-group, topic order-events</small></div>
+<div class="row">message</div><div class="box">{id, message}</div><div class="box">{id, idAccount, total}</div>
 </div>
 
----
-
-## 4 · The consumer
-
-```python
-consumer = KafkaConsumer(
-    "order-events",
-    bootstrap_servers="kafka:9092",
-    group_id="notification-group",
-    value_deserializer=lambda m: json.loads(m.decode("utf-8")),
-    auto_offset_reset="earliest",
-    enable_auto_commit=False,
-)
-for message in consumer:
-    event = message.value
-    logger.info(f"[NOTIFICATION] Order {event['orderId']} ... sending confirmation email")
-    consumer.commit()
-```
-
-<p class="small"><code>enable_auto_commit=False</code> + <code>commit()</code> after processing: a crash mid-processing means the message is consumed again — <strong>at-least-once</strong>.</p>
+- Test: log in, `POST /orders` → `201` at once → the email line in `docker compose logs notification`.
 
 ---
 
-## At-least-once: a crash before `commit()`
+## 7 · Partitions: the key picks one
 
-<div class="flow">
-<div class="box">offset 0<small>OrderCreated ord-7f3a</small></div><div class="arrow">→</div>
-<div class="box green">email sent</div><div class="arrow">→</div>
-<div class="box red">crash<small>before consumer.commit()</small></div><div class="arrow">→</div>
-<div class="box">restart<small>resumes at the committed offset: 0</small></div><div class="arrow">→</div>
-<div class="box orange">the same email again</div>
-</div>
-
-- Kafka only knows the **committed** offset: everything after it is delivered again.
-- Duplicates are normal, so the consumer must be **idempotent**: skip an `orderId` already notified.
-
-<!--
-The page draws the same timeline as a step-by-step diagram under "enable_auto_commit=False"; the simulator plays it in "6 · Failures".
--->
-
----
-
-<!-- _class: tight -->
-
-## 5 · Testing
-
-```bash
-docker compose up --build -d
-docker compose ps        # kafka, kafka-ui, notification-service, order-service
-curl -s -X POST http://localhost:8080/orders \
-    -H "Content-Type: application/json" \
-    -d '{"customerId":"cust-42","items":[{"productId":"p1","quantity":2}]}' | jq .
-# { "id": "ord-7f3a", "status": "CREATED", "totalAmount": 49.98 }
-docker compose logs notification-service
-# [NOTIFICATION] Order ord-7f3a for customer cust-42 — sending confirmation email (total: 49.98)
-```
-
-- Kafka UI `http://localhost:8090` → **Topics → order-events → Messages**: the event with `orderId: ord-7f3a`.
-
----
-
-## 5.5 · Partitions and the consumer group
-
-<div class="flow" style="align-items: stretch">
-<div class="box" style="flex: .7; display: flex; flex-direction: column; justify-content: center">order-service<small>key = orderId</small></div>
-<div class="arrow" style="align-self: center">hash(key) →</div>
+<div class="flow" style="font-size: 1.15em; align-items: stretch">
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">order-service<small>key = order id</small></div>
+<div class="arrow" style="align-self: center">murmur2(key) % 3 →</div>
 <div class="group">
 <div class="caption">order-events · 3 partitions</div>
-<div class="box orange">partition 0</div><div class="box orange">partition 1</div><div class="box orange">partition 2</div>
+<div class="box">P0<small>events of some orders, in order</small></div>
+<div class="box">P1<small>…</small></div>
+<div class="box">P2<small>…</small></div>
 </div>
-<div class="arrow" style="align-self: center">one reader each →</div>
+<div class="arrow" style="align-self: center">→</div>
 <div class="group">
 <div class="caption">notification-group</div>
-<div class="box green">notification-service-1<small>partitions 0 and 1</small></div>
-<div class="box green">notification-service-2<small>partition 2</small></div>
+<div class="box green">notification-1<small>reads P0, P1</small></div>
+<div class="box green">notification-2<small>reads P2</small></div>
 </div>
 </div>
 
-- The lab's topic is auto-created with **1 partition**: a second instance gets nothing to read.
-- `kafka-topics.sh --alter --partitions 3` → the group **rebalances**; the new owner resumes at the committed offset.
-- Lag = log-end offset − committed offset: `kafka-consumer-groups.sh --describe --group notification-group`.
+- Same key → same partition → the events of one order stay **in order**.
+- In a group, each partition has **one** reader; joining or leaving → **rebalance**, resuming at the committed offset.
+- Kafka can **add** partitions (`--alter --partitions 3`), never remove them.
+
+---
+
+## 7 · How many instances help?
+
+<div class="matrix" style="--n: 4; font-size: 1.2em">
+<div></div><div class="head">1 instance</div><div class="head">2</div><div class="head">3</div><div class="head">4</div>
+<div class="row">1 partition (the lab)</div><div class="box green">reads P0</div><div class="box orange">1 idle</div><div class="box orange">2 idle</div><div class="box orange">3 idle</div>
+<div class="row">3 partitions</div><div class="box green">reads all 3</div><div class="box green">P0, P1 · P2</div><div class="box green">one each</div><div class="box orange">1 idle</div>
+</div>
+
+- The number of partitions **caps** the parallelism of a group.
+- `docker compose up -d --scale notification=2` + `kafka-consumer-groups --describe --members`: `#PARTITIONS 1` and `0`.
+- Another group (analytics) reads **every** message, at its own offsets.
+
+---
+
+## 7 · Without a key, partitions do not spread
+
+<div class="flow" style="font-size: 1.15em; align-items: stretch">
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">9 × curl /producer/…<small>no key</small></div>
+<div class="arrow" style="align-self: center">sticky partitioner →</div>
+<div class="group">
+<div class="caption">store-producer-example · 3 partitions</div>
+<div class="box muted">P0<small>nothing new</small></div>
+<div class="box orange">P1<small>all nine: offsets 0 to 8</small></div>
+<div class="box muted">P2<small>nothing</small></div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">group store</div>
+<div class="box green">consumer-1<small>reads P0, P1: does all the work</small></div>
+<div class="box orange">consumer-2<small>reads P2: idle</small></div>
+</div>
+</div>
+
+- No key → the producer **fills one partition** before moving on (KIP-794, a *Kafka Improvement Proposal*): big batches, no spreading.
+- A key spreads the load **and** keeps each key in order: that is why `order-events` uses the order id.
 
 <!--
-The page's section 5.5 has the commands, a diagram and a table: the number of partitions caps the parallelism of a group.
+Measured in the lab's stack: after --partitions 3 and a restart, nine curl messages all went to partition 1.
 -->
 
 ---
 
-## 6 · Reliability: dead letter queue
+## Simulator: partitions and groups
 
-A message that keeps failing must not **block the stream**. Send it to `order-events-dlq` instead:
+<div class="q">
 
-```python
-try:
-    process_event(event)
-    consumer.commit()
-except Exception as e:
-    logger.error(f"Failed to process {event['orderId']}: {e} — sending to DLQ")
-    dlq_producer.send("order-events-dlq", value=event)
-    consumer.commit()
+The store's part of the lab without Docker: `order-events` with 1 partition, one notification-service. Play runs a page; the buttons work at any time.
+
+</div>
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box orange">6 orders, 1 partition<small>all in P0 · notification-2 gets nothing</small></div><div class="arrow">→</div>
+<div class="box accent">--partitions 3<small>notification-1 ← P0, P1 · notification-2 ← P2</small></div><div class="arrow">→</div>
+<div class="box green">6 more orders<small>split 2, 2 and 2 by key</small></div>
+</div>
+
+- Stop one instance: its partition moves to the other, which drains the lag one message per poll.
+- **Free** mode: 4 instances on 3 partitions — one sits idle.
+
+<p class="small">Page section 7 · simulator <code>order-events</code>, script "7 · Partitions and groups".</p>
+
+---
+
+## 8.1 · At-least-once
+
+<div class="flow" style="font-size: 1.1em">
+<div class="box">record at offset 0</div><div class="arrow">→</div>
+<div class="box green">email sent</div><div class="arrow">→</div>
+<div class="box red">killed before the commit</div><div class="arrow">→</div>
+<div class="box orange">restart / rebalance<small>offset 0 again</small></div><div class="arrow">→</div>
+<div class="box red">the same email twice</div>
+</div>
+
+- The container commits **after** the listener returns: a crash in between means redelivery.
+- Kafka delivers **at least once** — the consumer must be **idempotent**.
+
+<div class="ok">
+
+Record the notified order ids in a **durable** store (`INSERT … ON CONFLICT DO NOTHING`) and email only when the insert added a row. A set in memory dies in the very crash that causes the redelivery.
+
+</div>
+
+---
+
+## 8.2 · A message that cannot be processed
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box orange">echo 'oops' | console producer<small>not JSON</small></div><div class="arrow">→</div>
+<div class="box">readValue throws<small>10 attempts, no pause</small></div><div class="arrow">→</div>
+<div class="box red">ERROR · Backoff … exhausted<small>for order-events-0@1</small></div><div class="arrow">→</div>
+<div class="box red">commit past it<small>the message is gone</small></div>
+</div>
+
+- No error handler of your own → Spring Kafka's `DefaultErrorHandler`: `FixedBackOff(0, 9)`, log, skip.
+- Nothing blocks — the next orders flow, lag back to `0` — but **one log line** is all that is left.
+
+<div class="warn">
+
+For an order whose event had a bug, that is a customer who never gets the email — and nobody notices.
+
+</div>
+
+---
+
+## 8.3 · A dead-letter topic (DLT)
+
+<div class="flow" style="font-size: 1.15em">
+<div class="box orange">bad record</div><div class="arrow">→</div>
+<div class="box">3 attempts, 1 s apart<small>Record in retry and not yet recovered</small></div><div class="arrow">→</div>
+<div class="box accent">DeadLetterPublishingRecoverer</div><div class="arrow">→</div>
+<div class="box green">order-events-dlt<small>offset 0 · oops · inspect, fix, replay</small></div>
+</div>
+
+```java
+new DefaultErrorHandler(new DeadLetterPublishingRecoverer(kafkaTemplate(),
+    (record, ex) -> new TopicPartition(record.topic() + "-dlt", -1)), new FixedBackOff(1000L, 2L))
 ```
 
-<p class="small">Either way the offset advances: the main stream continues, the DLQ is inspected later.</p>
+- Default destination: `<topic>-dlt`, **same partition** → the DLT would need as many partitions; `-1` lets Kafka choose.
+- The DLT record carries headers: original topic, partition, offset, exception.
 
 ---
 
-## Without Docker: the simulator
+## Simulator: failures
 
-<div class="flow">
-<div class="box accent">5 · Testing<small>ord-7f3a → partition 0, offset 0, lag 0</small></div>
-<div class="box orange">5.5 · Scale the consumer<small>1 partition: the 2nd instance idles · 3 partitions: 0 and 1 · 2</small></div>
-<div class="box red">6 · Failures<small>1 duplicate email · lag 3 behind a bad event · the DLQ drains it to 0</small></div>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: .5; text-align: left">duplicates</div>
+<div class="box red">kill before the commit<small>1 duplicate email</small></div><div class="arrow">→</div>
+<div class="box green">idempotent consumer<small>the repeat is skipped</small></div>
+</div>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: .5; text-align: left">bad message</div>
+<div class="box red">default handler<small>10 attempts, skipped · 1 lost · lag 0</small></div><div class="arrow">→</div>
+<div class="box green">dead-letter topic<small>3 attempts → order-events-dlt · 0 lost</small></div>
 </div>
 
-- The pages embed the lab's topic and group: same names, same key → partition hash as Kafka's client.
-- Play runs a page step by step; the buttons (POST, poll, scale, kill, `--partitions`) work at any time.
-- **Free** mode: 4 instances on 3 partitions → one stays idle.
+- The tiles count it: emails sent, duplicate emails, group lag, **messages lost**, `order-events-dlt`.
+- One record per poll: each step of the page is one click.
 
-<!--
-The simulator sits in section 5.5 (opening on "Scale the consumer") and in section 6 (opening on "Failures").
--->
+<p class="small">Page section 8 · simulator <code>order-events</code>, script "8 · Failures".</p>
 
 ---
 
 ## Pitfalls
 
-<div class="warn">
-
-**At-least-once** means duplicates happen. The consumer must be **idempotent**: before sending, check whether an email was already sent for this `orderId`.
-
-</div>
-
-- Publish **after saving** the order — never announce an order that does not exist.
-- Inside the Docker network the broker is `kafka:9092`, not `localhost:9092`.
-- `acks: all` only protects data when there is more than one broker.
-- Use Kafka UI to check topics, messages and **consumer group lag** while debugging.
+| Symptom | Cause |
+|---|---|
+| `401` / `404` on `/producer/hello` | route not open in the `RouterValidator` / missing in the gateway |
+| `COPY target/*.jar` fails | `mvn clean package` not run in that service |
+| consumer jar named `producer-service-1.0.0.jar` | copied `pom.xml` still has the producer's `artifactId` |
+| a second instance never works | 1 partition — or no key: everything in one partition |
+| an email sent twice | crash before the commit: make the consumer idempotent |
+| a bad event vanished | default error handler skipped it: add a dead-letter topic |
 
 ---
 
 ## Takeaways
 
-1. Use REST when the caller needs the answer now; use **events** for fire-and-forget work.
-2. The order-service publishes `OrderCreated` to `order-events` and **does not know its consumers**.
-3. Kafka runs in **KRaft** mode in compose (no ZooKeeper); **Kafka UI** shows topics, messages and lag.
-4. Spring: `KafkaTemplate.send(topic, key, event)` with a **JSON** serializer and `acks: all`.
-5. Python: a `KafkaConsumer` in group `notification-group` with **manual commit** → at-least-once.
-6. Failing messages go to a **DLQ**; consumers must be **idempotent**.
+1. A **topic is a log**: the producer appends and answers; consumers read at their own offsets.
+2. Spring Kafka: `KafkaTemplate.send` to publish, `@KafkaListener` + a **group** to consume; the container commits.
+3. A consumer that is down means **lag**, not errors: it catches up.
+4. **Partitions** cap a group's parallelism; a **key** spreads the load and keeps each key in order.
+5. Delivery is **at-least-once**: idempotent consumers, with a durable record.
+6. Without a **dead-letter topic**, a bad message is retried 10 times and **lost**.

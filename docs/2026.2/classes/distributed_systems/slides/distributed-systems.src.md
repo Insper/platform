@@ -66,7 +66,7 @@ Browser → `POST /orders` → **Gateway** → Auth (validate token) · Gateway 
 
 <div class="ok">
 
-The store is **heterogeneous** (Java services, a Python notification service, PostgreSQL, Redis, Kafka), **loosely coupled** (HTTP and Kafka) and **client-server** (browser → gateway → services).
+The store is **heterogeneous** (Java services, a Python exchange service, PostgreSQL, Redis, Kafka), **loosely coupled** (HTTP and Kafka) and **client-server** (browser → gateway → services).
 
 </div>
 

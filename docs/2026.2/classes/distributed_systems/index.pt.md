@@ -63,7 +63,7 @@ Sistemas distribuídos podem ser classificados segundo vários eixos:
 | **Acoplamento** | Fortemente acoplado — alta interdependência, memória compartilhada | Fracamente acoplado — comunicação por mensagens, ciclo de vida independente |
 | **Topologia** | Cliente-servidor — hierárquica, os servidores detêm os recursos | Peer-to-peer — igualitária, todos os nós compartilham recursos |
 
-Aplicações web seguem o modelo cliente-servidor (navegadores fazem requisições a servidores). Sistemas de compartilhamento de arquivos como o BitTorrent seguem o modelo peer-to-peer. A maioria das arquiteturas de microsserviços ocupa o meio-termo fracamente acoplado: nossa loja é **heterogênea** (serviços em Java, um serviço de notificação em Python, PostgreSQL, Redis, Kafka), **fracamente acoplada** (os serviços conversam por HTTP e Kafka) e **cliente-servidor** (o navegador chama o gateway, e o gateway chama os serviços).
+Aplicações web seguem o modelo cliente-servidor (navegadores fazem requisições a servidores). Sistemas de compartilhamento de arquivos como o BitTorrent seguem o modelo peer-to-peer. A maioria das arquiteturas de microsserviços ocupa o meio-termo fracamente acoplado: nossa loja é **heterogênea** (serviços em Java, um serviço de câmbio em Python, PostgreSQL, Redis, Kafka), **fracamente acoplada** (os serviços conversam por HTTP e Kafka) e **cliente-servidor** (o navegador chama o gateway, e o gateway chama os serviços).
 
 ---
 

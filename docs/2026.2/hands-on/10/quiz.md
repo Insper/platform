@@ -4,49 +4,49 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ## Kafka Messaging
 
-**Q1.** What does `enable_auto_commit=False` achieve in the Kafka consumer?
+**Q1.** When does the Spring Kafka listener container of the `consumer-service` commit the offset, by default?
 
-- A. It disables Kafka's internal retry mechanism, forcing the application to handle retries manually
-- B. It prevents the consumer from committing its offset until `consumer.commit()` is called explicitly — ensuring the offset only advances after successful processing
-- C. It tells Kafka not to persist messages to disk, reducing broker latency
-- D. It disables the consumer group protocol, making the consumer read every partition independently
+- A. Every 5 seconds, whether or not the listener finished — Kafka's auto-commit
+- B. After the `@KafkaListener` method has returned for every record of a poll (`AckMode.BATCH`, with `enable.auto.commit=false`)
+- C. Before calling the listener, so that a slow listener never holds the partition
+- D. Never: the listener has to call `commit()` itself
 
 ??? success "Answer"
-    **B — Offset only advances after explicit `consumer.commit()`.**
+    **B — After the listener returned for every record of the poll.**
 
-    With `enable_auto_commit=True` (the default), Kafka periodically commits the offset regardless of whether processing succeeded. If the service crashes between auto-commit and finishing the work, the message is silently lost. Setting it to `False` and calling `consumer.commit()` only after successful processing guarantees at-least-once delivery: a crash before the commit causes the message to be re-delivered on the next startup.
+    The container sets `enable.auto.commit=false` (unless you set it) and commits the offsets itself once the records of a poll have been processed. A crash before that commit means the records come again on the next poll — at-least-once delivery. Kafka's own auto-commit (A) would commit on a timer, whether processing succeeded or not, and could lose a message; committing before processing (C) would lose a message on every crash.
 
 ---
 
-**Q2.** Why is `acks=all` important in production even if it adds latency?
+**Q2.** The `KafkaProducerConfig` of the reference sets only the broker address and the two serializers. Why are its writes already safe against a leader failure and against duplicates from retries?
 
-- A. It compresses messages before sending, reducing network bandwidth at the cost of CPU time
-- B. It ensures the producer retries indefinitely until the broker acknowledges receipt
-- C. It requires all in-sync replicas to acknowledge the write before the broker confirms — preventing data loss if the leader broker fails immediately after accepting the message
-- D. It is only relevant for consumers and has no effect on producer behaviour
+- A. Because `StringSerializer` adds a checksum that the broker verifies
+- B. Because since Kafka 3.0 the producer's defaults are `acks=all` (every in-sync replica confirms) and `enable.idempotence=true` (a retried send is not written twice)
+- C. Because `KafkaTemplate.send` is synchronous and waits for every consumer
+- D. They are not: `acks=1` is the default, so the config must set `acks=all`
 
 ??? success "Answer"
-    **C — All in-sync replicas acknowledge before confirmation, preventing data loss on leader failure.**
+    **B — The producer's defaults are `acks=all` and idempotence on, since Kafka 3.0.**
 
-    With `acks=1` (default), the broker confirms the write once the partition leader has written the message to its local log. If the leader crashes before replicating to followers, the message is lost. With `acks=all`, the broker waits for every in-sync replica to persist the write before responding — the message survives a leader failover. Combined with `enable.idempotence=true`, this gives exactly-once producer semantics.
+    With `acks=all` the leader answers only after every in-sync replica has the record, so a leader that dies right after the write does not take it along. With idempotence, the broker discards a retried batch it already wrote, so a retry after a timeout does not duplicate the message in the partition. (On the lab's single broker, `acks=all` changes nothing — there is no other replica.) `send` is asynchronous (C) and never waits for consumers; D was true before Kafka 3.0.
 
 ---
 
-**Q3.** The notification-service processes the same `orderId` twice due to a crash before commit. How should the idempotent consumer handle this?
+**Q3.** The notification-service is killed after sending the email of an order but before the container commits. How should an idempotent consumer handle the redelivery?
 
-- A. Throw an exception and send the duplicate to the DLQ
+- A. Throw an exception, so that the duplicate goes to the dead-letter topic
 - B. Process the event normally — duplicate processing is unavoidable and acceptable
-- C. Check whether a notification was already sent for this `orderId` before acting; skip the send if a record already exists
-- D. Increase the consumer group replication factor to prevent duplicates at the broker level
+- C. Check, in a durable store, whether this order id was already notified; skip the send if it was
+- D. Keep the notified order ids in a `HashSet` in memory and skip the ids found there
 
 ??? success "Answer"
-    **C — Check for a prior record of the `orderId` and skip if already processed.**
+    **C — Check a durable record of the order id and skip if it was already processed.**
 
-    Idempotency means that applying the same operation multiple times produces the same result as applying it once. The consumer should maintain a store (database, Redis set, or log) of processed `orderId` values. Before sending an email, it checks that store: if the `orderId` is already present, the event is acknowledged and skipped. This pattern is essential whenever at-least-once delivery is in use — which is the default for Kafka.
+    Idempotency means that processing the same event twice gives the same result as once. The consumer records the order ids it notified in a durable store — a table with the order id as primary key, `INSERT … ON CONFLICT DO NOTHING` — and sends the email only when the insert added a row. A set in memory (D) disappears in the very crash that causes the redelivery. This is essential whenever delivery is at-least-once, which is Kafka's default.
 
 ---
 
-**Q4.** What is the purpose of the `group_id` in a Kafka consumer?
+**Q4.** What is the purpose of the `groupId` of a `@KafkaListener` (`"store"` in the reference, `"notification-group"` in the store)?
 
 - A. It identifies the Kafka cluster the consumer connects to
 - B. It sets the maximum number of consumers allowed to read from a single partition simultaneously
@@ -56,7 +56,7 @@ Click **"Answer"** to reveal the correct answer and explanation.
 ??? success "Answer"
     **C — Groups consumers into a unit with shared offset tracking; each partition goes to one member.**
 
-    When multiple instances of notification-service run, they all share `group_id="notification-group"`. Kafka distributes the topic's partitions across the group members so that each message is processed by exactly one instance — enabling horizontal scaling of consumers. If the group_id were unique per instance, each instance would independently receive every message, causing duplicate email notifications.
+    When several instances of the notification-service run, they all share `groupId = "notification-group"`. Kafka distributes the topic's partitions across the members so that each message is processed by exactly one instance — horizontal scaling of consumers, up to the number of partitions. If each instance had its own group, each would receive every message, and every customer would get one email per instance.
 
 ---
 
@@ -74,17 +74,17 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q6.** What does the Kafka UI consumer group lag metric tell you?
+**Q6.** What does the `LAG` column of `kafka-consumer-groups.sh --describe` tell you?
 
 - A. The number of messages the producer has published but the broker has not yet persisted to disk
-- B. The difference between the latest offset on the topic and the last committed offset of a consumer group — indicating how far behind the consumer is
+- B. The difference between the log-end offset of a partition and the committed offset of the group — how far behind the consumer is
 - C. The average time in milliseconds between a message being published and it being received by the consumer
 - D. The number of partitions that have no active consumer assigned
 
 ??? success "Answer"
-    **B — The gap between the topic's latest offset and the consumer group's committed offset.**
+    **B — The gap between the partition's log-end offset and the group's committed offset.**
 
-    A lag of 0 means the consumer is keeping up in real time. A growing lag signals that the consumer is slower than the producer — messages are accumulating. For the notification-service, sustained lag means email confirmations are delayed. Common remedies are increasing consumer instances (within the partition count) or optimising the processing logic. Kafka UI displays per-partition lag, making it easy to identify uneven consumption across partitions.
+    A lag of 0 means the consumer is keeping up. A growing lag means the consumer is slower than the producer — or down, as in section 5.2, where three messages waited with lag 3 until the consumer came back. For the notification-service, sustained lag means delayed confirmation emails. Common remedies are more consumer instances (up to the number of partitions) or faster processing. The tool shows the lag per partition, which reveals uneven consumption.
 
 ---
 
@@ -102,14 +102,28 @@ Click **"Answer"** to reveal the correct answer and explanation.
 
 ---
 
-**Q8.** What is the DLQ (Dead Letter Queue) pattern solving?
+**Q8.** The notification-service, with the `KafkaConsumerConfig` of section 6.2 (no error handler of its own), receives a message that is not JSON. What happens?
 
-- A. Throttling the producer when it publishes faster than the broker can replicate
-- B. Compressing large messages that exceed the broker's maximum message size
-- C. Preventing a single unprocessable message ("poison pill") from blocking the consumer indefinitely — failed messages are moved to a separate topic for later inspection and replay, allowing the consumer to continue processing the rest of the stream
-- D. Distributing partitions evenly across consumer group members to reduce lag
+- A. The partition blocks forever: the consumer retries the same message until someone fixes it
+- B. Spring Kafka's `DefaultErrorHandler` tries the record 10 times, logs an `ERROR` and commits past it — the stream goes on, but the message is lost
+- C. The message goes to `order-events-dlt` automatically
+- D. The consumer thread dies and the container restarts the service
 
 ??? success "Answer"
-    **C — Moves unprocessable messages aside so they don't block the consumer stream.**
+    **B — 10 attempts, one `ERROR` line, and the offset moves past the record.**
 
-    Without a DLQ, a single malformed or unprocessable message would cause the consumer to retry indefinitely, blocking all subsequent messages in that partition. The DLQ pattern catches the exception, publishes the problematic message to `order-events-dlq`, commits the original offset, and moves on. Operations teams can then inspect the DLQ, fix the root cause, and replay the events once the consumer is patched — without losing any data.
+    The default `DefaultErrorHandler` uses `FixedBackOff(0, 9)`: ten deliveries without pause, then it logs the record (`Backoff … exhausted for order-events-0@1`) and commits its offset, so the next records flow. Nothing blocks — and nothing keeps the message. A dead-letter topic (section 8.3) changes the last step: after the attempts, a `DeadLetterPublishingRecoverer` publishes the record to `order-events-dlt`, where it can be inspected and replayed. Nothing goes to the DLT unless you configure it (C).
+
+---
+
+**Q9.** `store-producer-example` now has 3 partitions and two consumer-service instances share them. Nine messages are sent with `curl /producer/…` — the producer sends them **without a key**. What do you expect?
+
+- A. Three messages per partition, round-robin, so both consumers work
+- B. All nine in one partition, picked by the producer's sticky partitioner — one consumer works, the other may idle
+- C. The messages are rejected: a topic with several partitions requires a key
+- D. Each message goes to every partition, so both consumers process all nine
+
+??? success "Answer"
+    **B — A keyless record goes to the partition the sticky partitioner is filling.**
+
+    Without a key, the producer does not hash anything: it fills one partition before moving to another (KIP-794), which builds bigger batches. A trickle of manual messages therefore lands in a single partition — in the lab's run, partition 1, offsets 0 to 8. That is why the store's events carry the order id as key: the key spreads orders over the partitions **and** keeps each order's events in order in one of them.

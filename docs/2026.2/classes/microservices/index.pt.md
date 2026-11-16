@@ -173,9 +173,9 @@ O curso constrói uma plataforma passo a passo. Cada serviço é dono de uma cap
 | `product-service` | Catálogo de produtos | dados de produtos | — | [Product API](../../exercises/product/index.md) |
 | `order-service` | Pedidos do usuário atual | dados de pedidos | product, exchange, Kafka | [Order API](../../exercises/order/index.md) |
 | `exchange-service` (Python) | Conversão de moedas | — | API de cotações de terceiros | [Exchange API](../../exercises/exchange/index.md) |
-| `notification-service` (Python) | E-mails de confirmação de pedido | — | Kafka | [Hands-on 10](../../hands-on/10/index.md) |
+| `notification-service` (Spring Boot) | E-mails de confirmação de pedido | — | Kafka | [Hands-on 10](../../hands-on/10/index.md) |
 
-Observe a *governança descentralizada* em ação: os serviços de câmbio e de notificação são escritos em Python, os demais em Java — o contrato é HTTP/JSON ou um evento Kafka, então a linguagem não vaza.
+Observe a *governança descentralizada* em ação: o serviço de câmbio é escrito em Python, os demais em Java — o contrato é HTTP/JSON ou um evento Kafka, então a linguagem não vaza.
 
 ### Ser dono dos dados
 

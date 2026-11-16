@@ -129,7 +129,7 @@ sem limite; o consumidor escala para 5/passo no passo 10 → ele alcança. Esse 
 - Com **chave**, `hash(key) % partitions` escolhe a partição → mesma chave, mesma partição, **em ordem**.
 - Sem chave → mensagens espalhadas pelas partições, **sem ordem** entre eventos relacionados.
 - A ordem só vale **dentro** de uma partição: a chave escolhe **o que** precisa ficar em ordem.
-- Hands-on 10: `kafkaTemplate.send("order-events", order.getId().toString(), event)` → `OrderCreated`, `OrderPaid`, `OrderShipped` de um pedido em sequência; pedidos diferentes, em paralelo.
+- Hands-on 10: `kafkaTemplate.send("order-events", id, json)` → `OrderCreated`, `OrderPaid`, `OrderShipped` de um pedido em sequência; pedidos diferentes, em paralelo.
 
 <div class="warn">
 
@@ -149,7 +149,7 @@ Cada partição é **replicada** (tipicamente 3): uma **líder** recebe as escri
 | `1` | a líder gravou | perdido se a líder cair antes de as seguidoras copiarem |
 | `all` | todas as réplicas em sincronia têm (`min.insync.replicas` ≥ 2) | mais lento — sobrevive à perda de um broker |
 
-- Hands-on 10: `acks: all` + `enable.idempotence: true` — os retries do próprio produtor não criam duplicatas (os padrões desde o Kafka 3.0).
+- O Hands-on 10 mantém os padrões do produtor desde o Kafka 3.0: `acks=all` + `enable.idempotence=true` — os retries do próprio produtor não criam duplicatas.
 - Metadados: o **KRaft** (quórum Raft) substituiu o ZooKeeper, removido no Kafka 4.0; o Hands-on 10 roda um nó que é broker e controller.
 
 ---
@@ -222,7 +222,7 @@ Um consumidor lê, processa (p. ex. envia um e-mail) e **faz o commit do offset*
 | **At-least-once** | commit **depois** de processar | a mensagem é **processada de novo** |
 | **Exactly-once** | transações do Kafka (`read_committed`) | nenhum dos dois — mas só Kafka → Kafka |
 
-<p class="small">Hands-on 10: <code>enable_auto_commit=False</code> + <code>commit()</code> após o processamento = at-least-once. O Kafka não consegue "desenviar" um e-mail nem desfazer uma linha no Postgres.</p>
+<p class="small">Hands-on 10: o container do Spring Kafka confirma depois que o listener retorna = at-least-once. O Kafka não consegue "desenviar" um e-mail nem desfazer uma linha no Postgres.</p>
 
 ---
 

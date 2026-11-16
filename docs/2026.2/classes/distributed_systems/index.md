@@ -63,7 +63,7 @@ Distributed systems can be classified along several axes:
 | **Coupling** | Tightly coupled — high interdependence, shared memory | Loosely coupled — communicate via messages, independent lifecycle |
 | **Topology** | Client-server — hierarchical, servers hold resources | Peer-to-peer — egalitarian, all nodes share resources |
 
-Web applications follow the client-server model (browsers request from servers). File-sharing systems like BitTorrent follow peer-to-peer. Most microservice architectures occupy the loosely-coupled middle ground: our store is **heterogeneous** (Java services, a Python notification service, PostgreSQL, Redis, Kafka), **loosely coupled** (services talk over HTTP and Kafka) and **client-server** (the browser calls the gateway, the gateway calls the services).
+Web applications follow the client-server model (browsers request from servers). File-sharing systems like BitTorrent follow peer-to-peer. Most microservice architectures occupy the loosely-coupled middle ground: our store is **heterogeneous** (Java services, a Python exchange service, PostgreSQL, Redis, Kafka), **loosely coupled** (services talk over HTTP and Kafka) and **client-server** (the browser calls the gateway, the gateway calls the services).
 
 ---
 

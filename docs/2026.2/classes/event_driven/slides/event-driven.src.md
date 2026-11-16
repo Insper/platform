@@ -129,7 +129,7 @@ the consumer scales to 5/step at step 10 → it catches up. That backlog is the 
 - With a **key**, `hash(key) % partitions` picks the partition → same key, same partition, **in order**.
 - No key → messages spread over partitions, **no ordering** between related events.
 - Order holds only **inside** a partition: the key chooses **what** must stay in order.
-- Hands-on 10: `kafkaTemplate.send("order-events", order.getId().toString(), event)` → `OrderCreated`, `OrderPaid`, `OrderShipped` of one order in sequence; different orders in parallel.
+- Hands-on 10: `kafkaTemplate.send("order-events", id, json)` → `OrderCreated`, `OrderPaid`, `OrderShipped` of one order in sequence; different orders in parallel.
 
 <div class="warn">
 
@@ -149,7 +149,7 @@ Each partition is **replicated** (typically 3): a **leader** takes the writes, *
 | `1` | the leader wrote it | lost if the leader dies before followers copy it |
 | `all` | all in-sync replicas have it (`min.insync.replicas` ≥ 2) | slowest — survives a broker loss |
 
-- Hands-on 10: `acks: all` + `enable.idempotence: true` — the producer's own retries create no duplicates (the defaults since Kafka 3.0).
+- Hands-on 10 keeps the producer defaults since Kafka 3.0: `acks=all` + `enable.idempotence=true` — the producer's own retries create no duplicates.
 - Metadata: **KRaft** (Raft quorum) replaced ZooKeeper, removed in Kafka 4.0; Hands-on 10 runs one node as broker and controller.
 
 ---
@@ -222,7 +222,7 @@ A consumer reads, processes (e.g. sends an e-mail) and **commits its offset**. *
 | **At-least-once** | commit **after** processing | the message is **processed again** |
 | **Exactly-once** | Kafka transactions (`read_committed`) | neither — but only Kafka → Kafka |
 
-<p class="small">Hands-on 10: <code>enable_auto_commit=False</code> + <code>commit()</code> after processing = at-least-once. Kafka cannot "un-send" an e-mail or roll back a Postgres row.</p>
+<p class="small">Hands-on 10: the Spring Kafka container commits after the listener returns = at-least-once. Kafka cannot "un-send" an e-mail or roll back a Postgres row.</p>
 
 ---
 

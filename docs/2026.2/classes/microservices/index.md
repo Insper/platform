@@ -173,9 +173,9 @@ The course builds one platform step by step. Each service owns one capability an
 | `product-service` | Product catalogue | products data | — | [Product API](../../exercises/product/index.md) |
 | `order-service` | Orders of the current user | orders data | product, exchange, Kafka | [Order API](../../exercises/order/index.md) |
 | `exchange-service` (Python) | Currency conversion | — | third-party rates API | [Exchange API](../../exercises/exchange/index.md) |
-| `notification-service` (Python) | Order confirmation e-mails | — | Kafka | [Hands-on 10](../../hands-on/10/index.md) |
+| `notification-service` (Spring Boot) | Order confirmation e-mails | — | Kafka | [Hands-on 10](../../hands-on/10/index.md) |
 
-Note *decentralised governance* in action: the exchange and notification services are written in Python, the others in Java — the contract is HTTP/JSON or a Kafka event, so the language does not leak.
+Note *decentralised governance* in action: the exchange service is written in Python, the others in Java — the contract is HTTP/JSON or a Kafka event, so the language does not leak.
 
 ### Owning the data
 

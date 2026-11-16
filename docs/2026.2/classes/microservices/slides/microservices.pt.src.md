@@ -123,7 +123,7 @@ As fronteiras **convergem**, então projete as duas coisas juntas. A **manobra i
 | `product-service` | catálogo de produtos | dados de produtos | — | Product API |
 | `order-service` | pedidos do usuário atual | dados de pedidos | product, exchange, Kafka | Order API |
 | `exchange-service` (Python) | conversão de moedas | — | API de cotações de terceiros | Exchange API |
-| `notification-service` (Python) | e-mails de confirmação do pedido | — | Kafka | Hands-on 10 |
+| `notification-service` (Spring Boot) | e-mails de confirmação do pedido | — | Kafka | Hands-on 10 |
 
 <div class="ok">
 

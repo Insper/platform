@@ -236,7 +236,7 @@ What happens to the response time if the order service calls each of them before
 <li>With a <strong>key</strong>, <code>hash(key) % partitions</code> picks the partition → same key, same partition, <strong>in order</strong>.</li>
 <li>No key → messages spread over partitions, <strong>no ordering</strong> between related events.</li>
 <li>Order holds only <strong>inside</strong> a partition: the key chooses <strong>what</strong> must stay in order.</li>
-<li>Hands-on 10: <code>kafkaTemplate.send(&quot;order-events&quot;, order.getId().toString(), event)</code> → <code>OrderCreated</code>, <code>OrderPaid</code>, <code>OrderShipped</code> of one order in sequence; different orders in parallel.</li>
+<li>Hands-on 10: <code>kafkaTemplate.send(&quot;order-events&quot;, id, json)</code> → <code>OrderCreated</code>, <code>OrderPaid</code>, <code>OrderShipped</code> of one order in sequence; different orders in parallel.</li>
 </ul>
 <div class="warn">
 <p><strong>Choosing the key</strong>: few values (e.g. <code>country</code>) → <strong>hot partitions</strong>; adding partitions later changes <code>hash(key) % partitions</code> and moves keys — size partitions up front.</p>
@@ -272,7 +272,7 @@ What happens to the response time if the order service calls each of them before
 </tbody>
 </table>
 <ul>
-<li>Hands-on 10: <code>acks: all</code> + <code>enable.idempotence: true</code> — the producer's own retries create no duplicates (the defaults since Kafka 3.0).</li>
+<li>Hands-on 10 keeps the producer defaults since Kafka 3.0: <code>acks=all</code> + <code>enable.idempotence=true</code> — the producer's own retries create no duplicates.</li>
 <li>Metadata: <strong>KRaft</strong> (Raft quorum) replaced ZooKeeper, removed in Kafka 4.0; Hands-on 10 runs one node as broker and controller.</li>
 </ul>
 </section>
@@ -345,7 +345,7 @@ What happens to the response time if the order service calls each of them before
 </tr>
 </tbody>
 </table>
-<p class="small">Hands-on 10: <code>enable_auto_commit=False</code> + <code>commit()</code> after processing = at-least-once. Kafka cannot "un-send" an e-mail or roll back a Postgres row.</p>
+<p class="small">Hands-on 10: the Spring Kafka container commits after the listener returns = at-least-once. Kafka cannot "un-send" an e-mail or roll back a Postgres row.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="12" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="18">
 <h2 id="idempotent-consumers">Idempotent consumers</h2>

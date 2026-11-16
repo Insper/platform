@@ -66,7 +66,7 @@ Navegador → `POST /orders` → **Gateway** → Auth (valida o token) · Gatewa
 
 <div class="ok">
 
-A loja é **heterogênea** (serviços em Java, um serviço de notificação em Python, PostgreSQL, Redis, Kafka), **fracamente acoplada** (HTTP e Kafka) e **cliente-servidor** (navegador → gateway → serviços).
+A loja é **heterogênea** (serviços em Java, um serviço de câmbio em Python, PostgreSQL, Redis, Kafka), **fracamente acoplada** (HTTP e Kafka) e **cliente-servidor** (navegador → gateway → serviços).
 
 </div>
 

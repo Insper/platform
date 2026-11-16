@@ -70,283 +70,425 @@
 </script>
 <div class="kicker">Platforms, Microservices, DevOps and APIs · Hands-on 10</div>
 <h1 id="hands-on-10--kafka-messaging">Hands-on 10 — Kafka Messaging</h1>
-<p><strong>The order-service publishes <code>OrderCreated</code>; a notification-service reacts on its own</strong></p>
+<p><strong>A producer appends to a log and answers; a consumer reads it on its own time — first the reference pair, then the store</strong></p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-marpit-fragments="3" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="2" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="2" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="2" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
 <h2 id="should-the-email-block-the-customer">Should the email block the customer?</h2>
 <div class="q">
-<p>Every call the order-service makes — to account-service, to product-service — happens <strong>before</strong> it answers.<br />
-Now we must send a <strong>confirmation email</strong>. Add one more REST call?</p>
+<p>Every call the order-service makes happens <strong>before</strong> it answers. Now it must send a <strong>confirmation email</strong>. One more REST call?</p>
+</div>
+<div style="font-size: 1.15em">
+<div class="flow">
+<div class="arrow" style="flex: .55; text-align: left">REST</div>
+<div class="box">POST /orders</div><div class="arrow">→</div>
+<div class="box">account, product</div><div class="arrow">→</div>
+<div class="box red">email service<small>slow or down: the order waits or fails</small></div><div class="arrow">→</div>
+<div class="box muted">201</div>
+</div>
+<div class="flow" style="margin-top: .6em">
+<div class="arrow" style="flex: .55; text-align: left">Kafka</div>
+<div class="box">POST /orders</div><div class="arrow">→</div>
+<div class="box">account, product</div><div class="arrow">→</div>
+<div class="box accent">append to a topic<small>a durable log</small></div><div class="arrow">→</div>
+<div class="box green">201 at once</div>
+</div>
+<div class="flow">
+<div class="arrow" style="flex: .55; text-align: left"></div>
+<div class="box muted" style="flex: 3.2">later, on its own time: the notification-service reads the topic and sends the email</div>
+</div>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="3" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="two-steps-the-reference-then-the-store">Two steps: the reference, then the store</h2>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: .55; text-align: left">Reference</div>
+<div class="box">GET /producer/{msg}</div><div class="arrow">→</div>
+<div class="box accent">producer-service</div><div class="arrow">send →</div>
+<div class="box orange">store-producer-example<small>no key</small></div><div class="arrow">→</div>
+<div class="box green">consumer-service<small>group store</small></div>
+</div>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: .55; text-align: left">Store</div>
+<div class="box">POST /orders</div><div class="arrow">→</div>
+<div class="box accent">order-service<small>after saving</small></div><div class="arrow">send →</div>
+<div class="box orange">order-events<small>key = order id</small></div><div class="arrow">→</div>
+<div class="box green">notification-service<small>group notification-group</small></div>
 </div>
 <ul>
-<li data-marpit-fragment="1">The customer does not need the email to <strong>finish the order</strong>: it is <strong>fire-and-forget</strong>.</li>
-<li data-marpit-fragment="2">So publish an <strong><code>OrderCreated</code></strong> event to Kafka and return.</li>
-<li data-marpit-fragment="3">A new <strong>notification-service</strong> consumes it <strong>asynchronously</strong> — the order-service does not even know it exists.</li>
+<li>Same pattern twice: two Spring Boot services that <strong>never call each other</strong>.</li>
+<li>The producer does not know who reads; a new reader (analytics) is a new <strong>group</strong>, not a code change.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="3" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="3" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="1--architecture">1 · Architecture</h2>
-<div class="flow">
-<div class="arrow" style="flex: .45; text-align: left">Before</div>
-<div class="box">client</div><div class="arrow">→</div>
-<div class="box">gateway</div><div class="arrow">→</div>
-<div class="box accent">order-service</div><div class="arrow">REST, sync →</div>
-<div class="box">account-service<small>and product-service</small></div>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="4" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="a-topic-is-a-log">A topic is a log</h2>
+<div class="flow" style="font-size: 1.2em; align-items: stretch">
+<div class="arrow" style="flex: .5; align-self: center; text-align: left">partition 0</div>
+<div class="box green">0<small>hello</small></div>
+<div class="box green">1<small>world</small></div>
+<div class="box orange">2<small>a</small></div>
+<div class="box orange">3<small>b</small></div>
+<div class="box orange">4<small>c</small></div>
+<div class="box muted">5<small>next write</small></div>
 </div>
-<div class="flow">
-<div class="arrow" style="flex: .45; text-align: left">After</div>
-<div class="box muted">the same REST calls</div><div class="arrow">+</div>
-<div class="box accent">order-service</div><div class="arrow">publish →</div>
-<div class="box orange">order-events<small>Kafka topic</small></div><div class="arrow">async →</div>
-<div class="box green">notification-service</div>
+<div class="flow" style="font-size: 1.05em">
+<div class="arrow" style="flex: .5"></div>
+<div class="box green" style="flex: 2">read and committed by group store</div>
+<div class="box orange" style="flex: 3">waiting: lag = 5 − 2 = 3</div>
+<div class="box muted">log-end offset 5</div>
 </div>
-<div class="ok">
-<p>Decoupling: tomorrow an <strong>analytics-service</strong> can consume <code>order-events</code> without touching a single line of the order-service.</p>
+<ul>
+<li>The producer <strong>appends</strong>; a record gets the next <strong>offset</strong> and stays — reading does not delete it.</li>
+<li>Kafka keeps, per <strong>group</strong> and partition, the <strong>committed offset</strong>: the next record that group will read.</li>
+<li><strong>Lag</strong> = log-end offset − committed offset. Another group reads the same log from its own offset.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="5" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="2--kafka-in-docker-compose">2 · Kafka in Docker Compose</h2>
+<div class="flow" style="font-size: 1.15em; align-items: stretch">
+<div class="group">
+<div class="caption">Docker network</div>
+<div class="box">producer · consumer<small>bootstrap-servers: kafka:9092</small></div>
+</div>
+<div class="arrow" style="align-self: center">PLAINTEXT →</div>
+<div class="box accent" style="display: flex; flex-direction: column; justify-content: center">kafka · one node, KRaft<small>broker + controller · :9092 clients · :9093 controller quorum</small></div>
+<div class="arrow" style="align-self: center">no ports →</div>
+<div class="box muted" style="flex: .7; display: flex; flex-direction: column; justify-content: center">your machine<small>tools run inside the container</small></div>
+</div>
+<ul>
+<li><strong>KRaft</strong>: Kafka keeps its metadata on its own Raft quorum; Kafka 4.0 removed ZooKeeper.</li>
+<li><code>ADVERTISED_LISTENERS: kafka:9092</code> — the service name; in a container, <code>localhost</code> is the container itself.</li>
+<li>A topic is <strong>created on first use</strong> with <code>KAFKA_NUM_PARTITIONS: 1</code>; one broker → replication factor 1.</li>
+</ul>
+<p class="small">The reference uses <code>apache/kafka:latest</code> (4.3.1 when written); pin it for reproducible builds.</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="3--the-producer-service">3 · The producer-service</h2>
+<div class="flow" style="font-size: 1.1em">
+<div class="box">GET /producer/hello</div><div class="arrow">→</div>
+<div class="box">ProducerResource</div><div class="arrow">→</div>
+<div class="box accent">ProducerService<small>Map → JSON (ObjectMapper)</small></div><div class="arrow">→</div>
+<div class="box orange">kafkaTemplate.send<small>(topic, json) · no key</small></div><div class="arrow">→</div>
+<div class="box green">200<small>handed to the client buffer</small></div>
+</div>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-type">Map</span>&lt;String, String&gt; <span class="hljs-variable">map</span> <span class="hljs-operator">=</span> Map.of(<span class="hljs-string">&quot;id&quot;</span>, id, <span class="hljs-string">&quot;message&quot;</span>, msg);
+kafkaTemplate.send(<span class="hljs-string">&quot;store-producer-example&quot;</span>, objectMapper.writeValueAsString(map));
+</code></pre>
+<ul>
+<li><code>KafkaProducerConfig</code>: the broker address + <code>StringSerializer</code> for key and value — nothing else.</li>
+<li><code>send</code> is <strong>asynchronous</strong>: <code>200</code> = &quot;handed to the Kafka client&quot;, not &quot;stored&quot;.</li>
+<li>Since Kafka 3.0 the defaults are safe: <code>acks=all</code> and <strong>idempotence</strong> on.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="31--through-the-gateway">3.1 · Through the gateway</h2>
+<div class="flow" style="font-size: 1.15em">
+<div class="box muted">curl</div><div class="arrow">→</div>
+<div class="box">lb :8080</div><div class="arrow">→</div>
+<div class="box accent">gateway<small>route Path=/producer/**</small></div><div class="arrow">→</div>
+<div class="box green">RouterValidator<small>"GET /producer/**" is open: no cookie</small></div><div class="arrow">→</div>
+<div class="box">producer:8080</div>
+</div>
+<ul>
+<li>Without the route: <code>404</code>. Without the open entry: <code>401</code> (the route needs a login).</li>
+</ul>
+<div class="warn">
+<p>An open <code>GET</code> that <strong>publishes</strong> is a demo only: anyone can write to the topic, and a crawler or a prefetch would publish too. In the store the event comes out of <code>POST /orders</code>, a secured route.</p>
 </div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="4" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="4" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="the-steps">The steps</h2>
-<ol start="2">
-<li><strong>Docker Compose</strong> — add Kafka (KRaft mode, no ZooKeeper) and Kafka UI.</li>
-<li><strong>order-service</strong> — <code>spring-kafka</code>, the <code>OrderCreatedEvent</code> record, producer config, publisher.</li>
-<li><strong>notification-service</strong> — a new Python / FastAPI consumer.</li>
-<li><strong>Testing</strong> — create an order, see the event in Kafka UI and in the notification logs; scale the consumer.</li>
-<li><strong>Reliability</strong> — dead letter queue and idempotent consumers.</li>
-</ol>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="4--the-consumer-service">4 · The consumer-service</h2>
+<div class="flow" style="font-size: 1.15em">
+<div class="box accent">listener container<small>polls store-producer-example</small></div><div class="arrow">→</div>
+<div class="box">@KafkaListener<small>called once per record</small></div><div class="arrow">→</div>
+<div class="box green">all records of the poll done</div><div class="arrow">→</div>
+<div class="box orange">commit the offsets<small>AckMode.BATCH</small></div><div class="arrow">↺</div>
+</div>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@KafkaListener(topics = &quot;store-producer-example&quot;, groupId = &quot;store&quot;)</span>
+<span class="hljs-keyword">public</span> <span class="hljs-type">void</span> <span class="hljs-title function_">consumerMsg</span><span class="hljs-params">(String message)</span> { … logger.debug(<span class="hljs-string">&quot;enqueue {}&quot;</span>, map); }
+</code></pre>
+<ul>
+<li>The method never calls <code>poll()</code> or <code>commit()</code>: the container does, with <code>enable.auto.commit=false</code>.</li>
+<li>A crash before the commit → those records come <strong>again</strong>: at-least-once (section 8).</li>
+</ul>
+<p class="small"><code>pom.xml</code> is the producer's with <code>artifactId</code> <code>consumer-service</code> — keep the old one and the jar gets the producer's name.</p>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="5" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="5" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="2--docker-compose">2 · Docker Compose</h2>
-<p>Two services added to <code>docker-compose.yml</code>:</p>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="9" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="5--run-the-reference">5 · Run the reference</h2>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash"><span class="hljs-built_in">cd</span> api/producer-service &amp;&amp; mvn clean package -DskipTests &amp;&amp; <span class="hljs-built_in">cd</span> ../..
+<span class="hljs-built_in">cd</span> api/consumer-service &amp;&amp; mvn clean package -DskipTests &amp;&amp; <span class="hljs-built_in">cd</span> ../..
+<span class="hljs-built_in">cd</span> api &amp;&amp; docker compose up -d --build
+curl -s -o /dev/null -w <span class="hljs-string">&quot;%{http_code}\n&quot;</span> http://localhost:8080/producer/hello     <span class="hljs-comment"># 200</span>
+</code></pre>
+<div class="flow" style="font-size: 1.05em">
+<div class="box accent">producer-1<small>queue {id=e295…, message=hello}</small></div><div class="arrow">→</div>
+<div class="box orange">store-producer-example<small>partition 0 · offset 0</small></div><div class="arrow">→</div>
+<div class="box green">consumer-1<small>enqueue {id=e295…, message=hello}</small></div>
+</div>
 <table>
 <thead>
 <tr>
-<th>Service</th>
-<th>Image</th>
-<th>Port</th>
-<th>Role</th>
+<th>Tool (inside the <code>kafka</code> container)</th>
+<th>Shows</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>kafka</code></td>
-<td><code>apache/kafka:4.3.1</code></td>
-<td>9092</td>
-<td>broker + KRaft controller</td>
+<td><code>kafka-topics.sh --describe --topic …</code></td>
+<td>partitions, leader, replicas</td>
 </tr>
 <tr>
-<td><code>kafka-ui</code></td>
-<td><code>provectuslabs/kafka-ui:latest</code></td>
-<td>8090 → 8080</td>
-<td>browse topics, messages, consumer lag</td>
+<td><code>kafka-console-consumer.sh --from-beginning</code></td>
+<td>the records, still there after being read</td>
+</tr>
+<tr>
+<td><code>kafka-consumer-groups.sh --describe --group store</code></td>
+<td>committed offset, log-end offset, <strong>lag</strong></td>
 </tr>
 </tbody>
 </table>
-<p>Key Kafka settings:</p>
-<ul>
-<li><code>KAFKA_PROCESS_ROLES: broker,controller</code> — <strong>KRaft</strong>: one node is broker and controller (quorum on <code>CONTROLLER://:9093</code>); ZooKeeper was removed in Kafka 4.0.</li>
-<li><code>KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092</code> — clients connect by the service name.</li>
-<li><code>KAFKA_AUTO_CREATE_TOPICS_ENABLE: &quot;true&quot;</code> — <code>order-events</code> is created on first publish.</li>
-<li><code>KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1</code> — a single broker in development.</li>
-</ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="6" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="6" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="3--order-service-the-event">3 · order-service: the event</h2>
-<div class="cols">
-<div>
-<p><code>pom.xml</code>:</p>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">groupId</span>&gt;</span>org.springframework.kafka<span class="hljs-tag">&lt;/<span class="hljs-name">groupId</span>&gt;</span>
-    <span class="hljs-tag">&lt;<span class="hljs-name">artifactId</span>&gt;</span>spring-kafka<span class="hljs-tag">&lt;/<span class="hljs-name">artifactId</span>&gt;</span>
-<span class="hljs-tag">&lt;/<span class="hljs-name">dependency</span>&gt;</span>
-</code></pre>
-</div>
-<div>
-<p><code>store.order.OrderCreatedEvent</code>:</p>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">public</span> <span class="hljs-keyword">record</span> <span class="hljs-title class_">OrderCreatedEvent</span><span class="hljs-params">(
-    String orderId,
-    String customerId,
-    Double totalAmount,
-    String timestamp
-)</span> {}
-</code></pre>
-</div>
-</div>
-<p class="small">A record: immutable, like the fact it represents.</p>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="7" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="7" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="3--producer-configuration">3 · Producer configuration</h2>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-yaml"><span class="hljs-attr">spring:</span>
-  <span class="hljs-attr">kafka:</span>
-    <span class="hljs-attr">bootstrap-servers:</span> <span class="hljs-string">kafka:9092</span>
-    <span class="hljs-attr">producer:</span>
-      <span class="hljs-attr">key-serializer:</span> <span class="hljs-string">org.apache.kafka.common.serialization.StringSerializer</span>
-      <span class="hljs-attr">value-serializer:</span> <span class="hljs-string">org.springframework.kafka.support.serializer.JsonSerializer</span>
-      <span class="hljs-attr">acks:</span> <span class="hljs-string">all</span>
-      <span class="hljs-attr">retries:</span> <span class="hljs-number">3</span>
-      <span class="hljs-attr">properties:</span>
-        <span class="hljs-attr">enable.idempotence:</span> <span class="hljs-literal">true</span>
-</code></pre>
-<p class="small"><code>acks: all</code> waits for every in-sync replica before confirming. No effect on a single broker; in production it prevents data loss on broker failover.</p>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="8" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="8" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="3--publishing">3 · Publishing</h2>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-meta">@Component</span>
-<span class="hljs-meta">@RequiredArgsConstructor</span>
-<span class="hljs-keyword">public</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">OrderEventPublisher</span> {
-    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> KafkaTemplate&lt;String, OrderCreatedEvent&gt; kafkaTemplate;
-
-    <span class="hljs-keyword">public</span> <span class="hljs-type">void</span> <span class="hljs-title function_">publishOrderCreated</span><span class="hljs-params">(Order order)</span> {
-        <span class="hljs-type">var</span> <span class="hljs-variable">event</span> <span class="hljs-operator">=</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">OrderCreatedEvent</span>(order.getId().toString(),
-            order.getCustomerId(), order.getTotalAmount(), Instant.now().toString());
-        kafkaTemplate.send(<span class="hljs-string">&quot;order-events&quot;</span>, order.getId().toString(), event);
-    }
-}
-</code></pre>
-<p>In <code>OrderService</code>, <strong>after saving</strong>: <code>eventPublisher.publishOrderCreated(savedOrder);</code></p>
-<p class="small">Topic <code>order-events</code>, key = order id, value = the event as JSON.</p>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="9" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="9" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="4--notification-service-python--fastapi">4 · notification-service (Python / FastAPI)</h2>
-<div class="cols">
-<div>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-text">notification-service/
-    main.py
-    Dockerfile
-    requirements.txt
-</code></pre>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-text">fastapi==0.110.0
-kafka-python==2.3.2
-uvicorn==0.29.0
-</code></pre>
-</div>
-<div>
-<ul>
-<li><code>Dockerfile</code>: <code>python:3.12-slim</code>, runs <code>uvicorn main:app</code> on port <code>8080</code>.</li>
-<li>On startup, a <strong>daemon thread</strong> runs the consumer loop.</li>
-<li><code>GET /health</code> → <code>{&quot;status&quot;: &quot;up&quot;}</code>.</li>
-<li>In compose: <code>build: ./notification-service</code>, <code>depends_on: kafka</code>, <code>PYTHONUNBUFFERED=1</code>.</li>
-</ul>
-</div>
-</div>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="4--the-consumer">4 · The consumer</h2>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-python">consumer = KafkaConsumer(
-    <span class="hljs-string">&quot;order-events&quot;</span>,
-    bootstrap_servers=<span class="hljs-string">&quot;kafka:9092&quot;</span>,
-    group_id=<span class="hljs-string">&quot;notification-group&quot;</span>,
-    value_deserializer=<span class="hljs-keyword">lambda</span> m: json.loads(m.decode(<span class="hljs-string">&quot;utf-8&quot;</span>)),
-    auto_offset_reset=<span class="hljs-string">&quot;earliest&quot;</span>,
-    enable_auto_commit=<span class="hljs-literal">False</span>,
-)
-<span class="hljs-keyword">for</span> message <span class="hljs-keyword">in</span> consumer:
-    event = message.value
-    logger.info(<span class="hljs-string">f&quot;[NOTIFICATION] Order <span class="hljs-subst">{event[<span class="hljs-string">&#x27;orderId&#x27;</span>]}</span> ... sending confirmation email&quot;</span>)
-    consumer.commit()
-</code></pre>
-<p class="small"><code>enable_auto_commit=False</code> + <code>commit()</code> after processing: a crash mid-processing means the message is consumed again — <strong>at-least-once</strong>.</p>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="11" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="at-least-once-a-crash-before-commit">At-least-once: a crash before <code>commit()</code></h2>
-<div class="flow">
-<div class="box">offset 0<small>OrderCreated ord-7f3a</small></div><div class="arrow">→</div>
-<div class="box green">email sent</div><div class="arrow">→</div>
-<div class="box red">crash<small>before consumer.commit()</small></div><div class="arrow">→</div>
-<div class="box">restart<small>resumes at the committed offset: 0</small></div><div class="arrow">→</div>
-<div class="box orange">the same email again</div>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="10" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="10" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="52--the-consumer-was-down">5.2 · The consumer was down</h2>
+<div class="flow" style="font-size: 1.15em">
+<div class="box red">docker compose stop consumer</div><div class="arrow">→</div>
+<div class="box orange">3 × curl /producer/…<small>200, 200, 200</small></div><div class="arrow">→</div>
+<div class="box orange">--describe<small>no active members · lag 3</small></div><div class="arrow">→</div>
+<div class="box green">start consumer<small>resumes at offset 2: a, b, c · lag 0</small></div>
 </div>
 <ul>
-<li>Kafka only knows the <strong>committed</strong> offset: everything after it is delivered again.</li>
-<li>Duplicates are normal, so the consumer must be <strong>idempotent</strong>: skip an <code>orderId</code> already notified.</li>
+<li>The producer <strong>did not notice</strong>: it answered <code>200</code> three times.</li>
+<li>With REST, those three calls would have <strong>failed</strong>; with a log in between, the consumer catches up.</li>
 </ul>
+<div class="ok">
+<p>Asynchronous messaging turns &quot;the other service is down&quot; from an error into a <strong>delay</strong>.</p>
+</div>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-class="tight" data-lang="en" data-theme="platform" lang="en" class="tight" data-marpit-pagination="12" style="--paginate:true;--class:tight;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="5--testing">5 · Testing</h2>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">docker compose up --build -d
-docker compose ps        <span class="hljs-comment"># kafka, kafka-ui, notification-service, order-service</span>
-curl -s -X POST http://localhost:8080/orders \
-    -H <span class="hljs-string">&quot;Content-Type: application/json&quot;</span> \
-    -d <span class="hljs-string">&#x27;{&quot;customerId&quot;:&quot;cust-42&quot;,&quot;items&quot;:[{&quot;productId&quot;:&quot;p1&quot;,&quot;quantity&quot;:2}]}&#x27;</span> | jq .
-<span class="hljs-comment"># { &quot;id&quot;: &quot;ord-7f3a&quot;, &quot;status&quot;: &quot;CREATED&quot;, &quot;totalAmount&quot;: 49.98 }</span>
-docker compose logs notification-service
-<span class="hljs-comment"># [NOTIFICATION] Order ord-7f3a for customer cust-42 — sending confirmation email (total: 49.98)</span>
-</code></pre>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="11" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="11" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="6--in-the-store-order-events">6 · In the store: order-events</h2>
+<div class="flow" style="font-size: 1.1em">
+<div class="box">POST /orders</div><div class="arrow">→</div>
+<div class="box">account, product<small>REST, synchronous</small></div><div class="arrow">→</div>
+<div class="box">save the order</div><div class="arrow">→</div>
+<div class="box accent">send(order-events, key = order id)</div><div class="arrow">→</div>
+<div class="box green">201</div>
+</div>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: 2.6"></div>
+<div class="box orange">next poll</div><div class="arrow">→</div>
+<div class="box green">notification-service<small>sending confirmation email: order …</small></div>
+</div>
 <ul>
-<li>Kafka UI <code>http://localhost:8090</code> → <strong>Topics → order-events → Messages</strong>: the event with <code>orderId: ord-7f3a</code>.</li>
+<li>Publish <strong>after</strong> saving: never announce an order that does not exist.</li>
+<li>The order-service never calls the notification-service, and does not wait for the email.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="13" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="55--partitions-and-the-consumer-group">5.5 · Partitions and the consumer group</h2>
-<div class="flow" style="align-items: stretch">
-<div class="box" style="flex: .7; display: flex; flex-direction: column; justify-content: center">order-service<small>key = orderId</small></div>
-<div class="arrow" style="align-self: center">hash(key) →</div>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="12" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="12" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="6--same-pattern-three-changes">6 · Same pattern, three changes</h2>
+<div class="matrix" style="--n: 2; font-size: 1.15em">
+<div></div><div class="head">reference</div><div class="head">store</div>
+<div class="row">producer</div><div class="box" style="flex-direction: column">ProducerService<small>send(topic, json)</small></div><div class="box accent" style="flex-direction: column">OrderEventPublisher<small>send("order-events", id, json): with a key</small></div>
+<div class="row">config</div><div class="box">KafkaProducerConfig</div><div class="box">the same class, in package store.order</div>
+<div class="row">consumer</div><div class="box">consumer-service</div><div class="box green" style="flex-direction: column">notification-service<small>new package, group notification-group, topic order-events</small></div>
+<div class="row">message</div><div class="box">{id, message}</div><div class="box">{id, idAccount, total}</div>
+</div>
+<ul>
+<li>Test: log in, <code>POST /orders</code> → <code>201</code> at once → the email line in <code>docker compose logs notification</code>.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="13" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="13" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="7--partitions-the-key-picks-one">7 · Partitions: the key picks one</h2>
+<div class="flow" style="font-size: 1.15em; align-items: stretch">
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">order-service<small>key = order id</small></div>
+<div class="arrow" style="align-self: center">murmur2(key) % 3 →</div>
 <div class="group">
 <div class="caption">order-events · 3 partitions</div>
-<div class="box orange">partition 0</div><div class="box orange">partition 1</div><div class="box orange">partition 2</div>
+<div class="box">P0<small>events of some orders, in order</small></div>
+<div class="box">P1<small>…</small></div>
+<div class="box">P2<small>…</small></div>
 </div>
-<div class="arrow" style="align-self: center">one reader each →</div>
+<div class="arrow" style="align-self: center">→</div>
 <div class="group">
 <div class="caption">notification-group</div>
-<div class="box green">notification-service-1<small>partitions 0 and 1</small></div>
-<div class="box green">notification-service-2<small>partition 2</small></div>
+<div class="box green">notification-1<small>reads P0, P1</small></div>
+<div class="box green">notification-2<small>reads P2</small></div>
 </div>
 </div>
 <ul>
-<li>The lab's topic is auto-created with <strong>1 partition</strong>: a second instance gets nothing to read.</li>
-<li><code>kafka-topics.sh --alter --partitions 3</code> → the group <strong>rebalances</strong>; the new owner resumes at the committed offset.</li>
-<li>Lag = log-end offset − committed offset: <code>kafka-consumer-groups.sh --describe --group notification-group</code>.</li>
+<li>Same key → same partition → the events of one order stay <strong>in order</strong>.</li>
+<li>In a group, each partition has <strong>one</strong> reader; joining or leaving → <strong>rebalance</strong>, resuming at the committed offset.</li>
+<li>Kafka can <strong>add</strong> partitions (<code>--alter --partitions 3</code>), never remove them.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="14" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="6--reliability-dead-letter-queue">6 · Reliability: dead letter queue</h2>
-<p>A message that keeps failing must not <strong>block the stream</strong>. Send it to <code>order-events-dlq</code> instead:</p>
-<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-python"><span class="hljs-keyword">try</span>:
-    process_event(event)
-    consumer.commit()
-<span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> e:
-    logger.error(<span class="hljs-string">f&quot;Failed to process <span class="hljs-subst">{event[<span class="hljs-string">&#x27;orderId&#x27;</span>]}</span>: <span class="hljs-subst">{e}</span> — sending to DLQ&quot;</span>)
-    dlq_producer.send(<span class="hljs-string">&quot;order-events-dlq&quot;</span>, value=event)
-    consumer.commit()
-</code></pre>
-<p class="small">Either way the offset advances: the main stream continues, the DLQ is inspected later.</p>
-</section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="15" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="without-docker-the-simulator">Without Docker: the simulator</h2>
-<div class="flow">
-<div class="box accent">5 · Testing<small>ord-7f3a → partition 0, offset 0, lag 0</small></div>
-<div class="box orange">5.5 · Scale the consumer<small>1 partition: the 2nd instance idles · 3 partitions: 0 and 1 · 2</small></div>
-<div class="box red">6 · Failures<small>1 duplicate email · lag 3 behind a bad event · the DLQ drains it to 0</small></div>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="14" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="14" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="7--how-many-instances-help">7 · How many instances help?</h2>
+<div class="matrix" style="--n: 4; font-size: 1.2em">
+<div></div><div class="head">1 instance</div><div class="head">2</div><div class="head">3</div><div class="head">4</div>
+<div class="row">1 partition (the lab)</div><div class="box green">reads P0</div><div class="box orange">1 idle</div><div class="box orange">2 idle</div><div class="box orange">3 idle</div>
+<div class="row">3 partitions</div><div class="box green">reads all 3</div><div class="box green">P0, P1 · P2</div><div class="box green">one each</div><div class="box orange">1 idle</div>
 </div>
 <ul>
-<li>The pages embed the lab's topic and group: same names, same key → partition hash as Kafka's client.</li>
-<li>Play runs a page step by step; the buttons (POST, poll, scale, kill, <code>--partitions</code>) work at any time.</li>
-<li><strong>Free</strong> mode: 4 instances on 3 partitions → one stays idle.</li>
+<li>The number of partitions <strong>caps</strong> the parallelism of a group.</li>
+<li><code>docker compose up -d --scale notification=2</code> + <code>kafka-consumer-groups --describe --members</code>: <code>#PARTITIONS 1</code> and <code>0</code>.</li>
+<li>Another group (analytics) reads <strong>every</strong> message, at its own offsets.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="16" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
-<h2 id="pitfalls">Pitfalls</h2>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="15" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="15" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="7--without-a-key-partitions-do-not-spread">7 · Without a key, partitions do not spread</h2>
+<div class="flow" style="font-size: 1.15em; align-items: stretch">
+<div class="box accent" style="flex: .8; display: flex; flex-direction: column; justify-content: center">9 × curl /producer/…<small>no key</small></div>
+<div class="arrow" style="align-self: center">sticky partitioner →</div>
+<div class="group">
+<div class="caption">store-producer-example · 3 partitions</div>
+<div class="box muted">P0<small>nothing new</small></div>
+<div class="box orange">P1<small>all nine: offsets 0 to 8</small></div>
+<div class="box muted">P2<small>nothing</small></div>
+</div>
+<div class="arrow" style="align-self: center">→</div>
+<div class="group">
+<div class="caption">group store</div>
+<div class="box green">consumer-1<small>reads P0, P1: does all the work</small></div>
+<div class="box orange">consumer-2<small>reads P2: idle</small></div>
+</div>
+</div>
+<ul>
+<li>No key → the producer <strong>fills one partition</strong> before moving on (KIP-794, a <em>Kafka Improvement Proposal</em>): big batches, no spreading.</li>
+<li>A key spreads the load <strong>and</strong> keeps each key in order: that is why <code>order-events</code> uses the order id.</li>
+</ul>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="16" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="16" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="simulator-partitions-and-groups">Simulator: partitions and groups</h2>
+<div class="q">
+<p>The store's part of the lab without Docker: <code>order-events</code> with 1 partition, one notification-service. Play runs a page; the buttons work at any time.</p>
+</div>
+<div class="flow" style="font-size: 1.15em">
+<div class="box orange">6 orders, 1 partition<small>all in P0 · notification-2 gets nothing</small></div><div class="arrow">→</div>
+<div class="box accent">--partitions 3<small>notification-1 ← P0, P1 · notification-2 ← P2</small></div><div class="arrow">→</div>
+<div class="box green">6 more orders<small>split 2, 2 and 2 by key</small></div>
+</div>
+<ul>
+<li>Stop one instance: its partition moves to the other, which drains the lag one message per poll.</li>
+<li><strong>Free</strong> mode: 4 instances on 3 partitions — one sits idle.</li>
+</ul>
+<p class="small">Page section 7 · simulator <code>order-events</code>, script "7 · Partitions and groups".</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="17" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="81--at-least-once">8.1 · At-least-once</h2>
+<div class="flow" style="font-size: 1.1em">
+<div class="box">record at offset 0</div><div class="arrow">→</div>
+<div class="box green">email sent</div><div class="arrow">→</div>
+<div class="box red">killed before the commit</div><div class="arrow">→</div>
+<div class="box orange">restart / rebalance<small>offset 0 again</small></div><div class="arrow">→</div>
+<div class="box red">the same email twice</div>
+</div>
+<ul>
+<li>The container commits <strong>after</strong> the listener returns: a crash in between means redelivery.</li>
+<li>Kafka delivers <strong>at least once</strong> — the consumer must be <strong>idempotent</strong>.</li>
+</ul>
+<div class="ok">
+<p>Record the notified order ids in a <strong>durable</strong> store (<code>INSERT … ON CONFLICT DO NOTHING</code>) and email only when the insert added a row. A set in memory dies in the very crash that causes the redelivery.</p>
+</div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="18" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="18" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="82--a-message-that-cannot-be-processed">8.2 · A message that cannot be processed</h2>
+<div class="flow" style="font-size: 1.15em">
+<div class="box orange">echo 'oops' | console producer<small>not JSON</small></div><div class="arrow">→</div>
+<div class="box">readValue throws<small>10 attempts, no pause</small></div><div class="arrow">→</div>
+<div class="box red">ERROR · Backoff … exhausted<small>for order-events-0@1</small></div><div class="arrow">→</div>
+<div class="box red">commit past it<small>the message is gone</small></div>
+</div>
+<ul>
+<li>No error handler of your own → Spring Kafka's <code>DefaultErrorHandler</code>: <code>FixedBackOff(0, 9)</code>, log, skip.</li>
+<li>Nothing blocks — the next orders flow, lag back to <code>0</code> — but <strong>one log line</strong> is all that is left.</li>
+</ul>
 <div class="warn">
-<p><strong>At-least-once</strong> means duplicates happen. The consumer must be <strong>idempotent</strong>: before sending, check whether an email was already sent for this <code>orderId</code>.</p>
+<p>For an order whose event had a bug, that is a customer who never gets the email — and nobody notices.</p>
 </div>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="19" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="19" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="83--a-dead-letter-topic-dlt">8.3 · A dead-letter topic (DLT)</h2>
+<div class="flow" style="font-size: 1.15em">
+<div class="box orange">bad record</div><div class="arrow">→</div>
+<div class="box">3 attempts, 1 s apart<small>Record in retry and not yet recovered</small></div><div class="arrow">→</div>
+<div class="box accent">DeadLetterPublishingRecoverer</div><div class="arrow">→</div>
+<div class="box green">order-events-dlt<small>offset 0 · oops · inspect, fix, replay</small></div>
+</div>
+<pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-java"><span class="hljs-keyword">new</span> <span class="hljs-title class_">DefaultErrorHandler</span>(<span class="hljs-keyword">new</span> <span class="hljs-title class_">DeadLetterPublishingRecoverer</span>(kafkaTemplate(),
+    (record, ex) -&gt; <span class="hljs-keyword">new</span> <span class="hljs-title class_">TopicPartition</span>(record.topic() + <span class="hljs-string">&quot;-dlt&quot;</span>, -<span class="hljs-number">1</span>)), <span class="hljs-keyword">new</span> <span class="hljs-title class_">FixedBackOff</span>(<span class="hljs-number">1000L</span>, <span class="hljs-number">2L</span>))
+</code></pre>
 <ul>
-<li>Publish <strong>after saving</strong> the order — never announce an order that does not exist.</li>
-<li>Inside the Docker network the broker is <code>kafka:9092</code>, not <code>localhost:9092</code>.</li>
-<li><code>acks: all</code> only protects data when there is more than one broker.</li>
-<li>Use Kafka UI to check topics, messages and <strong>consumer group lag</strong> while debugging.</li>
+<li>Default destination: <code>&lt;topic&gt;-dlt</code>, <strong>same partition</strong> → the DLT would need as many partitions; <code>-1</code> lets Kafka choose.</li>
+<li>The DLT record carries headers: original topic, partition, offset, exception.</li>
 </ul>
 </section>
-</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="17" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="17" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="17">
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="20" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="20" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="simulator-failures">Simulator: failures</h2>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: .5; text-align: left">duplicates</div>
+<div class="box red">kill before the commit<small>1 duplicate email</small></div><div class="arrow">→</div>
+<div class="box green">idempotent consumer<small>the repeat is skipped</small></div>
+</div>
+<div class="flow" style="font-size: 1.1em">
+<div class="arrow" style="flex: .5; text-align: left">bad message</div>
+<div class="box red">default handler<small>10 attempts, skipped · 1 lost · lag 0</small></div><div class="arrow">→</div>
+<div class="box green">dead-letter topic<small>3 attempts → order-events-dlt · 0 lost</small></div>
+</div>
+<ul>
+<li>The tiles count it: emails sent, duplicate emails, group lag, <strong>messages lost</strong>, <code>order-events-dlt</code>.</li>
+<li>One record per poll: each step of the page is one click.</li>
+</ul>
+<p class="small">Page section 8 · simulator <code>order-events</code>, script "8 · Failures".</p>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="21" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="21" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
+<h2 id="pitfalls">Pitfalls</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>401</code> / <code>404</code> on <code>/producer/hello</code></td>
+<td>route not open in the <code>RouterValidator</code> / missing in the gateway</td>
+</tr>
+<tr>
+<td><code>COPY target/*.jar</code> fails</td>
+<td><code>mvn clean package</code> not run in that service</td>
+</tr>
+<tr>
+<td>consumer jar named <code>producer-service-1.0.0.jar</code></td>
+<td>copied <code>pom.xml</code> still has the producer's <code>artifactId</code></td>
+</tr>
+<tr>
+<td>a second instance never works</td>
+<td>1 partition — or no key: everything in one partition</td>
+</tr>
+<tr>
+<td>an email sent twice</td>
+<td>crash before the commit: make the consumer idempotent</td>
+</tr>
+<tr>
+<td>a bad event vanished</td>
+<td>default error handler skipped it: add a dead-letter topic</td>
+</tr>
+</tbody>
+</table>
+</section>
+</foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="22" data-paginate="true" data-lang="en" data-theme="platform" lang="en" data-marpit-pagination="22" style="--paginate:true;--lang:en;--theme:platform;" data-marpit-pagination-total="22">
 <h2 id="takeaways">Takeaways</h2>
 <ol>
-<li>Use REST when the caller needs the answer now; use <strong>events</strong> for fire-and-forget work.</li>
-<li>The order-service publishes <code>OrderCreated</code> to <code>order-events</code> and <strong>does not know its consumers</strong>.</li>
-<li>Kafka runs in <strong>KRaft</strong> mode in compose (no ZooKeeper); <strong>Kafka UI</strong> shows topics, messages and lag.</li>
-<li>Spring: <code>KafkaTemplate.send(topic, key, event)</code> with a <strong>JSON</strong> serializer and <code>acks: all</code>.</li>
-<li>Python: a <code>KafkaConsumer</code> in group <code>notification-group</code> with <strong>manual commit</strong> → at-least-once.</li>
-<li>Failing messages go to a <strong>DLQ</strong>; consumers must be <strong>idempotent</strong>.</li>
+<li>A <strong>topic is a log</strong>: the producer appends and answers; consumers read at their own offsets.</li>
+<li>Spring Kafka: <code>KafkaTemplate.send</code> to publish, <code>@KafkaListener</code> + a <strong>group</strong> to consume; the container commits.</li>
+<li>A consumer that is down means <strong>lag</strong>, not errors: it catches up.</li>
+<li><strong>Partitions</strong> cap a group's parallelism; a <strong>key</strong> spreads the load and keeps each key in order.</li>
+<li>Delivery is <strong>at-least-once</strong>: idempotent consumers, with a durable record.</li>
+<li>Without a <strong>dead-letter topic</strong>, a bad message is retried 10 times and <strong>lost</strong>.</li>
 </ol>
 </section>
 <script>!function(){"use strict";const t={h1:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"1"},style:"display: block; font-size: 2em; margin-block-start: 0.67em; margin-block-end: 0.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h2:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"2"},style:"display: block; font-size: 1.5em; margin-block-start: 0.83em; margin-block-end: 0.83em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h3:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"3"},style:"display: block; font-size: 1.17em; margin-block-start: 1em; margin-block-end: 1em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h4:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"4"},style:"display: block; margin-block-start: 1.33em; margin-block-end: 1.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h5:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"5"},style:"display: block; font-size: 0.83em; margin-block-start: 1.67em; margin-block-end: 1.67em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},h6:{proto:()=>HTMLHeadingElement,attrs:{role:"heading","aria-level":"6"},style:"display: block; font-size: 0.67em; margin-block-start: 2.33em; margin-block-end: 2.33em; margin-inline-start: 0px; margin-inline-end: 0px; font-weight: bold;"},span:{proto:()=>HTMLSpanElement},pre:{proto:()=>HTMLElement,style:"display: block; font-family: monospace; white-space: pre; margin: 1em 0; --marp-auto-scaling-white-space: pre;"}},e="data-marp-auto-scaling-wrapper",i="data-marp-auto-scaling-svg",n="data-marp-auto-scaling-container";class s extends HTMLElement{container;containerSize;containerObserver;svg;svgComputedStyle;svgPreserveAspectRatio="xMinYMid meet";wrapper;wrapperSize;wrapperObserver;constructor(){super();const t=t=>([e])=>{const{width:i,height:n}=e.contentRect;this[t]={width:i,height:n},this.updateSVGRect()};this.attachShadow({mode:"open"}),this.containerObserver=new ResizeObserver(t("containerSize")),this.wrapperObserver=new ResizeObserver((...e)=>{t("wrapperSize")(...e),this.flushSvgDisplay()})}static get observedAttributes(){return["data-downscale-only"]}connectedCallback(){this.shadowRoot.innerHTML=`\n<style>\n  svg[${i}] { display: block; width: 100%; height: auto; vertical-align: top; }\n  span[${n}] { display: table; white-space: var(--marp-auto-scaling-white-space, nowrap); width: max-content; }\n</style>\n<div ${e}>\n  <svg part="svg" ${i}>\n    <foreignObject><span ${n}><slot></slot></span></foreignObject>\n  </svg>\n</div>\n    `.split(/\n\s*/).join(""),this.wrapper=this.shadowRoot.querySelector(`div[${e}]`)??void 0;const t=this.svg;this.svg=this.wrapper?.querySelector(`svg[${i}]`)??void 0,this.svg!==t&&(this.svgComputedStyle=this.svg?window.getComputedStyle(this.svg):void 0),this.container=this.svg?.querySelector(`span[${n}]`)??void 0,this.observe()}disconnectedCallback(){this.svg=void 0,this.svgComputedStyle=void 0,this.wrapper=void 0,this.container=void 0,this.observe()}attributeChangedCallback(){this.observe()}flushSvgDisplay(){const{svg:t}=this;t&&(t.style.display="inline",requestAnimationFrame(()=>{t.style.display=""}))}observe(){this.containerObserver.disconnect(),this.wrapperObserver.disconnect(),this.wrapper&&this.wrapperObserver.observe(this.wrapper),this.container&&this.containerObserver.observe(this.container),this.svgComputedStyle&&this.observeSVGStyle(this.svgComputedStyle)}observeSVGStyle(t){const e=()=>{const i=(()=>{const e=t.getPropertyValue("--preserve-aspect-ratio");if(e)return e.trim();return`x${(({textAlign:t,direction:e})=>{if(t.endsWith("left"))return"Min";if(t.endsWith("right"))return"Max";if("start"===t||"end"===t){let i="rtl"===e;return"end"===t&&(i=!i),i?"Max":"Min"}return"Mid"})(t)}YMid meet`})();i!==this.svgPreserveAspectRatio&&(this.svgPreserveAspectRatio=i,this.updateSVGRect()),t===this.svgComputedStyle&&requestAnimationFrame(e)};e()}updateSVGRect(){let t=Math.ceil(this.containerSize?.width??0);const e=Math.ceil(this.containerSize?.height??0);void 0!==this.dataset.downscaleOnly&&(t=Math.max(t,this.wrapperSize?.width??0));const i=this.svg?.querySelector(":scope > foreignObject");if(i?.setAttribute("width",`${t}`),i?.setAttribute("height",`${e}`),this.svg&&(this.svg.setAttribute("viewBox",`0 0 ${t} ${e}`),this.svg.setAttribute("preserveAspectRatio",this.svgPreserveAspectRatio),this.svg.style.height=t<=0||e<=0?"0":""),this.container){const t=this.svgPreserveAspectRatio.toLowerCase();this.container.style.marginLeft=t.startsWith("xmid")||t.startsWith("xmax")?"auto":"0",this.container.style.marginRight=t.startsWith("xmi")?"auto":"0"}}}const r=(t,{attrs:e={},style:i})=>class extends t{constructor(...t){super(...t);for(const[t,i]of Object.entries(e))this.hasAttribute(t)||this.setAttribute(t,i);this._shadow()}static get observedAttributes(){return["data-auto-scaling"]}connectedCallback(){this._update()}attributeChangedCallback(){this._update()}_shadow(){if(!this.shadowRoot)try{this.attachShadow({mode:"open"})}catch(t){if(!(t instanceof Error&&"NotSupportedError"===t.name))throw t}return this.shadowRoot}_update(){const t=this._shadow();if(t){const e=i?`<style>:host { ${i} }</style>`:"";let n="<slot></slot>";const{autoScaling:s}=this.dataset;if(void 0!==s){n=`<marp-auto-scaling exportparts="svg:auto-scaling" ${"downscale-only"===s?"data-downscale-only":""}>${n}</marp-auto-scaling>`}t.innerHTML=e+n}}};let o;const a=()=>o??(o=!!document.createElement("div",{is:"marp-auto-scaling"}).outerHTML.startsWith("<div is"),o),l=Symbol();let c;const d="marpitSVGPolyfill:setZoomFactor,",h=Symbol(),g=Symbol();const p=()=>{const t="Apple Computer, Inc."===navigator.vendor,e=t?[v]:[],i={then:e=>(t?(async()=>{if(void 0===c){const t=document.createElement("canvas");t.width=10,t.height=10;const e=t.getContext("2d"),i=new Image(10,10),n=new Promise(t=>{i.addEventListener("load",()=>t())});i.crossOrigin="anonymous",i.src="data:image/svg+xml;charset=utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%201%201%22%3E%3CforeignObject%20width%3D%221%22%20height%3D%221%22%20requiredExtensions%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%3E%3Cdiv%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxhtml%22%20style%3D%22width%3A%201px%3B%20height%3A%201px%3B%20background%3A%20red%3B%20position%3A%20relative%22%3E%3C%2Fdiv%3E%3C%2FforeignObject%3E%3C%2Fsvg%3E",await n,e.drawImage(i,0,0),c=e.getImageData(5,5,1,1).data[3]<128}return c})().then(t=>{null==e||e(t?[v]:[])}):null==e||e([]),i)};return Object.assign(e,i)};let m,u;function v(t){const e="object"==typeof t&&t.target||document,i="object"==typeof t?t.zoom:t;window[g]||(Object.defineProperty(window,g,{configurable:!0,value:!0}),document.body.style.zoom=1.0001,document.body.offsetHeight,document.body.style.zoom=1,window.addEventListener("message",({data:t,origin:e})=>{if(e===window.origin)try{if(t&&"string"==typeof t&&t.startsWith(d)){const[,e]=t.split(","),i=Number.parseFloat(e);Number.isNaN(i)||(u=i)}}catch(t){console.error(t)}}));let n=!1;Array.from(e.querySelectorAll("svg[data-marpit-svg]"),t=>{var e,s,r,o;t.style.transform||(t.style.transform="translateZ(0)");const a=i||u||t.currentScale||1;m!==a&&(m=a,n=a);const l=t.getBoundingClientRect(),{length:c}=t.children;for(let i=0;i<c;i+=1){const n=t.children[i];if(n.getScreenCTM){const t=n.getScreenCTM();if(t){const i=null!==(s=null===(e=n.x)||void 0===e?void 0:e.baseVal.value)&&void 0!==s?s:0,c=null!==(o=null===(r=n.y)||void 0===r?void 0:r.baseVal.value)&&void 0!==o?o:0,d=n.children.length;for(let e=0;e<d;e+=1){const s=n.children[e];if("SECTION"===s.tagName){const{style:e}=s;e.transformOrigin||(e.transformOrigin=`${-i}px ${-c}px`),e.transform=`scale(${a}) matrix(${t.a}, ${t.b}, ${t.c}, ${t.d}, ${t.e-l.left}, ${t.f-l.top}) translateZ(0.0001px)`;break}}}}}}),!1!==n&&Array.from(e.querySelectorAll("iframe"),({contentWindow:t})=>{null==t||t.postMessage(`${d}${n}`,"null"===window.origin?"*":window.origin)})}function w({once:t=!1,target:e=document}={}){const i=function(t=document){if(t[h])return t[h];let e=!0;const i=()=>{e=!1,delete t[h]};Object.defineProperty(t,h,{configurable:!0,value:i});let n=[],s=!1;(async()=>{try{n=await p()}finally{s=!0}})();const r=()=>{for(const e of n)e({target:t});s&&0===n.length||e&&window.requestAnimationFrame(r)};return r(),i}(e);return t?(i(),()=>{}):i}m=1,u=void 0;const b=Symbol(),y=(e=document)=>{if("undefined"==typeof window)throw new Error("Marp Core's browser script is valid only in browser context.");if(((e=document)=>{const i=window[l];i||customElements.define("marp-auto-scaling",s);for(const n of Object.keys(t)){const s=`marp-${n}`,o=t[n].proto();a()&&o!==HTMLElement?i||customElements.define(s,r(o,{style:t[n].style}),{extends:n}):(i||customElements.define(s,r(HTMLElement,t[n])),e.querySelectorAll(`${n}[is="${s}"]`).forEach(t=>{t.outerHTML=t.outerHTML.replace(new RegExp(`^<${n}`,"i"),`<${s}`).replace(new RegExp(`</${n}>$`,"i"),`</${s}>`)}))}window[l]=!0})(e),e[b])return e[b];const i=w({target:e}),n=()=>{i(),delete e[b]},o=Object.assign(n,{cleanup:n,update:()=>y(e)});return Object.defineProperty(e,b,{configurable:!0,value:o}),o},f=document.currentScript;y(f?f.getRootNode():document)}();
-</script></foreignObject></svg></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Outline: (1) why not one more REST call; (2) Kafka (KRaft mode) and Kafka UI in compose; (3) the
-order-service producer; (4) the Python notification-service consumer; (5) test; (6) DLQ, idempotency.</p></div><div class="bespoke-marp-note" data-index="10" tabindex="0"><p>The page draws the same timeline as a step-by-step diagram under &quot;enable_auto_commit=False&quot;; the simulator plays it in &quot;6 · Failures&quot;.</p></div><div class="bespoke-marp-note" data-index="12" tabindex="0"><p>The page's section 5.5 has the commands, a diagram and a table: the number of partitions caps the parallelism of a group.</p></div><div class="bespoke-marp-note" data-index="14" tabindex="0"><p>The simulator sits in section 5.5 (opening on &quot;Scale the consumer&quot;) and in section 6 (opening on &quot;Failures&quot;).</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */
+</script></foreignObject></svg></div><div class="bespoke-marp-note" data-index="0" tabindex="0"><p>Outline: (1) why not one more REST call; (2) Kafka in KRaft mode in compose; (3) the producer-service and its
+gateway route; (4) the consumer-service; (5) run it, look inside Kafka, stop the consumer; (6) the store:
+order-events and the notification-service; (7) partitions, groups, keys; (8) duplicates, bad messages, the
+dead-letter topic; the simulator.</p></div><div class="bespoke-marp-note" data-index="2" tabindex="0"><p>The page's table &quot;Reference / In the store&quot; lists the same pieces: producer, topic, key, consumer, message.</p></div><div class="bespoke-marp-note" data-index="14" tabindex="0"><p>Measured in the lab's stack: after --partitions 3 and a restart, nine curl messages all went to partition 1.</p></div><script>/*!! License: https://unpkg.com/@marp-team/marp-cli@4.5.1/lib/bespoke.js.LICENSE.txt */
 !function(){"use strict";function e(e){return e&&e.__esModule&&Object.prototype.hasOwnProperty.call(e,"default")?e.default:e}var t,n,r=(n||(n=1,t={from:function(e,t){var n,r=1===(e.parent||e).nodeType?e.parent||e:document.querySelector(e.parent||e),o=[].filter.call("string"==typeof e.slides?r.querySelectorAll(e.slides):e.slides||r.children,function(e){return"SCRIPT"!==e.nodeName}),i={},a=function(e,t){return(t=t||{}).index=o.indexOf(e),t.slide=e,t},s=function(e,t){i[e]=(i[e]||[]).filter(function(e){return e!==t})},l=function(e,t){return(i[e]||[]).reduce(function(e,n){return e&&!1!==n(t)},!0)},c=function(e,t){o[e]&&(n&&l("deactivate",a(n,t)),n=o[e],l("activate",a(n,t)))},d=function(e,t){var r=o.indexOf(n)+e;l(e>0?"next":"prev",a(n,t))&&c(r,t)},u={off:s,on:function(e,t){return(i[e]||(i[e]=[])).push(t),s.bind(null,e,t)},fire:l,slide:function(e,t){if(!arguments.length)return o.indexOf(n);l("slide",a(o[e],t))&&c(e,t)},next:d.bind(null,1),prev:d.bind(null,-1),parent:r,slides:o,destroy:function(e){l("destroy",a(n,e)),i={}}};return(t||[]).forEach(function(e){e(u)}),n||c(0),u}}),t),o=e(r);const i=document.body,a=(...e)=>history.replaceState(...e),s="",l="presenter",c="next",d="overview",u=["",l,d,c],f="bespoke-marp-",m=`data-${f}`,g=(e,{protocol:t,host:n,pathname:r,hash:o}=location)=>{const i=e.toString();return`${t}//${n}${r}${i?"?":""}${i}${o}`},p=()=>i.dataset.bespokeView,v=e=>new URLSearchParams(location.search).get(e),h=(e,t={})=>{const n={location,setter:a,...t},r=new URLSearchParams(n.location.search);for(const t of Object.keys(e)){const n=e[t];"string"==typeof n?r.set(t,n):r.delete(t)}try{n.setter({...window.history.state??{}},"",g(r,n.location))}catch(e){console.error(e)}},w=(()=>{const e="bespoke-marp";try{return localStorage.setItem(e,e),localStorage.removeItem(e),!0}catch{return!1}})(),y=e=>{try{return localStorage.getItem(e)}catch{return null}},b=(e,t)=>{try{return localStorage.setItem(e,t),!0}catch{return!1}},k=e=>{try{return localStorage.removeItem(e),!0}catch{return!1}},x=(e,t)=>{const n="aria-hidden";t?e.setAttribute(n,"true"):e.removeAttribute(n)},E=e=>{e.parent.classList.add(`${f}parent`),e.slides.forEach(e=>e.classList.add(`${f}slide`)),e.on("activate",t=>{const n=`${f}active`,r=t.slide,o=r.classList,i=!o.contains(n);if(e.slides.forEach(e=>{e.classList.remove(n),x(e,!0)}),o.add(n),x(r,!1),i){const e=`${n}-ready`;o.add(e),document.body.clientHeight,o.remove(e)}})},$=e=>{let t=0,n=0;Object.defineProperty(e,"fragments",{enumerable:!0,value:e.slides.map(e=>[null,...e.querySelectorAll("[data-marpit-fragment]")])});const r=r=>void 0!==e.fragments[t][n+r],o=(r,o)=>{t=r,n=o,e.fragments.forEach((e,t)=>{e.forEach((e,n)=>{if(null==e)return;const i=t<r||t===r&&n<=o;e.setAttribute(`${m}fragment`,(i?"":"in")+"active");const a=`${m}current-fragment`;t===r&&n===o?e.setAttribute(a,"current"):e.removeAttribute(a)})}),e.fragmentIndex=o;const i={slide:e.slides[r],index:r,fragments:e.fragments[r],fragmentIndex:o};e.fire("fragment",i)};e.on("next",({fragment:i=!0})=>{if(i){if(r(1))return o(t,n+1),!1;const i=t+1;e.fragments[i]&&o(i,0)}else{const r=e.fragments[t].length;if(n+1<r)return o(t,r-1),!1;const i=e.fragments[t+1];i&&o(t+1,i.length-1)}}),e.on("prev",({fragment:i=!0})=>{if(r(-1)&&i)return o(t,n-1),!1;const a=t-1;e.fragments[a]&&o(a,e.fragments[a].length-1)}),e.on("slide",({index:t,fragment:n})=>{let r=0;if(void 0!==n){const o=e.fragments[t];if(o){const{length:e}=o;r=-1===n?e-1:Math.min(Math.max(n,0),e-1)}}o(t,r)}),o(0,0)},L=document,S=()=>!(!L.fullscreenEnabled&&!L.webkitFullscreenEnabled),P=()=>!(!L.fullscreenElement&&!L.webkitFullscreenElement),_=e=>{e.fullscreen=()=>{S()&&(async()=>{P()?(L.exitFullscreen||L.webkitExitFullscreen)?.call(L):((e=L.body)=>{(e.requestFullscreen||e.webkitRequestFullscreen)?.call(e)})()})()},document.addEventListener("keydown",t=>{"f"!==t.key&&"F11"!==t.key||t.altKey||t.ctrlKey||t.metaKey||!S()||(e.fullscreen(),t.preventDefault())})},O=`${f}inactive`,T=(e=2e3)=>({parent:t,fire:n})=>{const r=t.classList,o=e=>n(`marp-${e?"":"in"}active`);let i;const a=()=>{i&&clearTimeout(i),i=setTimeout(()=>{r.add(O),o()},e),r.contains(O)&&(r.remove(O),o(!0))};for(const e of["mousedown","mousemove","touchend"])document.addEventListener(e,a);setTimeout(a,0)},I=["AUDIO","BUTTON","INPUT","SELECT","TEXTAREA","VIDEO"],M=e=>{e.parent.addEventListener("keydown",e=>{if(!e.target)return;const t=e.target;(I.includes(t.nodeName)||"true"===t.contentEditable)&&e.stopPropagation()})},A=e=>{window.addEventListener("load",()=>{for(const t of e.slides){const e=t.querySelector("marp-auto-scaling, [data-auto-scaling], [data-marp-fitting]");t.setAttribute(`${m}load`,e?"":"hideable")}})},C=({interval:e=250}={})=>t=>{document.addEventListener("keydown",e=>{if(" "===e.key&&e.shiftKey)t.prev();else if("ArrowLeft"===e.key||"ArrowUp"===e.key||"PageUp"===e.key)t.prev({fragment:!e.shiftKey});else if(" "!==e.key||e.shiftKey)if("ArrowRight"===e.key||"ArrowDown"===e.key||"PageDown"===e.key)t.next({fragment:!e.shiftKey});else if("End"===e.key)t.slide(t.slides.length-1,{fragment:-1});else{if("Home"!==e.key)return;t.slide(0)}else t.next();e.preventDefault()});let n,r,o=0;t.parent.addEventListener("wheel",i=>{let a=!1;const s=(e,t)=>{e&&(a=a||((e,t)=>((e,t)=>{const n="X"===t?"Width":"Height";return e[`client${n}`]<e[`scroll${n}`]})(e,t)&&((e,t)=>{const{overflow:n}=e,r=e[`overflow${t}`];return"auto"===n||"scroll"===n||"auto"===r||"scroll"===r})(getComputedStyle(e),t))(e,t)),e?.parentElement&&s(e.parentElement,t)};if(0!==i.deltaX&&s(i.target,"X"),0!==i.deltaY&&s(i.target,"Y"),a)return;i.preventDefault();const l=Math.sqrt(i.deltaX**2+i.deltaY**2);if(void 0!==i.wheelDelta){if(void 0===i.webkitForce&&Math.abs(i.wheelDelta)<40)return;if(i.deltaMode===i.DOM_DELTA_PIXEL&&l<4)return}else if(i.deltaMode===i.DOM_DELTA_PIXEL&&l<12)return;r&&clearTimeout(r),r=setTimeout(()=>{n=0},e);const c=Date.now()-o<e,d=l<=n;if(n=l,c||d)return;let u;(i.deltaX>0||i.deltaY>0)&&(u="next"),(i.deltaX<0||i.deltaY<0)&&(u="prev"),u&&(t[u](),o=Date.now())})},D=(e=`.${f}osc`)=>{const t=document.querySelector(e);if(!t)return()=>{};const n=(e,n)=>{t.querySelectorAll(`[${m}osc=${JSON.stringify(e)}]`).forEach(n)};if(S()||n("fullscreen",e=>e.style.display="none"),!w){const e=(e,t)=>{e.disabled=!0,e.title=`${t} is disabled due to restricted localStorage.`};n("presenter",t=>e(t,"Presenter view")),n("overview",t=>e(t,"Overview view"))}return e=>{t.addEventListener("click",t=>{if(t.target instanceof HTMLElement){const{bespokeMarpOsc:n}=t.target.dataset;n&&t.target.blur();const r={fragment:!t.shiftKey};"next"===n?e.next(r):"prev"===n?e.prev(r):"fullscreen"===n?e?.fullscreen():"presenter"===n?e.openPresenterView():"overview"===n&&e.toggleOverviewView()}}),e.parent.appendChild(t),e.on("activate",({index:t})=>{n("page",n=>n.textContent=`Page ${t+1} of ${e.slides.length}`)}),e.on("fragment",({index:t,fragments:r,fragmentIndex:o})=>{n("prev",e=>e.disabled=0===t&&0===o),n("next",n=>n.disabled=t===e.slides.length-1&&o===r.length-1)}),e.on("marp-active",()=>x(t,!1)),e.on("marp-inactive",()=>x(t,!0)),S()&&(e=>{for(const t of["","webkit"])L.addEventListener(t+"fullscreenchange",e)})(()=>n("fullscreen",e=>e.classList.toggle("exit",S()&&P())))}},N=e=>{if(e.syncKey&&"string"==typeof e.syncKey)return!0;throw new Error("The current instance of Bespoke.js is incompatible with Marp bespoke sync plugin.")},B=(e={})=>{const t=e.key||window.history.state?.marpBespokeSyncKey||Math.random().toString(36).slice(2),n=`bespoke-marp-sync-${t}`;var r;r={marpBespokeSyncKey:t},h({},{setter:(e,...t)=>a({...e,...r},...t)});const o=()=>{const e=y(n);return e?JSON.parse(e):Object.create(null)},i=e=>{const t=o(),r={...t,...e(t)};return b(n,JSON.stringify(r)),r},s=()=>{window.removeEventListener("pageshow",s),i(e=>({reference:(e.reference||0)+1}))};return e=>{s(),Object.defineProperty(e,"syncKey",{value:t,enumerable:!0});let r=!0;setTimeout(()=>{e.on("fragment",e=>{r&&i(()=>({index:e.index,fragmentIndex:e.fragmentIndex}))})},0),window.addEventListener("storage",t=>{if(t.key===n&&t.oldValue&&t.newValue){const n=JSON.parse(t.oldValue),o=JSON.parse(t.newValue);if(n.index!==o.index||n.fragmentIndex!==o.fragmentIndex)try{r=!1,e.slide(o.index,{fragment:o.fragmentIndex,forSync:!0})}finally{r=!0}}});const a=()=>{const{reference:e}=o();void 0===e||e<=1?k(n):i(()=>({reference:e-1}))};window.addEventListener("pagehide",e=>{e.persisted&&window.addEventListener("pageshow",s),a()}),e.on("destroy",a)}},K=e=>{w&&document.addEventListener("keydown",t=>{("o"!==t.key||t.altKey||t.ctrlKey||t.metaKey)&&"Escape"!==t.key||(t.preventDefault(),e())})};let q=null;const V=({closeOnSelect:e=!0}={})=>t=>{N(t);const n=n=>{const r=(()=>{if(!q||!q.isConnected){q=document.createElement("div"),q.className=`${f}overview`,q.inert=!0;const n=document.createElement("iframe");n.src=(()=>{const n=new URLSearchParams(location.search);return n.set("view","overview"),n.set("sync",t.syncKey),e&&n.set("closeOnSelect","1"),g(n)})(),q.append(n),document.body.append(q)}return q})(),o=n??!r.dataset.open;setTimeout(()=>{if(r.dataset.open=o?"1":"",r.inert=!o,t.skipTransition=o,o){const e=r.querySelector("iframe");try{e?.contentWindow?.focus()}catch{e?.focus()}}else window.focus()},0)};Object.defineProperties(t,{toggleOverviewView:{enumerable:!0,value:n}}),window.addEventListener("message",e=>{e.origin===window.origin&&"closeOverview"===e.data&&n(!1)}),K(n)},j=e=>{const{title:t}=document;document.title="[Overview]"+(t?` - ${t}`:"");const n=!!v("closeOnSelect"),r=()=>{window.parent.postMessage("closeOverview","null"===window.origin?"*":window.origin)};if(e.slides.forEach((t,o)=>{t.tabIndex=0;const i=()=>{e.slide(o,{fragment:-1}),n&&r()};t.addEventListener("click",i),t.addEventListener("keydown",e=>{"Enter"!==e.key&&" "!==e.key||(e.preventDefault(),i())})}),window.addEventListener("keydown",t=>{const n=e.slide(),r=t=>{const r=t=>{const n=e.slides[t].getBoundingClientRect();return[Math.round((n.left+n.right)/2),Math.round((n.top+n.bottom)/2)]};let o=null,i=n;do{const e=r(i);if(o){if(Math.abs(e[0]-o[0])<2)return i}else o=e;i+=t}while(i>=0&&i<e.slides.length);return n};if("ArrowLeft"===t.key)e.slide(Math.max(n-1,0),{fragment:-1});else if("ArrowRight"===t.key)e.slide(Math.min(n+1,e.slides.length-1),{fragment:-1});else if("ArrowUp"===t.key)e.slide(r(-1),{fragment:-1});else if("ArrowDown"===t.key)e.slide(r(1),{fragment:-1});else if("End"===t.key)e.slide(e.slides.length-1,{fragment:-1});else{if("Home"!==t.key)return;e.slide(0,{fragment:-1})}t.preventDefault();const o=e.slide();e.slides[o]?.focus?.(),e.slides[o]?.scrollIntoView?.({behavior:"smooth",block:"nearest"})}),e.on("slide",({index:t})=>{e.slides[t]?.scrollIntoView?.({behavior:"smooth",block:"nearest"})}),window.parent!==window){K(r);const e=document.createElement("header");e.className=`${f}overview-header`;const t=document.createElement("button");t.className=`${f}overview-close`,t.type="button",t.title="Close overview",t.textContent=t.title,t.addEventListener("click",r),e.append(t),document.body.prepend(e)}},F=()=>{const e=p();return{[s]:V(),[l]:V({closeOnSelect:!1}),[d]:j}[e]},U=e=>{window.addEventListener("message",t=>{if(t.origin!==window.origin)return;const[n,r]=t.data.split(":");if("navigate"===n){const[t,n]=r.split(",");let o=Number.parseInt(t,10),i=Number.parseInt(n,10)+1;i>=e.fragments[o].length&&(o+=1,i=0),e.slide(o,{fragment:i})}})};var R,X,H,W,J,Y,z,G={exports:{}},Q=(R||(R=1,G.exports=(X=["area","base","br","col","command","embed","hr","img","input","keygen","link","meta","param","source","track","wbr"],H=function(e){return String(e).replace(/[&<>"']/g,function(e){return"&"+W[e]+";"})},W={"&":"amp","<":"lt",">":"gt",'"':"quot","'":"apos"},J="dangerouslySetInnerHTML",Y={className:"class",htmlFor:"for"},z={},function(e,t){var n=[],r="";t=t||{};for(var o=arguments.length;o-- >2;)n.push(arguments[o]);if("function"==typeof e)return t.children=n.reverse(),e(t);if(e){if(r+="<"+e,t)for(var i in t)!1!==t[i]&&null!=t[i]&&i!==J&&(r+=" "+(Y[i]?Y[i]:H(i))+'="'+H(t[i])+'"');r+=">"}if(-1===X.indexOf(e)){if(t[J])r+=t[J].__html;else for(;n.length;){var a=n.pop();if(a)if(a.pop)for(var s=a.length;s--;)n.push(a[s]);else r+=!0===z[a]?a:H(a)}r+=e?"</"+e+">":""}return z[r]=!0,r})),G.exports),Z=e(Q);const ee=({children:e})=>Z(null,null,...e),te=`${f}presenter-`,ne={container:`${te}container`,dragbar:`${te}dragbar-container`,next:`${te}next`,nextContainer:`${te}next-container`,noteContainer:`${te}note-container`,noteWrapper:`${te}note-wrapper`,noteButtons:`${te}note-buttons`,infoContainer:`${te}info-container`,infoPageArea:`${te}info-page-area`,infoPage:`${te}info-page`,infoPagePrev:`${te}info-page-prev`,infoPageNext:`${te}info-page-next`,noteButtonsBigger:`${te}note-bigger`,noteButtonsSmaller:`${te}note-smaller`,infoTime:`${te}info-time`,infoTimer:`${te}info-timer`},re=e=>{const{title:t}=document;document.title="[Presenter view]"+(t?` - ${t}`:"");const n={},r=e=>(n[e]=n[e]||document.querySelector(`.${e}`),n[e]);document.body.appendChild((e=>{const t=document.createElement("div");return t.className=ne.container,t.appendChild(e),t.insertAdjacentHTML("beforeend",Z(ee,null,Z("div",{class:ne.nextContainer},Z("iframe",{class:ne.next,src:"?view=next"})),Z("div",{class:ne.dragbar}),Z("div",{class:ne.noteContainer},Z("div",{class:ne.noteWrapper}),Z("div",{class:ne.noteButtons},Z("button",{class:ne.noteButtonsSmaller,tabindex:"-1",title:"Smaller notes font size"},"Smaller notes font size"),Z("button",{class:ne.noteButtonsBigger,tabindex:"-1",title:"Bigger notes font size"},"Bigger notes font size"))),Z("div",{class:ne.infoContainer},Z("div",{class:ne.infoPageArea},Z("button",{class:ne.infoPagePrev,tabindex:"-1",title:"Previous"},"Previous"),Z("button",{class:ne.infoPage}),Z("button",{class:ne.infoPageNext,tabindex:"-1",title:"Next"},"Next")),Z("time",{class:ne.infoTime,title:"Current time"}),Z("time",{class:ne.infoTimer,title:"Timer"})))),t})(e.parent)),(e=>{let t=!1;r(ne.dragbar).addEventListener("mousedown",()=>{t=!0,r(ne.dragbar).classList.add("active")}),window.addEventListener("mouseup",()=>{t=!1,r(ne.dragbar).classList.remove("active")}),window.addEventListener("mousemove",e=>{if(!t)return;const n=e.clientX/document.documentElement.clientWidth*100;r(ne.container).style.setProperty("--bespoke-marp-presenter-split-ratio",`${Math.max(0,Math.min(100,n))}%`)}),r(ne.nextContainer).addEventListener("click",()=>e.next());const n=r(ne.next),o=(i=n,(e,t)=>i.contentWindow?.postMessage(`navigate:${e},${t}`,"null"===window.origin?"*":window.origin));var i;n.addEventListener("load",()=>{r(ne.nextContainer).classList.add("active"),o(e.slide(),e.fragmentIndex),e.on("fragment",({index:e,fragmentIndex:t})=>o(e,t))});const a=document.querySelectorAll(".bespoke-marp-note");a.forEach(e=>{e.addEventListener("keydown",e=>e.stopPropagation()),r(ne.noteWrapper).appendChild(e)}),e.on("activate",()=>a.forEach(t=>t.classList.toggle("active",t.dataset.index==e.slide())));let s=0;const l=e=>{s=Math.max(-5,s+e),r(ne.noteContainer).style.setProperty("--bespoke-marp-note-font-scale",(1.2**s).toFixed(4))},c=()=>l(1),d=()=>l(-1),u=r(ne.noteButtonsBigger),f=r(ne.noteButtonsSmaller);u.addEventListener("click",()=>{u.blur(),c()}),f.addEventListener("click",()=>{f.blur(),d()}),document.addEventListener("keydown",e=>{"+"===e.key&&c(),"-"===e.key&&d()},!0);const m=r(ne.infoPage);e.on("activate",({index:t})=>{m.textContent=`${t+1} / ${e.slides.length}`}),m.addEventListener("click",()=>{m.blur(),e.toggleOverviewView()});const g=r(ne.infoPagePrev),p=r(ne.infoPageNext);g.addEventListener("click",t=>{g.blur(),e.prev({fragment:!t.shiftKey})}),p.addEventListener("click",t=>{p.blur(),e.next({fragment:!t.shiftKey})}),e.on("fragment",({index:t,fragments:n,fragmentIndex:r})=>{g.disabled=0===t&&0===r,p.disabled=t===e.slides.length-1&&r===n.length-1});let v=new Date;const h=()=>{const e=new Date,t=e=>`${Math.floor(e)}`.padStart(2,"0"),n=e.getTime()-v.getTime(),o=t(n/1e3%60),i=t(n/1e3/60%60),a=t(n/36e5%24);r(ne.infoTime).textContent=e.toLocaleTimeString(),r(ne.infoTimer).textContent=`${a}:${i}:${o}`};h(),setInterval(h,250),r(ne.infoTimer).addEventListener("click",()=>{v=new Date})})(e)},oe=e=>{N(e),Object.defineProperties(e,{openPresenterView:{enumerable:!0,value:ie},presenterUrl:{enumerable:!0,get:ae}}),w&&document.addEventListener("keydown",t=>{"p"!==t.key||t.altKey||t.ctrlKey||t.metaKey||(t.preventDefault(),e.openPresenterView())})};function ie(){const{max:e,floor:t}=Math,n=e(t(.85*window.innerWidth),640),r=e(t(.85*window.innerHeight),360);return window.open(this.presenterUrl,te+this.syncKey,`width=${n},height=${r},menubar=no,toolbar=no`)}function ae(){const e=new URLSearchParams(location.search);return e.set("view","presenter"),e.set("sync",this.syncKey),g(e)}const se=e=>{const t=p();return t===c&&e.appendChild(document.createElement("span")),{[s]:oe,[l]:re,[c]:U}[t]},le=e=>{e.on("activate",t=>{document.querySelectorAll(".bespoke-progress-parent > .bespoke-progress-bar").forEach(n=>{n.style.flexBasis=100*t.index/(e.slides.length-1)+"%"})})},ce=e=>{const t=Number.parseInt(e,10);return Number.isNaN(t)?null:t},de=(e={})=>{const t={history:!0,...e};return e=>{let n=!0;const r=e=>{const t=n;try{return n=!0,e()}finally{n=t}},o=(t={fragment:!0})=>{let n=t.fragment?ce(v("f")||""):null;((t,n)=>{const{min:r,max:o}=Math,{fragments:i,slides:a}=e,s=o(0,r(t,a.length-1)),l=o(0,r(n||0,i[s].length-1));s===e.slide()&&l===e.fragmentIndex||e.slide(s,{fragment:l})})((()=>{if(location.hash){const[t]=location.hash.slice(1).split(":~:");if(/^\d+$/.test(t))return(ce(t)??1)-1;const r=document.getElementById(t)||document.querySelector(`a[name="${CSS.escape(t)}"]`);if(r){const{length:t}=e.slides;for(let o=0;o<t;o+=1)if(e.slides[o].contains(r)){const t=e.fragments?.[o],i=r.closest("[data-marpit-fragment]");if(t&&i){const e=t.indexOf(i);e>=0&&(n=e)}return o}}}return 0})(),n)};e.on("fragment",({index:e,fragmentIndex:r})=>{n||h({f:0===r||r.toString()},{location:{...location,hash:`#${e+1}`},setter:(...e)=>t.history?history.pushState(...e):history.replaceState(...e)})}),setTimeout(()=>{o(),window.addEventListener("hashchange",()=>r(()=>{o({fragment:!1}),h({f:void 0})})),window.addEventListener("popstate",()=>{n||r(()=>o())}),n=!1},0)}},{PI:ue,abs:fe,sqrt:me,atan2:ge}=Math,pe={passive:!0},ve=({slope:e=-.7,swipeThreshold:t=30}={})=>n=>{let r;const o=n.parent,i=e=>{const t=o.getBoundingClientRect();return{x:e.pageX-(t.left+t.right)/2,y:e.pageY-(t.top+t.bottom)/2}};o.addEventListener("touchstart",({touches:e})=>{r=1===e.length?i(e[0]):void 0},pe),o.addEventListener("touchmove",e=>{if(r)if(1===e.touches.length){e.preventDefault();const t=i(e.touches[0]),n=t.x-r.x,o=t.y-r.y;r.delta=me(fe(n)**2+fe(o)**2),r.radian=ge(n,o)}else r=void 0}),o.addEventListener("touchend",o=>{if(r){if(r.delta&&r.delta>=t&&r.radian){const t=(r.radian-e+ue)%(2*ue)-ue;n[t<0?"next":"prev"](),o.stopPropagation()}r=void 0}},pe)},he=new Map;he.clear(),he.set("none",{backward:{both:void 0,incoming:void 0,outgoing:void 0},forward:{both:void 0,incoming:void 0,outgoing:void 0}});const we={both:"",outgoing:"outgoing-",incoming:"incoming-"},ye={forward:"",backward:"-backward"},be=e=>`--marp-bespoke-transition-animation-${e}`,ke=e=>`--marp-transition-${e}`,xe=be("name"),Ee=be("duration"),$e=e=>new Promise(t=>{const n={},r=document.createElement("div"),o=e=>{r.remove(),t(e)};r.addEventListener("animationstart",()=>o(n)),Object.assign(r.style,{animationName:e,animationDuration:"1s",animationFillMode:"both",animationPlayState:"paused",position:"absolute",pointerEvents:"none"}),document.body.appendChild(r);const i=getComputedStyle(r).getPropertyValue(ke("duration"));i&&Number.parseFloat(i)>=0&&(n.defaultDuration=i),((e,t)=>{requestAnimationFrame(()=>{e.style.animationPlayState="running",requestAnimationFrame(()=>t(void 0))})})(r,o)}),Le=async e=>he.has(e)?he.get(e):(e=>{const t={},n=[];for(const[r,o]of Object.entries(we))for(const[i,a]of Object.entries(ye)){const s=`marp-${o}transition${a}-${e}`;n.push($e(s).then(e=>{t[i]=t[i]||{},t[i][r]=e?{...e,name:s}:void 0}))}return Promise.all(n).then(()=>t)})(e).then(t=>(he.set(e,t),t)),Se=e=>Object.values(e).flatMap(Object.values).every(e=>!e),Pe=(e,{type:t,backward:n})=>{const r=e[n?"backward":"forward"],o=(()=>{const e=r[t],n=e=>({[xe]:e.name});if(e)return n(e);if(r.both){const e=n(r.both);return"incoming"===t&&(e[be("direction")]="reverse"),e}})();return!o&&n?Pe(e,{type:t,backward:!1}):o||{[xe]:"__bespoke_marp_transition_no_animation__"}},_e=e=>{if(e)try{const t=JSON.parse(e);if((e=>{if("object"!=typeof e)return!1;const t=e;return"string"==typeof t.name&&(void 0===t.duration||"string"==typeof t.duration)})(t))return t}catch{}},Oe="_tSId",Te="_tA",Ie="bespoke-marp-transition-warming-up",Me=window.matchMedia("(prefers-reduced-motion: reduce)"),Ae="__bespoke_marp_transition_reduced_outgoing__",Ce="__bespoke_marp_transition_reduced_incoming__",De={forward:{both:void 0,incoming:{name:Ce},outgoing:{name:Ae}},backward:{both:void 0,incoming:{name:Ce},outgoing:{name:Ae}}},Ne=e=>{if(!document.startViewTransition)return;const t=t=>(void 0!==t&&(e._tD=t),e._tD);let n;t(!1),((...e)=>{CSS.registerProperty({name:ke("duration"),syntax:"<time>",inherits:!0,initialValue:"-1s"});const t=[...new Set(e).values()];return Promise.all(t.map(e=>Le(e))).then()})(...Array.from(document.querySelectorAll("section[data-transition], section[data-transition-back]")).flatMap(e=>[e.dataset.transition,e.dataset.transitionBack].flatMap(e=>{const t=_e(e);return[t?.name,t?.builtinFallback?`__builtin__${t.name}`:void 0]}).filter(e=>!!e))).then(()=>{document.querySelectorAll("style").forEach(e=>{e.innerHTML=e.innerHTML.replace(/--marp-transition-duration:[^;}]*[;}]/g,e=>e.slice(0,-1)+"!important"+e.slice(-1))})});const r=(n,{back:r,cond:o})=>i=>{const a=t();if(a)return!!i[Te]||!("object"!=typeof a||(a.skipTransition(),!i.forSync));if(e.skipTransition)return!0;if(!o(i))return!0;const s=e.slides[e.slide()],l=()=>i.back??r,c="data-transition"+(l()?"-back":""),d=s.querySelector(`section[${c}]`);if(!d)return!0;const u=_e(d.getAttribute(c)??void 0);return!u||((async(e,{builtinFallback:t=!0}={})=>{let n=await Le(e);if(Se(n)){if(!t)return;return n=await Le(`__builtin__${e}`),Se(n)?void 0:n}return n})(u.name,{builtinFallback:u.builtinFallback}).then(e=>{if(!e){t(!0);try{n(i)}finally{t(!1)}return}let r=e;Me.matches&&(console.warn("Use a constant animation to transition because preferring reduced motion by viewer has detected."),r=De);const o=document.getElementById(Oe);o&&o.remove();const a=document.createElement("style");a.id=Oe,document.head.appendChild(a),((e,t)=>{const n=[`:root{${ke("direction")}:${t.backward?-1:1};}`,":root:has(.bespoke-marp-inactive){cursor:none;}"],r=t=>{const n=e[t].both?.defaultDuration||e[t].outgoing?.defaultDuration||e[t].incoming?.defaultDuration;return"forward"===t?n:n||r("forward")},o=t.duration||r(t.backward?"backward":"forward");void 0!==o&&n.push(`::view-transition-group(*){${Ee}:${o};}`);const i=e=>Object.entries(e).map(([e,t])=>`${e}:${t};`).join("");return n.push(`::view-transition-old(root){${i(Pe(e,{...t,type:"outgoing"}))}}`,`::view-transition-new(root){${i(Pe(e,{...t,type:"incoming"}))}}`),n})(r,{backward:l(),duration:u.duration}).forEach(e=>a.sheet?.insertRule(e));const s=document.documentElement.classList;s.add(Ie);let c=!1;const d=()=>{c||(n(i),c=!0,s.remove(Ie))},f=()=>{t(!1),a.remove(),s.remove(Ie)};try{t(!0);const e=document.startViewTransition(d);t(e),e.finished.finally(f)}catch(e){console.error(e),d(),f()}}),!1)};e.on("prev",r(t=>e.prev({...t,[Te]:!0}),{back:!0,cond:e=>e.index>0&&!((e.fragment??1)&&n.fragmentIndex>0)})),e.on("next",r(t=>e.next({...t,[Te]:!0}),{cond:t=>t.index+1<e.slides.length&&!(n.fragmentIndex+1<n.fragments.length)})),setTimeout(()=>{e.on("slide",r(t=>e.slide(t.index,{...t,[Te]:!0}),{cond:t=>{const n=e.slide();return t.index!==n&&(t.back=t.index<n,!0)}}))},0),e.on("fragment",e=>{n=e})};let Be;const Ke=()=>(void 0===Be&&(Be="wakeLock"in navigator&&navigator.wakeLock),Be),qe=async()=>{const e=Ke();if(e)try{return await e.request("screen")}catch(e){console.warn(e)}return null},Ve=async()=>{if(!Ke())return;let e;const t=()=>{e&&"visible"===document.visibilityState&&qe()};for(const e of["visibilitychange","fullscreenchange"])document.addEventListener(e,t);return e=await qe(),e};((e=document.getElementById(":$p"))=>{(()=>{const e=v("view");i.dataset.bespokeView=u.some(t=>t&&t===e)?e:""})();const t=(e=>{const t=v(e);return h({[e]:void 0}),t})("sync")||void 0;o.from(e,((...e)=>{const t=u.findIndex(e=>p()===e);return e.map(([e,n])=>e[t]&&n).filter(e=>e)})([[1,1,1,0],B({key:t})],[[1,1,0,1],se(e)],[[1,1,0,0],M],[[1,1,1,1],E],[[1,0,0,0],T()],[[1,1,1,1],A],[[1,1,1,1],de({history:!1})],[[1,1,0,0],C()],[[1,1,1,0],_],[[1,0,0,0],le],[[1,1,0,0],ve()],[[1,0,0,0],D()],[[1,1,1,0],F()],[[1,0,0,0],Ne],[[1,1,1,1],$],[[1,1,1,0],Ve]))})()}();</script></body></html>

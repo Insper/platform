@@ -195,7 +195,7 @@ Each consumer group tracks its own offsets, so `notification-group` and `analyti
 
 When a producer sends a message **with a key**, Kafka's default partitioner hashes the key to choose the partition: the same key always goes to the same partition (as long as the number of partitions does not change). Messages **without a key** are spread across partitions.
 
-Since order is only guaranteed *inside* a partition, the key is how you choose **what** must stay in order. In [Hands-on 10](../../hands-on/10/index.md) the order service sends `kafkaTemplate.send("order-events", order.getId().toString(), event)` — the `orderId` is the key, so `OrderCreated`, `OrderPaid` and `OrderShipped` of the same order are always read in sequence, while different orders are processed in parallel.
+Since order is only guaranteed *inside* a partition, the key is how you choose **what** must stay in order. In [Hands-on 10](../../hands-on/10/index.md) the order service sends `kafkaTemplate.send("order-events", id, json)` — the order id is the key, so `OrderCreated`, `OrderPaid` and `OrderShipped` of the same order are always read in sequence, while different orders are processed in parallel.
 
 ``` mermaid-sim
 flowchart LR
@@ -223,7 +223,7 @@ The producer setting `acks` chooses how much of this the producer waits for:
 | `1` | the leader has written it | Lost if the leader dies before followers copy it |
 | `all` | all in-sync replicas have it (with `min.insync.replicas` ≥ 2) | Slowest, but survives the loss of a broker |
 
-Hands-on 10 uses `acks: all` with `enable.idempotence: true`; the idempotent producer attaches a sequence number to each message so that the producer's own retries do not create duplicates in the log. (Since Kafka 3.0 both are already the producer defaults.)
+Hands-on 10 relies on the producer defaults, which since Kafka 3.0 are `acks=all` with `enable.idempotence=true`; the idempotent producer attaches a sequence number to each message so that the producer's own retries do not create duplicates in the log.
 
 !!! info "ZooKeeper and KRaft"
     Older Kafka clusters stored their metadata in a separate ZooKeeper ensemble. Kafka now has its own Raft-based metadata quorum (**KRaft**; see [Consensus](../distributed_systems/consensus/index.md)), and Kafka 4.0 (2025) removed ZooKeeper support entirely. [Hands-on 10](../../hands-on/10/index.md) runs Kafka 4 in KRaft mode: a single node that is both broker and controller.
@@ -290,7 +290,7 @@ A consumer reads a message, processes it (e.g. sends an e-mail), and **commits i
 | Guarantee | How | A crash means | Typical use |
 |---|---|---|---|
 | **At-most-once** | Commit **before** processing | The message is **lost** | Metrics where a gap is acceptable |
-| **At-least-once** | Commit **after** processing | The message is **processed again** | The default choice — Hands-on 10 (`enable_auto_commit=False` + `commit()` after processing) |
+| **At-least-once** | Commit **after** processing | The message is **processed again** | The default choice — Hands-on 10 (the Spring Kafka container commits after the listener returns) |
 | **Exactly-once** | Kafka transactions (idempotent producer + `isolation.level=read_committed`) | Neither — but only for *read from Kafka → write to Kafka* | Stream processing (Kafka Streams) |
 
 ``` mermaid-sim
@@ -405,7 +405,7 @@ stateDiagram-v2
     }
     ```
 
-Retry only failures that can succeed later (a database briefly unavailable). A message that can *never* be processed — invalid JSON, an unknown product ID — should go straight to the DLQ; retrying it only delays the rest of the partition.
+Retry only failures that can succeed later (a database briefly unavailable). A message that can *never* be processed — invalid JSON, an unknown product ID — should go straight to the DLQ; retrying it only delays the rest of the partition. And with no error handling configured at all, Spring Kafka's default `DefaultErrorHandler` retries a failing record 10 times, logs it and commits past it: nothing blocks, but the message is lost — [Hands-on 10](../../hands-on/10/index.md) (section 8) shows both behaviours.
 
 ---
 
@@ -435,7 +435,7 @@ Retry only failures that can succeed later (a database briefly unavailable). A m
 
 ## Connections
 
-- [Hands-on 10](../../hands-on/10/index.md) — Kafka in the store: `OrderCreated` published by the order service and consumed by the notification service, with a DLQ.
+- [Hands-on 10](../../hands-on/10/index.md) — Kafka in the store: `OrderCreated` published by the order service and consumed by the notification service, with a dead-letter topic.
 - [Microservices](../microservices/index.md) — database per service, the reason sagas and outboxes are needed.
 - [Distributed Systems](../distributed_systems/index.md) — eventual consistency, ordering and consensus (KRaft).
 - [Reliability](../reliability/index.md) — retries, backoff and idempotency apply to consumers too.

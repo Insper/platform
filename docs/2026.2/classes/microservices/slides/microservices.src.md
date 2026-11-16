@@ -123,7 +123,7 @@ Boundaries **converge**, so design both together. The **inverse Conway maneuver*
 | `product-service` | product catalogue | products data | — | Product API |
 | `order-service` | orders of the current user | orders data | product, exchange, Kafka | Order API |
 | `exchange-service` (Python) | currency conversion | — | third-party rates API | Exchange API |
-| `notification-service` (Python) | order confirmation e-mails | — | Kafka | Hands-on 10 |
+| `notification-service` (Spring Boot) | order confirmation e-mails | — | Kafka | Hands-on 10 |
 
 <div class="ok">
 
