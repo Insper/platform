@@ -217,6 +217,14 @@ nav = [
       ] },
     ] },
     { "Interview Material" = "2026.2/interview/index.md" },
+    { "Support" = [
+      { "Midterm" = [
+        { "Type A" = "2026.2/support/midterm/midterm-2026.2-A.pdf" },
+        { "Type B" = "2026.2/support/midterm/midterm-2026.2-B.pdf" },
+        { "Type C" = "2026.2/support/midterm/midterm-2026.2-C.pdf" },
+        { "Type D" = "2026.2/support/midterm/midterm-2026.2-D.pdf" },
+      ] },
+    ] },
   ] },
 
   { "2026.1" = [
@@ -814,6 +822,7 @@ untranslated_notice = "Esta página ainda não foi traduzida. Exibindo a versão
 language = "pt-BR"
 
 [project.plugins.i18n.languages.nav_translations]
+"Midterm" = "Avaliação Intermediária"
 "Overview" = "Visão geral"
 "a. Overview" = "a. Visão geral"
 "Classes" = "Aulas"
@@ -826,6 +835,10 @@ language = "pt-BR"
 "Ports, TCP & UDP" = "Portas, TCP e UDP"
 "Security" = "Segurança"
 "RSA & Ed25519" = "RSA e Ed25519"
+"Type A" = "Tipo A"
+"Type B" = "Tipo B"
+"Type C" = "Tipo C"
+"Type D" = "Tipo D"
 "Versioning REST APIs" = "Versionamento de APIs REST"
 "Tooling" = "Ferramentas"
 "Git Submodules" = "Submódulos Git"
