@@ -38,6 +38,8 @@ extra_javascript = [
   "assets/javascripts/csim/core.js",
   # circles today in the edition calendars (.calendar-wrap)
   "assets/javascripts/calendar-today.js",
+  # PDFs listed in the nav (2026.2 > Support > Midterm) open inside the content area
+  "assets/javascripts/pdf-embed.js",
   # System Design Playground (2027.1): order matters
   "assets/javascripts/playground/rng.js",
   "assets/javascripts/playground/catalog.js",
