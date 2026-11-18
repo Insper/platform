@@ -286,17 +286,47 @@ public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
     if (!routerValidator.isSecured.test(request)) {
         return chain.filter(exchange);
     }
-    if (request.getCookies().containsKey(AUTH_COOKIE_TOKEN)) {
-        String token = request.getCookies().getFirst(AUTH_COOKIE_TOKEN).getValue();
-        if (null != token && token.length() > 0) {
-            return requestAuthTokenSolve(exchange, chain, token.trim());
-        }
+    HttpCookie cookie = request.getCookies().getFirst(AUTH_COOKIE_TOKEN);
+    if (cookie == null || cookie.getValue().isBlank()) {
+        return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED));
     }
-    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+    return requestAuthTokenSolve(exchange, chain, cookie.getValue().trim());
 }
 ```
 
-<p class="small">Spring Cloud Gateway is <strong>reactive</strong> (WebFlux): the filter returns <code>Mono&lt;Void&gt;</code> and calls auth with <code>WebClient</code>, not <code>RestTemplate</code>. Its <code>onStatus(4xx)</code> keeps an invalid token a <code>401</code>, not a <code>500</code>.</p>
+<p class="small">Spring Cloud Gateway is <strong>reactive</strong> (WebFlux): the filter returns <code>Mono&lt;Void&gt;</code>, so a missing cookie is a <code>Mono.error</code>, not a <code>throw</code>; it calls auth with <code>WebClient</code>, not <code>RestTemplate</code>.</p>
+
+---
+
+<!-- _class: tight -->
+
+## `requestAuthTokenSolve`: one `WebClient`, built once
+
+```java
+// constructor: built once from the injected WebClient.Builder, reused by every request
+this.authClient = builder.baseUrl("http://auth:8080").build();
+
+return authClient.post().uri("/auth/solve").bodyValue(Map.of("token", jwt))
+    .retrieve()
+    .onStatus(HttpStatusCode::is4xxClientError,
+        r -> Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token")))
+    .bodyToMono(new ParameterizedTypeReference<Map<String, String>>() {})
+    .timeout(Duration.ofSeconds(3))
+    .flatMap(map -> chain.filter(updateRequest(exchange, map.get("idAccount"))));
+```
+
+<div class="matrix" style="--n:3">
+<div></div><div class="head">auth answers 200</div><div class="head">auth answers 4xx</div><div class="head">auth silent for 3 s</div>
+<div class="row">gateway</div><div class="box green" style="flex-direction: column">+ id-account<small>forward to the route</small></div><div class="box red" style="flex-direction: column">401<small>onStatus, not a 500</small></div><div class="box orange" style="flex-direction: column">timeout<small>fails, holds no request</small></div>
+</div>
+
+<p class="small">The client is thread-safe: the injected builder adds metrics (<code>http_client_requests</code>) and tracing. <code>spring-boot-starter-webclient</code> in the pom: Spring Boot 4 moved it out of WebFlux.</p>
+
+<!--
+A WebClient.builder()...build() inside filter() also works, but repeats the setup on every secured request.
+It is waste, not a memory leak: we measured 4 rounds, about 510 thousand requests, and the live heap after a full GC stayed flat.
+What grows in docker stats is the heap the JVM reserves (up to 25% of the host without a limit), not a leak.
+-->
 
 ---
 

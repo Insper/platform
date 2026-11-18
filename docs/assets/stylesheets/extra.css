@@ -213,28 +213,25 @@
     border: 0;
 }
 
-/* PDF opened from the navigation inside the content area (pdf-embed.js) */
-.md-typeset .pdf-viewer__frame {
+/* PDF embedded in a page (2026.2/support/midterm): A4 portrait, capped to the viewport */
+.md-typeset .pdf-embed {
     width: 100%;
     height: min(85vh, 1100px);
-    margin: 1em 0 .4em;
+    margin: 1em 0 .6em;
     border: 1px solid var(--md-default-fg-color--lightest);
     border-radius: 6px;
     overflow: hidden;
 }
 
-.md-typeset .pdf-viewer__frame iframe {
+.md-typeset .pdf-embed iframe {
     display: block;
     width: 100%;
     height: 100%;
     border: 0;
 }
 
-/* while the PDF is shown, the page under it (content, breadcrumb, table of contents) is hidden */
-.pdf-viewer--open .md-content__inner > :not(.pdf-viewer),
-.pdf-viewer--open .md-path,
-.pdf-viewer--open .md-sidebar--secondary {
-    display: none !important;
+.md-typeset .pdf-embed__links .md-button {
+    margin: 0 .4em .4em 0;
 }
 
 /* CAP theorem diagram (classes/distributed_systems/cap/cap-venn*.svg, inlined) */

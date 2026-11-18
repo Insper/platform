@@ -38,8 +38,6 @@ extra_javascript = [
   "assets/javascripts/csim/core.js",
   # circles today in the edition calendars (.calendar-wrap)
   "assets/javascripts/calendar-today.js",
-  # PDFs listed in the nav (2026.2 > Support > Midterm) open inside the content area
-  "assets/javascripts/pdf-embed.js",
   # System Design Playground (2027.1): order matters
   "assets/javascripts/playground/rng.js",
   "assets/javascripts/playground/catalog.js",
@@ -220,12 +218,7 @@ nav = [
     ] },
     { "Interview Material" = "2026.2/interview/index.md" },
     { "Support" = [
-      { "Midterm" = [
-        { "Type A" = "2026.2/support/midterm/midterm-2026.2-A.pdf" },
-        { "Type B" = "2026.2/support/midterm/midterm-2026.2-B.pdf" },
-        { "Type C" = "2026.2/support/midterm/midterm-2026.2-C.pdf" },
-        { "Type D" = "2026.2/support/midterm/midterm-2026.2-D.pdf" },
-      ] },
+      { "Midterm" = "2026.2/support/midterm/index.md" },
     ] },
   ] },
 
@@ -837,10 +830,6 @@ language = "pt-BR"
 "Ports, TCP & UDP" = "Portas, TCP e UDP"
 "Security" = "Segurança"
 "RSA & Ed25519" = "RSA e Ed25519"
-"Type A" = "Tipo A"
-"Type B" = "Tipo B"
-"Type C" = "Tipo C"
-"Type D" = "Tipo D"
 "Versioning REST APIs" = "Versionamento de APIs REST"
 "Tooling" = "Ferramentas"
 "Git Submodules" = "Submódulos Git"
