@@ -1,0 +1,31 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: payment
+  mvc:
+    problemdetails:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${DB_NAME:boxoffice}?currentSchema=payment
+    username: ${DB_USER:boxoffice}
+    password: ${DB_PASSWORD:boxoffice}
+  flyway:
+    schemas: payment
+
+boxoffice:
+  psp:
+    url: ${PSP_URL:http://psp:8080}
+    connect-timeout: 500ms
+    read-timeout: ${PSP_READ_TIMEOUT:2s}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

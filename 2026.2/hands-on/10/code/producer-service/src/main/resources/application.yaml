@@ -1,0 +1,11 @@
+spring:
+
+  application:
+    name: producer
+
+  kafka:
+    bootstrap-servers: kafka:9092
+
+logging:
+  level:
+    store: debug

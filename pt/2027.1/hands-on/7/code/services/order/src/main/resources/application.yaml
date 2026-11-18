@@ -1,0 +1,47 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: order
+  mvc:
+    problemdetails:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${DB_NAME:boxoffice}?currentSchema=orders
+    username: ${DB_USER:boxoffice}
+    password: ${DB_PASSWORD:boxoffice}
+  flyway:
+    schemas: orders
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: 6379
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+        max.block.ms: 5000     # Kafka down: fail the relay run in 5 s (default 60 s) and retry
+
+boxoffice:
+  order:
+    notify-mode: ${NOTIFY_MODE:outbox}
+    notification-url: ${NOTIFICATION_URL:http://notification:8086}
+    topic: order-events
+    relay-interval-ms: 200
+  waiting-room:
+    admit-per-second: ${ADMIT_PER_SECOND:20}
+    admission-ttl: 5m
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true        # /actuator/health/liveness and /readiness

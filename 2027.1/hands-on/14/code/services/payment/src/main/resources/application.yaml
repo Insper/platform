@@ -1,0 +1,39 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: payment
+  mvc:
+    problemdetails:
+      enabled: true
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${DB_NAME:boxoffice}?currentSchema=payment
+    username: ${DB_USER:boxoffice}
+    password: ${DB_PASSWORD:boxoffice}
+  flyway:
+    schemas: payment
+
+boxoffice:
+  psp:
+    provider: ${PSP_PROVIDER:fake}        # fake (lab 9's WireMock) | stripe (the sandbox, lab 14)
+    url: ${PSP_URL:http://psp:8080}
+    connect-timeout: 500ms
+    read-timeout: ${PSP_READ_TIMEOUT:2s}
+  stripe:
+    url: https://api.stripe.com
+    secret-key: ${STRIPE_SECRET_KEY:}             # sk_test_…: from the environment, never from Git
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}     # whsec_…: printed by stripe listen
+    currency: ${STRIPE_CURRENCY:brl}
+    payment-method: ${STRIPE_PAYMENT_METHOD:pm_card_visa}   # a test card when the request names none
+    tolerance: 300s                               # max age of a webhook signature
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

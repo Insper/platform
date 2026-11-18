@@ -1,0 +1,7 @@
+# add to the services of your compose.yaml
+  notification:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    deploy:
+      replicas: 1

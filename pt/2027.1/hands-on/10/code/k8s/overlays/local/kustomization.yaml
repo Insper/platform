@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: boxoffice/catalog          # the name used in base/catalog.yaml...
+    newTag: dev                      # ...and the tag loaded into the local cluster
+secretGenerator:
+  - name: db-credentials             # lab only: real secrets never live in Git in plain text
+    namespace: boxoffice
+    literals:
+      - DB_USER=boxoffice
+      - DB_PASSWORD=boxoffice

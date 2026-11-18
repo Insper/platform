@@ -1,0 +1,72 @@
+name: pgcluster
+
+x-pg-env: &pg-env
+  POSTGRES_USER: ${DB_USER:-store}
+  POSTGRES_PASSWORD: ${DB_PASSWORD:-devpass}
+  POSTGRES_DB: ${DB_NAME:-store}
+  REPLICATION_USER: replicator
+  REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replpass}
+
+x-pg-node: &pg-node
+  image: postgres:17
+  entrypoint: ["bash", "/scripts/node-entrypoint.sh"]
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+    interval: 2s
+    timeout: 3s
+    retries: 30
+
+services:
+
+  pg-primary:
+    <<: *pg-node
+    hostname: pg-primary
+    # cluster_name: the node's name in queries and the name a replica reports to its primary
+    command: ["postgres", "-c", "cluster_name=pg-primary"]
+    environment:
+      <<: *pg-env
+    ports:
+      - 5432:5432
+    volumes:
+      - primary_data:/var/lib/postgresql/data
+      - ./scripts:/scripts:ro
+
+  pg-replica1:
+    <<: *pg-node
+    hostname: pg-replica1
+    command: ["postgres", "-c", "cluster_name=pg-replica1"]
+    environment:
+      <<: *pg-env
+      PRIMARY_HOST: pg-primary  # makes this node a replica (see node-entrypoint.sh)
+    ports:
+      - 5433:5432
+    volumes:
+      - replica1_data:/var/lib/postgresql/data
+      - ./scripts:/scripts:ro
+
+  pg-replica2:
+    <<: *pg-node
+    hostname: pg-replica2
+    command: ["postgres", "-c", "cluster_name=pg-replica2"]
+    environment:
+      <<: *pg-env
+      PRIMARY_HOST: pg-primary
+    ports:
+      - 5434:5432
+    volumes:
+      - replica2_data:/var/lib/postgresql/data
+      - ./scripts:/scripts:ro
+
+  client:
+    image: postgres:17
+    profiles: [tools]
+    entrypoint: ["psql"]
+    environment:
+      PGUSER: ${DB_USER:-store}
+      PGPASSWORD: ${DB_PASSWORD:-devpass}
+      PGDATABASE: ${DB_NAME:-store}
+
+volumes:
+  primary_data:
+  replica1_data:
+  replica2_data:

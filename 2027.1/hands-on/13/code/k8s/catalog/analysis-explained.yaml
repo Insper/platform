@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: catalog-explained
+spec:
+  metrics:
+    - name: policy-verdict
+      count: 1                      # one judgement per analysis run
+      initialDelay: 90s             # let the canary pods serve traffic first (see WINDOW)
+      provider:
+        job:                        # a Kubernetes Job: exit 0 = pass, non-zero = fail
+          spec:
+            backoffLimit: 0
+            activeDeadlineSeconds: 300
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: verdict
+                    # built from Dockerfile.ai-tools and loaded into the kind cluster of lab 10:
+                    #   kind load docker-image boxoffice-ai-tools:dev --name boxoffice
+                    image: boxoffice-ai-tools:dev
+                    imagePullPolicy: IfNotPresent
+                    command: ["python", "/app/canary_explain.py"]
+                    env:
+                      - name: PROM_URL      # find yours: kubectl get svc -A | grep -i prometheus
+                        value: http://prometheus.monitoring:9090
+                      - name: CANARY_SELECTOR
+                        value: service="catalog-canary"
+                      - name: STABLE_SELECTOR
+                        value: service="catalog-stable"
+                      - name: WINDOW        # only samples taken after the canary started
+                        value: 1m
+                      # The explanation is optional: without a reachable model the Job prints
+                      # "(no explanation: ...)" and still exits with the policy verdict.
+                      - name: LLM_PROVIDER  # ollama (free) or anthropic (needs the Secret below)
+                        value: ollama
+                      - name: LLM_BASE_URL  # Ollama on your machine, seen from Docker Desktop
+                        value: http://host.docker.internal:11434/v1
+                      - name: ANTHROPIC_API_KEY
+                        valueFrom:
+                          secretKeyRef: { name: llm, key: anthropic-api-key, optional: true }

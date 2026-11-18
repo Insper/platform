@@ -1,0 +1,25 @@
+name: store
+
+services:
+  
+  prometheus:
+    image: prom/prometheus:latest
+    hostname: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - $VOLUME/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  
+  grafana:
+    image: grafana/grafana-enterprise
+    hostname: grafana
+    ports:
+      - 3000:3000
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - $VOLUME/grafana:/var/lib/grafana
+      - $VOLUME/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources      
+    restart: always
+    depends_on:
+      - prometheus
