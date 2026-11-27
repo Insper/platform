@@ -1,0 +1,11 @@
+spring:
+
+  application:
+    name: consumer
+
+  kafka:
+    bootstrap-servers: kafka:9092
+
+logging:
+  level:
+    store: debug
