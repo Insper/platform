@@ -137,7 +137,7 @@ $$
 |     |    | 09 |    |    |    | 13 |    |
 |     |    | 16 |    |    |    | <span class='project'>20</span> |    |
 |     |    | 23 |    |    |    | <span class='fexam'>27</span> |    |
-| Dec |    | <span class='sexam'>07</span> | <span class='sexam'>08</span> | <span class='sexam'>09</span> |.  |    |    |
+| Dec |    |    |    | <span class='sexam'>09</span> |    |    |    |
 
 </div>
 
